@@ -10,22 +10,24 @@ import nakai/html.{type Node}
 import sqlight.{type Connection}
 import wisp.{type Response}
 
+import rebstock/auth.{type User}
 import rebstock/db.{type Wine, type Winery}
 
 // --- Home ---
 
-pub fn home(conn: Connection) -> Response {
-  let wine_count = db.count_wines(conn)
-  let all_cellar = db.cellar_wines(conn)
+pub fn home(conn: Connection, user: User) -> Response {
+  let u = user.username
+  let wine_count = db.count_wines(conn, u)
+  let all_cellar = db.cellar_wines(conn, u)
   let cellar_count =
     list.fold(all_cellar, 0, fn(acc, w) { acc + w.in_cellar })
 
-  let top_cellar = db.top_cellar(conn, 10)
-  let top_rated = db.top_rated_by_user(conn, 10)
-  let latest_rated = db.latest_rated(conn, 10)
-  let latest_cellar = db.latest_cellar(conn, 10)
+  let top_cellar = db.top_cellar(conn, u, 10)
+  let top_rated = db.top_rated_by_user(conn, u, 10)
+  let latest_rated = db.latest_rated(conn, u, 10)
+  let latest_cellar = db.latest_cellar(conn, u, 10)
 
-  page("Rebstock", [
+  page("Rebstock", user, [
     html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10")], [
       stat_card("Wines", int.to_string(wine_count), "/wines"),
       stat_card(
@@ -35,7 +37,7 @@ pub fn home(conn: Connection) -> Response {
       ),
       stat_card(
         "Wineries",
-        int.to_string(list.length(db.list_wineries(conn))),
+        int.to_string(list.length(db.list_wineries(conn, u))),
         "/wineries",
       ),
     ]),
@@ -139,21 +141,21 @@ fn stat_card(label: String, value: String, href: String) -> Node {
 
 // --- Wines ---
 
-pub fn wines(conn: Connection) -> Response {
-  let wines = db.list_wines(conn)
+pub fn wines(conn: Connection, user: User) -> Response {
+  let wines = db.list_wines(conn, user.username)
   let count = int.to_string(list.length(wines))
 
-  page("Wines \u{2014} Rebstock", [
+  page("Wines \u{2014} Rebstock", user, [
     page_header("Wines", count <> " total"),
     wine_table(wines, show_cellar: True),
   ])
 }
 
-pub fn wine_detail(conn: Connection, id: Int) -> Response {
-  case db.get_wine(conn, id) {
+pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
+  case db.get_wine(conn, user.username, id) {
     Error(_) -> wisp.not_found()
     Ok(wine) ->
-      page(wine.name <> " \u{2014} Rebstock", [
+      page(wine.name <> " \u{2014} Rebstock", user, [
         html.div([attr.class("mb-6")], [
           html.a(
             [attr.href("/wines"), attr.class("text-sm text-stone-500 hover:text-stone-700")],
@@ -268,11 +270,11 @@ fn detail_stat(label: String, value: String) -> Node {
 
 // --- Wineries ---
 
-pub fn wineries(conn: Connection) -> Response {
-  let wineries = db.list_wineries(conn)
+pub fn wineries(conn: Connection, user: User) -> Response {
+  let wineries = db.list_wineries(conn, user.username)
   let count = int.to_string(list.length(wineries))
 
-  page("Wineries \u{2014} Rebstock", [
+  page("Wineries \u{2014} Rebstock", user, [
     page_header("Wineries", count <> " total"),
     html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
       html.table([attr.class("w-full text-sm")], [
@@ -313,13 +315,13 @@ fn winery_row(winery: Winery, idx: Int) -> Node {
   )
 }
 
-pub fn winery_detail(conn: Connection, name: String) -> Response {
-  let wines = db.wines_by_winery(conn, name)
+pub fn winery_detail(conn: Connection, name: String, user: User) -> Response {
+  let wines = db.wines_by_winery(conn, user.username, name)
   case wines {
     [] -> wisp.not_found()
     _ -> {
       let count = int.to_string(list.length(wines))
-      page(name <> " \u{2014} Rebstock", [
+      page(name <> " \u{2014} Rebstock", user, [
         html.div([attr.class("mb-6")], [
           html.a(
             [attr.href("/wineries"), attr.class("text-sm text-stone-500 hover:text-stone-700")],
@@ -335,12 +337,12 @@ pub fn winery_detail(conn: Connection, name: String) -> Response {
 
 // --- Cellar ---
 
-pub fn cellar(conn: Connection) -> Response {
-  let wines = db.cellar_wines(conn)
+pub fn cellar(conn: Connection, user: User) -> Response {
+  let wines = db.cellar_wines(conn, user.username)
   let total_bottles =
     list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
 
-  page("Cellar \u{2014} Rebstock", [
+  page("Cellar \u{2014} Rebstock", user, [
     // Print header — hidden on screen, shown in print
     html.div([attr.class("print-header hidden")], [
       html.div([attr.class("flex items-center gap-3")], [
@@ -387,8 +389,8 @@ pub fn cellar(conn: Connection) -> Response {
   ])
 }
 
-pub fn cellar_csv(conn: Connection) -> Response {
-  let wines = db.cellar_wines(conn)
+pub fn cellar_csv(conn: Connection, user: User) -> Response {
+  let wines = db.cellar_wines(conn, user.username)
   let header = "Winery,Wine,Vintage,Country,Type,Rating,Bottles"
   let rows =
     list.map(wines, fn(w) {
@@ -550,15 +552,19 @@ fn rating_display(rating: option.Option(Float)) -> Node {
   }
 }
 
-fn page(title: String, content: List(Node)) -> Response {
+fn page(title: String, user: User, content: List(Node)) -> Response {
   layout(title, [
-    site_header(),
+    site_header(user),
     html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
   ])
   |> render
 }
 
-fn site_header() -> Node {
+fn site_header(user: User) -> Node {
+  let display_name = case user.display_name {
+    Some(name) -> name
+    None -> user.username
+  }
   html.header(
     [attr.class("border-b border-stone-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10 mb-8")],
     [
@@ -570,10 +576,15 @@ fn site_header() -> Node {
             [html.Text("Rebstock")],
           ),
         ]),
-        html.nav([attr.class("flex gap-6 text-sm")], [
-          nav_link("Wines", "/wines"),
-          nav_link("Wineries", "/wineries"),
-          nav_link("Cellar", "/cellar"),
+        html.div([attr.class("flex items-center gap-6")], [
+          html.nav([attr.class("flex gap-6 text-sm")], [
+            nav_link("Wines", "/wines"),
+            nav_link("Wineries", "/wineries"),
+            nav_link("Cellar", "/cellar"),
+          ]),
+          html.span([attr.class("text-xs text-stone-400")], [
+            html.Text(display_name),
+          ]),
         ]),
       ]),
     ],

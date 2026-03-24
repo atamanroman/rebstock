@@ -1,0 +1,20 @@
+CREATE TABLE wines (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL DEFAULT '',
+  winery TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  vintage INTEGER NOT NULL DEFAULT 0,
+  region TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT '',
+  style TEXT NOT NULL DEFAULT '',
+  avg_rating REAL,
+  rating_count INTEGER,
+  user_rating REAL,
+  user_review TEXT NOT NULL DEFAULT '',
+  personal_note TEXT NOT NULL DEFAULT '',
+  wine_type TEXT NOT NULL DEFAULT '',
+  vivino_link TEXT NOT NULL DEFAULT '',
+  in_cellar INTEGER NOT NULL DEFAULT 0,
+  wishlisted INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(username, winery, name, vintage, vivino_link)
+);
