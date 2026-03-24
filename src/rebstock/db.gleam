@@ -255,7 +255,8 @@ pub fn upsert_wine(
                         avg_rating, rating_count, user_rating, user_review,
                         personal_note, wine_type, vivino_link, in_cellar, wishlisted)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(username, winery, name, vintage, vivino_link) DO UPDATE SET
+     ON CONFLICT(username, winery, name, vivino_link) DO UPDATE SET
+       vintage = CASE WHEN excluded.vintage > 0 THEN excluded.vintage ELSE wines.vintage END,
        region = excluded.region,
        country = excluded.country,
        style = excluded.style,
@@ -328,6 +329,17 @@ pub fn parse_int_or_zero(s: String) -> Int {
       case int.parse(trimmed) {
         Ok(v) -> v
         Error(_) -> 0
+      }
+  }
+}
+
+pub fn parse_vintage(s: String) -> Int {
+  case string.trim(s) {
+    "" -> -1
+    trimmed ->
+      case int.parse(trimmed) {
+        Ok(v) -> v
+        Error(_) -> -1
       }
   }
 }

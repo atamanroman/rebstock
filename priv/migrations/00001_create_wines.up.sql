@@ -16,5 +16,5 @@ CREATE TABLE wines (
   vivino_link TEXT NOT NULL DEFAULT '',
   in_cellar INTEGER NOT NULL DEFAULT 0,
   wishlisted INTEGER NOT NULL DEFAULT 0,
-  UNIQUE(username, winery, name, vintage, vivino_link)
+  UNIQUE(username, winery, name, vivino_link)
 );

@@ -412,7 +412,8 @@ pub fn cellar_csv(conn: Connection, user: User) -> Response {
         csv_field(w.winery),
         csv_field(w.name),
         case w.vintage {
-          0 -> ""
+          -1 -> ""
+          0 -> "N.V."
           v -> int.to_string(v)
         },
         csv_field(w.country),
@@ -575,6 +576,7 @@ fn display_winery(winery: String) -> String {
 
 fn display_vintage(vintage: Int) -> String {
   case vintage {
+    -1 -> "Unknown"
     0 -> "N.V."
     v -> int.to_string(v)
   }
