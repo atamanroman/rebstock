@@ -103,7 +103,7 @@ pub fn list_wineries(conn: Connection, username: String) -> List(Winery) {
   let assert Ok(wineries) =
     sqlight.query(
       "SELECT winery, COUNT(*) as wine_count, country
-       FROM wines WHERE username = ? AND winery != ''
+       FROM wines WHERE username = ?
        GROUP BY winery ORDER BY winery",
       on: conn,
       with: [sqlight.text(username)],
