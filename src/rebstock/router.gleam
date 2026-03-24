@@ -18,13 +18,17 @@ pub fn handle_request(
   case wisp.path_segments(req) {
     [] -> pages.home(conn, user)
     ["wines"] -> pages.wines(conn, user)
-    ["wines", id_str] ->
+    ["wines", id_str] | ["wines", id_str, _slug] ->
       case int.parse(id_str) {
         Ok(id) -> pages.wine_detail(conn, id, user)
         Error(_) -> wisp.not_found()
       }
     ["wineries"] -> pages.wineries(conn, user)
-    ["wineries", name] -> pages.winery_detail(conn, name, user)
+    ["wineries", id_str] | ["wineries", id_str, _slug] ->
+      case int.parse(id_str) {
+        Ok(id) -> pages.winery_detail(conn, id, user)
+        Error(_) -> wisp.not_found()
+      }
     ["cellar"] -> pages.cellar(conn, user)
     ["cellar", "print"] -> pages.cellar_print(conn, user)
     ["cellar", "export.csv"] -> pages.cellar_csv(conn, user)

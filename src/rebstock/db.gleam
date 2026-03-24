@@ -10,7 +10,8 @@ pub type Wine {
   Wine(
     id: Int,
     username: String,
-    winery: String,
+    winery_id: Int,
+    winery_name: String,
     name: String,
     vintage: Int,
     region: String,
@@ -28,97 +29,58 @@ pub type Wine {
   )
 }
 
+pub type Winery {
+  Winery(id: Int, name: String, wine_count: Int, country: String)
+}
+
 pub fn migrate(conn: Connection) -> Nil {
   let assert Ok(Nil) = sqlight.exec("PRAGMA journal_mode=WAL", conn)
   let assert Ok(Nil) = migrant.migrate(conn, "priv/migrations")
   Nil
 }
 
-pub fn wine_decoder() -> decode.Decoder(Wine) {
+// Columns: wines fields + winery name from JOIN
+const wine_cols = "w.id, w.username, w.winery_id, wy.name, w.name, w.vintage,
+        w.region, w.country, w.style, w.avg_rating, w.rating_count,
+        w.user_rating, w.user_review, w.personal_note, w.wine_type,
+        w.vivino_link, w.in_cellar, w.wishlisted"
+
+const wine_join = "FROM wines w JOIN wineries wy ON w.winery_id = wy.id"
+
+fn wine_decoder() -> decode.Decoder(Wine) {
   use id <- decode.field(0, decode.int)
   use username <- decode.field(1, decode.string)
-  use winery <- decode.field(2, decode.string)
-  use name <- decode.field(3, decode.string)
-  use vintage <- decode.field(4, decode.int)
-  use region <- decode.field(5, decode.string)
-  use country <- decode.field(6, decode.string)
-  use style <- decode.field(7, decode.string)
-  use avg_rating <- decode.field(8, decode.optional(decode.float))
-  use rating_count <- decode.field(9, decode.optional(decode.int))
-  use user_rating <- decode.field(10, decode.optional(decode.float))
-  use user_review <- decode.field(11, decode.string)
-  use personal_note <- decode.field(12, decode.string)
-  use wine_type <- decode.field(13, decode.string)
-  use vivino_link <- decode.field(14, decode.string)
-  use in_cellar <- decode.field(15, decode.int)
-  use wishlisted_int <- decode.field(16, decode.int)
+  use winery_id <- decode.field(2, decode.int)
+  use winery_name <- decode.field(3, decode.string)
+  use name <- decode.field(4, decode.string)
+  use vintage <- decode.field(5, decode.int)
+  use region <- decode.field(6, decode.string)
+  use country <- decode.field(7, decode.string)
+  use style <- decode.field(8, decode.string)
+  use avg_rating <- decode.field(9, decode.optional(decode.float))
+  use rating_count <- decode.field(10, decode.optional(decode.int))
+  use user_rating <- decode.field(11, decode.optional(decode.float))
+  use user_review <- decode.field(12, decode.string)
+  use personal_note <- decode.field(13, decode.string)
+  use wine_type <- decode.field(14, decode.string)
+  use vivino_link <- decode.field(15, decode.string)
+  use in_cellar <- decode.field(16, decode.int)
+  use wishlisted_int <- decode.field(17, decode.int)
   decode.success(Wine(
-    id:,
-    username:,
-    winery:,
-    name:,
-    vintage:,
-    region:,
-    country:,
-    style:,
-    avg_rating:,
-    rating_count:,
-    user_rating:,
-    user_review:,
-    personal_note:,
-    wine_type:,
-    vivino_link:,
-    in_cellar:,
-    wishlisted: wishlisted_int != 0,
+    id:, username:, winery_id:, winery_name:, name:, vintage:,
+    region:, country:, style:, avg_rating:, rating_count:,
+    user_rating:, user_review:, personal_note:, wine_type:,
+    vivino_link:, in_cellar:, wishlisted: wishlisted_int != 0,
   ))
 }
-
-const wine_cols = "id, username, winery, name, vintage, region, country, style,
-        avg_rating, rating_count, user_rating, user_review,
-        personal_note, wine_type, vivino_link, in_cellar, wishlisted"
 
 pub fn list_wines(conn: Connection, username: String) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? ORDER BY winery, name",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? ORDER BY wy.name, w.name",
       on: conn,
       with: [sqlight.text(username)],
-      expecting: wine_decoder(),
-    )
-  wines
-}
-
-pub type Winery {
-  Winery(name: String, wine_count: Int, country: String)
-}
-
-pub fn list_wineries(conn: Connection, username: String) -> List(Winery) {
-  let decoder = {
-    use name <- decode.field(0, decode.string)
-    use wine_count <- decode.field(1, decode.int)
-    use country <- decode.field(2, decode.string)
-    decode.success(Winery(name:, wine_count:, country:))
-  }
-  let assert Ok(wineries) =
-    sqlight.query(
-      "SELECT winery, COUNT(*) as wine_count, country
-       FROM wines WHERE username = ?
-       GROUP BY winery ORDER BY winery",
-      on: conn,
-      with: [sqlight.text(username)],
-      expecting: decoder,
-    )
-  wineries
-}
-
-pub fn wines_by_winery(conn: Connection, username: String, winery: String) -> List(Wine) {
-  let assert Ok(wines) =
-    sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND winery = ? ORDER BY name, vintage",
-      on: conn,
-      with: [sqlight.text(username), sqlight.text(winery)],
       expecting: wine_decoder(),
     )
   wines
@@ -127,8 +89,8 @@ pub fn wines_by_winery(conn: Connection, username: String, winery: String) -> Li
 pub fn get_wine(conn: Connection, username: String, id: Int) -> Result(Wine, Nil) {
   let result =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND id = ?",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.id = ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(id)],
       expecting: wine_decoder(),
@@ -139,11 +101,68 @@ pub fn get_wine(conn: Connection, username: String, id: Int) -> Result(Wine, Nil
   }
 }
 
+pub fn list_wineries(conn: Connection, username: String) -> List(Winery) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use name <- decode.field(1, decode.string)
+    use wine_count <- decode.field(2, decode.int)
+    use country <- decode.field(3, decode.string)
+    decode.success(Winery(id:, name:, wine_count:, country:))
+  }
+  let assert Ok(wineries) =
+    sqlight.query(
+      "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country
+       FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
+       WHERE wy.username = ?
+       GROUP BY wy.id ORDER BY wy.name",
+      on: conn,
+      with: [sqlight.text(username)],
+      expecting: decoder,
+    )
+  wineries
+}
+
+pub fn get_winery(conn: Connection, username: String, id: Int) -> Result(Winery, Nil) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use name <- decode.field(1, decode.string)
+    use wine_count <- decode.field(2, decode.int)
+    use country <- decode.field(3, decode.string)
+    decode.success(Winery(id:, name:, wine_count:, country:))
+  }
+  let result =
+    sqlight.query(
+      "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country
+       FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
+       WHERE wy.username = ? AND wy.id = ?
+       GROUP BY wy.id",
+      on: conn,
+      with: [sqlight.text(username), sqlight.int(id)],
+      expecting: decoder,
+    )
+  case result {
+    Ok([winery]) -> Ok(winery)
+    _ -> Error(Nil)
+  }
+}
+
+pub fn wines_by_winery(conn: Connection, username: String, winery_id: Int) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.winery_id = ? ORDER BY w.name, w.vintage",
+      on: conn,
+      with: [sqlight.text(username), sqlight.int(winery_id)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
 pub fn cellar_wines(conn: Connection, username: String) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND in_cellar > 0 ORDER BY winery, name",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.in_cellar > 0 ORDER BY wy.name, w.name",
       on: conn,
       with: [sqlight.text(username)],
       expecting: wine_decoder(),
@@ -154,9 +173,9 @@ pub fn cellar_wines(conn: Connection, username: String) -> List(Wine) {
 pub fn cellar_wines_by_type(conn: Connection, username: String) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND in_cellar > 0
-       ORDER BY wine_type, region, winery, name",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.in_cellar > 0
+       ORDER BY w.wine_type, w.region, wy.name, w.name",
       on: conn,
       with: [sqlight.text(username)],
       expecting: wine_decoder(),
@@ -167,9 +186,9 @@ pub fn cellar_wines_by_type(conn: Connection, username: String) -> List(Wine) {
 pub fn top_cellar(conn: Connection, username: String, limit: Int) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND in_cellar > 0
-       ORDER BY avg_rating DESC, in_cellar DESC LIMIT ?",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.in_cellar > 0
+       ORDER BY w.avg_rating DESC, w.in_cellar DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
       expecting: wine_decoder(),
@@ -180,9 +199,9 @@ pub fn top_cellar(conn: Connection, username: String, limit: Int) -> List(Wine) 
 pub fn top_rated_by_user(conn: Connection, username: String, limit: Int) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND user_rating IS NOT NULL
-       ORDER BY user_rating DESC, avg_rating DESC LIMIT ?",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.user_rating IS NOT NULL
+       ORDER BY w.user_rating DESC, w.avg_rating DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
       expecting: wine_decoder(),
@@ -193,9 +212,9 @@ pub fn top_rated_by_user(conn: Connection, username: String, limit: Int) -> List
 pub fn latest_rated(conn: Connection, username: String, limit: Int) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND user_rating IS NOT NULL
-       ORDER BY id DESC LIMIT ?",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.user_rating IS NOT NULL
+       ORDER BY w.id DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
       expecting: wine_decoder(),
@@ -206,9 +225,9 @@ pub fn latest_rated(conn: Connection, username: String, limit: Int) -> List(Wine
 pub fn latest_cellar(conn: Connection, username: String, limit: Int) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT " <> wine_cols <> "
-       FROM wines WHERE username = ? AND in_cellar > 0
-       ORDER BY id DESC LIMIT ?",
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.in_cellar > 0
+       ORDER BY w.id DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
       expecting: wine_decoder(),
@@ -231,6 +250,30 @@ pub fn count_wines(conn: Connection, username: String) -> Int {
   count
 }
 
+fn upsert_winery(conn: Connection, username: String, name: String, country: String) -> Int {
+  let id_decoder = {
+    use id <- decode.field(0, decode.int)
+    decode.success(id)
+  }
+  let assert Ok(_) =
+    sqlight.query(
+      "INSERT INTO wineries (username, name, country) VALUES (?, ?, ?)
+       ON CONFLICT(username, name) DO UPDATE SET
+         country = CASE WHEN excluded.country = '' THEN wineries.country ELSE excluded.country END",
+      on: conn,
+      with: [sqlight.text(username), sqlight.text(name), sqlight.text(country)],
+      expecting: decode.success(Nil),
+    )
+  let assert Ok([id]) =
+    sqlight.query(
+      "SELECT id FROM wineries WHERE username = ? AND name = ?",
+      on: conn,
+      with: [sqlight.text(username), sqlight.text(name)],
+      expecting: id_decoder,
+    )
+  id
+}
+
 pub fn upsert_wine(
   conn: Connection,
   username username: String,
@@ -250,12 +293,14 @@ pub fn upsert_wine(
   in_cellar in_cellar: Int,
   wishlisted wishlisted: Bool,
 ) -> Nil {
+  let winery_id = upsert_winery(conn, username, winery, country)
+
   let sql =
-    "INSERT INTO wines (username, winery, name, vintage, region, country, style,
+    "INSERT INTO wines (username, winery_id, name, vintage, region, country, style,
                         avg_rating, rating_count, user_rating, user_review,
                         personal_note, wine_type, vivino_link, in_cellar, wishlisted)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(username, winery, name, vivino_link) DO UPDATE SET
+     ON CONFLICT(username, winery_id, name, vivino_link) DO UPDATE SET
        vintage = CASE WHEN excluded.vintage > 0 THEN excluded.vintage ELSE wines.vintage END,
        region = excluded.region,
        country = excluded.country,
@@ -276,7 +321,7 @@ pub fn upsert_wine(
       on: conn,
       with: [
         sqlight.text(username),
-        sqlight.text(winery),
+        sqlight.int(winery_id),
         sqlight.text(name),
         sqlight.int(vintage),
         sqlight.text(region),
@@ -357,4 +402,15 @@ pub fn parse_optional_float(s: String) -> Option(Float) {
           }
       }
   }
+}
+
+pub fn slugify(text: String) -> String {
+  text
+  |> string.lowercase
+  |> string.replace(" ", "-")
+  |> string.replace("'", "")
+  |> string.replace("\"", "")
+  |> string.replace("&", "and")
+  |> string.replace(",", "")
+  |> string.replace(".", "")
 }

@@ -78,7 +78,7 @@ fn compact_wine_list(wines: List(Wine)) -> Node {
 
 fn compact_wine_row(wine: Wine) -> Node {
   html.a(
-    [attr.href("/wines/" <> int.to_string(wine.id)), attr.class("flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block")],
+    [attr.href(wine_url(wine)), attr.class("flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block")],
     [
       html.div([attr.class("min-w-0 flex-1")], [
         html.div([attr.class("flex items-center gap-2")], [
@@ -90,7 +90,7 @@ fn compact_wine_row(wine: Wine) -> Node {
           ]),
         ]),
         html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
-          html.Text(display_winery(wine.winery)),
+          html.Text(display_winery(wine.winery_name)),
         ]),
       ]),
       html.div([attr.class("flex items-center gap-3 ml-4 shrink-0")], [
@@ -167,8 +167,8 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
               ]),
               html.p([attr.class("text-stone-500 mt-1")], [
                 html.a(
-                  [attr.href("/wineries/" <> wine.winery), attr.class("hover:text-stone-700")],
-                  [html.Text(display_winery(wine.winery))],
+                  [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-stone-700")],
+                  [html.Text(display_winery(wine.winery_name))],
                 ),
                 html.Text(" \u{00b7} " <> display_vintage(wine.vintage)),
               ]),
@@ -289,7 +289,7 @@ fn winery_row(winery: Winery, idx: Int) -> Node {
     [
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
         html.a(
-          [attr.href("/wineries/" <> winery.name), attr.class("hover:text-rose-800 transition-colors")],
+          [attr.href(winery_url(winery.id, winery.name)), attr.class("hover:text-rose-800 transition-colors")],
           [html.Text(display_winery(winery.name))],
         ),
       ]),
@@ -303,13 +303,12 @@ fn winery_row(winery: Winery, idx: Int) -> Node {
   )
 }
 
-pub fn winery_detail(conn: Connection, name: String, user: User) -> Response {
-  let wines = db.wines_by_winery(conn, user.username, name)
-  case wines {
-    [] -> wisp.not_found()
-    _ -> {
-      let count = int.to_string(list.length(wines))
-      let display = display_winery(name)
+pub fn winery_detail(conn: Connection, id: Int, user: User) -> Response {
+  case db.get_winery(conn, user.username, id) {
+    Error(_) -> wisp.not_found()
+    Ok(winery) -> {
+      let wines = db.wines_by_winery(conn, user.username, id)
+      let display = display_winery(winery.name)
       page(display <> " \u{2014} Rebstock", user, [
         html.div([attr.class("mb-6")], [
           html.a(
@@ -317,7 +316,7 @@ pub fn winery_detail(conn: Connection, name: String, user: User) -> Response {
             [html.Text("\u{2190} All wineries")],
           ),
         ]),
-        page_header(display, count <> " wines"),
+        page_header(display, int.to_string(winery.wine_count) <> " wines"),
         wine_table(wines, show_cellar: True),
       ])
     }
@@ -409,7 +408,7 @@ pub fn cellar_csv(conn: Connection, user: User) -> Response {
   let rows =
     list.map(wines, fn(w) {
       [
-        csv_field(w.winery),
+        csv_field(w.winery_name),
         csv_field(w.name),
         case w.vintage {
           -1 -> ""
@@ -499,13 +498,13 @@ fn wine_row(wine: Wine, idx: Int, show_cellar: Bool) -> Node {
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
-          [attr.href("/wineries/" <> wine.winery), attr.class("hover:text-rose-800 transition-colors")],
-          [html.Text(display_winery(wine.winery))],
+          [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-rose-800 transition-colors")],
+          [html.Text(display_winery(wine.winery_name))],
         ),
       ]),
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
         html.a(
-          [attr.href("/wines/" <> int.to_string(wine.id)), attr.class("hover:text-rose-800 transition-colors")],
+          [attr.href(wine_url(wine)), attr.class("hover:text-rose-800 transition-colors")],
           [html.Text(wine.name)],
         ),
       ]),
@@ -587,6 +586,14 @@ fn display_country(country: String) -> String {
     "" -> "Unknown"
     c -> c
   }
+}
+
+fn wine_url(wine: Wine) -> String {
+  "/wines/" <> int.to_string(wine.id) <> "/" <> db.slugify(wine.name)
+}
+
+fn winery_url(id: Int, name: String) -> String {
+  "/wineries/" <> int.to_string(id) <> "/" <> db.slugify(name)
 }
 
 fn page(title: String, user: User, content: List(Node)) -> Response {

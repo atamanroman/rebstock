@@ -1,1 +1,2 @@
 DROP TABLE IF EXISTS wines;
+DROP TABLE IF EXISTS wineries;
