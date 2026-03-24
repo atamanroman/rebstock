@@ -28,7 +28,7 @@ fn import_cellar(conn: Connection, path: String) -> Nil {
               conn,
               winery:,
               name:,
-              vintage: db.parse_optional_int(vintage),
+              vintage: db.parse_int_or_zero(vintage),
               region:,
               country:,
               style:,
@@ -39,7 +39,7 @@ fn import_cellar(conn: Connection, path: String) -> Nil {
               personal_note: "",
               wine_type:,
               vivino_link:,
-              in_cellar: parse_int_or(cellar_count, 0),
+              in_cellar: db.parse_int_or_zero(cellar_count),
               wishlisted: False,
             )
           _ -> Nil
@@ -61,7 +61,7 @@ fn import_full_wine_list(conn: Connection, path: String) -> Nil {
               conn,
               winery:,
               name:,
-              vintage: db.parse_optional_int(vintage),
+              vintage: db.parse_int_or_zero(vintage),
               region:,
               country:,
               style:,
@@ -94,7 +94,7 @@ fn import_wishlisted(conn: Connection, path: String) -> Nil {
               conn,
               winery:,
               name:,
-              vintage: db.parse_optional_int(vintage),
+              vintage: db.parse_int_or_zero(vintage),
               region:,
               country:,
               style:,
@@ -112,12 +112,5 @@ fn import_wishlisted(conn: Connection, path: String) -> Nil {
         }
       })
     _ -> Nil
-  }
-}
-
-fn parse_int_or(s: String, default: Int) -> Int {
-  case db.parse_optional_int(s) {
-    option.Some(v) -> v
-    None -> default
   }
 }

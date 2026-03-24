@@ -75,8 +75,8 @@ fn wine_row(wine: Wine, idx: Int) -> Node {
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
         html.Text(case wine.vintage {
-          Some(v) -> int.to_string(v)
-          None -> "\u{2014}"
+          0 -> "\u{2014}"
+          v -> int.to_string(v)
         }),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [

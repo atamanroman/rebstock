@@ -10,7 +10,7 @@ pub type Wine {
     id: Int,
     winery: String,
     name: String,
-    vintage: Option(Int),
+    vintage: Int,
     region: String,
     country: String,
     style: String,
@@ -32,7 +32,7 @@ pub fn migrate(conn: Connection) -> Nil {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       winery TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL DEFAULT '',
-      vintage INTEGER,
+      vintage INTEGER NOT NULL DEFAULT 0,
       region TEXT NOT NULL DEFAULT '',
       country TEXT NOT NULL DEFAULT '',
       style TEXT NOT NULL DEFAULT '',
@@ -55,7 +55,7 @@ pub fn wine_decoder() -> decode.Decoder(Wine) {
   use id <- decode.field(0, decode.int)
   use winery <- decode.field(1, decode.string)
   use name <- decode.field(2, decode.string)
-  use vintage <- decode.field(3, decode.optional(decode.int))
+  use vintage <- decode.field(3, decode.int)
   use region <- decode.field(4, decode.string)
   use country <- decode.field(5, decode.string)
   use style <- decode.field(6, decode.string)
@@ -121,7 +121,7 @@ pub fn upsert_wine(
   conn: Connection,
   winery winery: String,
   name name: String,
-  vintage vintage: Option(Int),
+  vintage vintage: Int,
   region region: String,
   country country: String,
   style style: String,
@@ -161,7 +161,7 @@ pub fn upsert_wine(
       with: [
         sqlight.text(winery),
         sqlight.text(name),
-        nullable_int(vintage),
+        sqlight.int(vintage),
         sqlight.text(region),
         sqlight.text(country),
         sqlight.text(style),
@@ -201,6 +201,17 @@ pub fn parse_optional_int(s: String) -> Option(Int) {
       case int.parse(trimmed) {
         Ok(v) -> Some(v)
         Error(_) -> None
+      }
+  }
+}
+
+pub fn parse_int_or_zero(s: String) -> Int {
+  case string.trim(s) {
+    "" -> 0
+    trimmed ->
+      case int.parse(trimmed) {
+        Ok(v) -> v
+        Error(_) -> 0
       }
   }
 }

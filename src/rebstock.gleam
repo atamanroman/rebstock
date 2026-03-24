@@ -1,4 +1,7 @@
+import envoy
 import gleam/erlang/process
+import gleam/int
+import gleam/io
 import mist
 import sqlight
 import wisp
@@ -13,7 +16,15 @@ pub fn main() -> Nil {
 
   let assert Ok(conn) = sqlight.open("rebstock.db")
   db.migrate(conn)
-  vivino.import_data(conn, "vivino_data")
+
+  case envoy.get("REBSTOCK_SEED") {
+    Ok("1") | Ok("true") ->
+      case db.count_wines(conn) {
+        0 -> vivino.import_data(conn, "vivino_data")
+        n -> io.println("DB already has " <> int.to_string(n) <> " wines, skipping seed")
+      }
+    _ -> Nil
+  }
 
   let assert Ok(_) =
     wisp_mist.handler(router.handle_request(_, conn), "secret-signing-key")
