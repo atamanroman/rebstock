@@ -19,6 +19,7 @@ pub fn handle_request(req: Request, conn: Connection) -> Response {
     ["wineries"] -> pages.wineries(conn)
     ["wineries", name] -> pages.winery_detail(conn, name)
     ["cellar"] -> pages.cellar(conn)
+    ["cellar", "export.csv"] -> pages.cellar_csv(conn)
     _ -> wisp.not_found()
   }
 }

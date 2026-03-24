@@ -1,7 +1,9 @@
+import gleam/bytes_tree
 import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/string
 import nakai
 import nakai/attr
 import nakai/html.{type Node}
@@ -339,9 +341,88 @@ pub fn cellar(conn: Connection) -> Response {
     list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
 
   page("Cellar \u{2014} Rebstock", [
-    page_header("Cellar", int.to_string(total_bottles) <> " bottles"),
+    // Print header — hidden on screen, shown in print
+    html.div([attr.class("print-header hidden")], [
+      html.div([attr.class("flex items-center gap-3")], [
+        html.UnsafeInlineHtml(logo_svg()),
+        html.span([attr.class("text-xl font-light tracking-tight")], [
+          html.Text("Rebstock"),
+        ]),
+      ]),
+      html.h1([attr.class("text-2xl font-light mt-4 mb-1")], [
+        html.Text("Cellar Inventory"),
+      ]),
+      html.p([attr.class("text-sm text-stone-500")], [
+        html.Text(int.to_string(total_bottles) <> " bottles"),
+      ]),
+    ]),
+    // Screen header
+    html.div([attr.class("flex items-end justify-between mb-6 print:hidden")], [
+      html.div([], [
+        html.h1([attr.class("text-3xl font-light text-stone-800 tracking-tight")], [
+          html.Text("Cellar"),
+        ]),
+        html.p([attr.class("text-stone-500 mt-1")], [
+          html.Text(int.to_string(total_bottles) <> " bottles"),
+        ]),
+      ]),
+      html.div([attr.class("flex gap-2")], [
+        html.a(
+          [
+            attr.href("/cellar/export.csv"),
+            attr.class("px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors"),
+          ],
+          [html.Text("Export CSV")],
+        ),
+        html.button(
+          [
+            attr.class("px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors"),
+            attr.Attr("onclick", "window.print()"),
+          ],
+          [html.Text("Print")],
+        ),
+      ]),
+    ]),
     wine_table(wines, show_cellar: True),
   ])
+}
+
+pub fn cellar_csv(conn: Connection) -> Response {
+  let wines = db.cellar_wines(conn)
+  let header = "Winery,Wine,Vintage,Country,Type,Rating,Bottles"
+  let rows =
+    list.map(wines, fn(w) {
+      [
+        csv_field(w.winery),
+        csv_field(w.name),
+        case w.vintage {
+          0 -> ""
+          v -> int.to_string(v)
+        },
+        csv_field(w.country),
+        w.wine_type,
+        case w.avg_rating {
+          Some(r) -> float.to_string(r)
+          None -> ""
+        },
+        int.to_string(w.in_cellar),
+      ]
+      |> string.join(",")
+    })
+  let csv = [header, ..rows] |> string.join("\n")
+  wisp.response(200)
+  |> wisp.file_download_from_memory(
+    named: "cellar.csv",
+    containing: bytes_tree.from_string(csv),
+  )
+}
+
+fn csv_field(value: String) -> String {
+  case string.contains(value, ",") || string.contains(value, "\"") {
+    True ->
+      "\"" <> string.replace(value, each: "\"", with: "\"\"") <> "\""
+    False -> value
+  }
 }
 
 // --- Shared components ---

@@ -9,3 +9,92 @@ html {
   overflow-x: hidden;
   width: 100vw;
 }
+
+@media print {
+  /* Reset page */
+  html, body {
+    width: auto;
+    overflow: visible;
+    background: white;
+    font-size: 11pt;
+  }
+
+  @page {
+    margin: 1.5cm 2cm;
+  }
+
+  /* Hide site header, nav, buttons */
+  body > header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Show print header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 1.5em;
+    padding-bottom: 0.75em;
+    border-bottom: 1px solid #a8a29e;
+  }
+
+  .print-header svg {
+    display: inline-block;
+  }
+
+  /* Table: clean wine-list style */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  /* Remove card wrapper styling */
+  .overflow-x-auto {
+    overflow: visible;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  thead tr {
+    background: none !important;
+    border-bottom: 2px solid #44403c !important;
+  }
+
+  th {
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    padding: 0.3em 0.5em !important;
+    color: #57534e;
+  }
+
+  tbody tr {
+    background: none !important;
+    border-bottom: 0.5px solid #d6d3d1 !important;
+    page-break-inside: avoid;
+  }
+
+  td {
+    padding: 0.35em 0.5em !important;
+    color: #1c1917;
+  }
+
+  /* Badges: plain text in print */
+  td span[class*="rounded"] {
+    background: none !important;
+    padding: 0 !important;
+    font-size: inherit;
+  }
+
+  /* Links: no underline, black text */
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /* Remove container padding */
+  .max-w-6xl {
+    max-width: none;
+    padding: 0;
+  }
+}
