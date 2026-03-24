@@ -60,10 +60,8 @@ html {
   box-shadow: inset 0 -1px 0 #e7e5e4;
 }
 
-.cellar-print-page td span[class*="rounded"] {
-  background: none;
-  padding: 0;
-  font-size: inherit;
+.cellar-print-page td span[class*="bg-red-900"] {
+  color: white !important;
 }
 
 .cellar-print-page a {
@@ -165,13 +163,6 @@ html {
     print-color-adjust: exact;
   }
 
-  /* Badges: plain text in print */
-  td span[class*="rounded"] {
-    background: none !important;
-    padding: 0 !important;
-    font-size: inherit;
-  }
-
   /* Links: no underline, black text */
   a {
     color: inherit !important;
@@ -200,5 +191,22 @@ html {
 
   .cellar-type-heading:first-child {
     margin-top: 0;
+  }
+}
+
+@layer utilities {
+  @media print {
+    .text-red-100 {
+      color: #1c1917 !important;
+    }
+    .bg-red-900 {
+      background: none !important;
+    }
+    .bg-amber-50\/60, .bg-pink-50, .bg-stone-50 {
+      background: none !important;
+    }
+    .border-red-800, .border-amber-200, .border-pink-200, .border-stone-200 {
+      border-color: transparent !important;
+    }
   }
 }
