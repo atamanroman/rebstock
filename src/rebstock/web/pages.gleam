@@ -135,21 +135,10 @@ fn layout(title: String, content: List(Node)) -> Node {
         attr.content("width=device-width, initial-scale=1"),
       ]),
       html.title(title),
-      html.Script(
-        [attr.src("https://cdn.tailwindcss.com")],
-        "",
-      ),
-      html.Script([], "
-        tailwind.config = {
-          theme: {
-            extend: {
-              fontFamily: {
-                sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-              },
-            },
-          },
-        }
-      "),
+      html.link([
+        attr.rel("stylesheet"),
+        attr.href("/static/css/app.css"),
+      ]),
     ]),
     html.Body([attr.class("bg-stone-100 text-stone-900 min-h-screen font-sans")], content),
   ])

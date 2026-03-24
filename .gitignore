@@ -2,4 +2,6 @@
 *.ez
 *.db
 /build
+/tailwindcss
+/priv/static/css/app.css
 erl_crash.dump
