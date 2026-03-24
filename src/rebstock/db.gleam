@@ -158,6 +158,18 @@ pub fn wines_by_winery(conn: Connection, username: String, winery_id: Int) -> Li
   wines
 }
 
+pub fn wishlist_wines(conn: Connection, username: String) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.wishlisted = 1 ORDER BY wy.name, w.name",
+      on: conn,
+      with: [sqlight.text(username)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
 pub fn cellar_wines(conn: Connection, username: String) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
@@ -191,6 +203,19 @@ pub fn top_cellar(conn: Connection, username: String, limit: Int) -> List(Wine) 
        ORDER BY w.avg_rating DESC, w.in_cellar DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn rated_wines(conn: Connection, username: String) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> " " <> wine_join
+        <> " WHERE w.username = ? AND w.user_rating IS NOT NULL
+       ORDER BY w.user_rating DESC, w.avg_rating DESC",
+      on: conn,
+      with: [sqlight.text(username)],
       expecting: wine_decoder(),
     )
   wines

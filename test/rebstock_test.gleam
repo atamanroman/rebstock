@@ -88,7 +88,7 @@ pub fn wineries_page_test() {
 pub fn cellar_page_test() {
   use conn <- with_seeded_db
   let response =
-    simulate.request(http.Get, "/cellar")
+    simulate.request(http.Get, "/~test/cellar")
     |> router.handle_request(conn, test_auth)
   let assert 200 = response.status
   let body = simulate.read_body(response)

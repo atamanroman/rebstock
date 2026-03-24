@@ -29,9 +29,11 @@ pub fn handle_request(
         Ok(id) -> pages.winery_detail(conn, id, user)
         Error(_) -> wisp.not_found()
       }
-    ["cellar"] -> pages.cellar(conn, user)
-    ["cellar", "print"] -> pages.cellar_print(conn, user)
-    ["cellar", "export.csv"] -> pages.cellar_csv(conn, user)
+    ["~" <> username, "cellar"] -> pages.cellar(conn, user, username)
+    ["~" <> username, "cellar", "print"] -> pages.cellar_print(conn, user, username)
+    ["~" <> username, "cellar", "export.csv"] -> pages.cellar_csv(conn, user, username)
+    ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
+    ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
     _ -> wisp.not_found()
   }
 }

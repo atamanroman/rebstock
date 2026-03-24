@@ -29,11 +29,11 @@ pub fn home(conn: Connection, user: User) -> Response {
 
   page("Rebstock", user, [
     html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10")], [
-      stat_card("Wines", int.to_string(wine_count), "/wines"),
+      stat_card("All Wines", int.to_string(wine_count), "/wines"),
       stat_card(
         "In Cellar",
         int.to_string(cellar_count) <> " bottles",
-        "/cellar",
+        "/~" <> u <> "/cellar",
       ),
       stat_card(
         "Wineries",
@@ -42,10 +42,10 @@ pub fn home(conn: Connection, user: User) -> Response {
       ),
     ]),
     html.div([attr.class("grid grid-cols-1 lg:grid-cols-2 gap-8")], [
-      section("Top Cellar Wines", "/cellar", top_cellar),
-      section("Your Top Rated", "/wines", top_rated),
-      section("Recently Added to Cellar", "/cellar", latest_cellar),
-      section("Recently Rated", "/wines", latest_rated),
+      section("Top Cellar Wines", "/~" <> u <> "/cellar", top_cellar),
+      section("Your Top Rated", "/~" <> u <> "/ratings", top_rated),
+      section("Recently Added to Cellar", "/~" <> u <> "/cellar", latest_cellar),
+      section("Recently Rated", "/~" <> u <> "/ratings", latest_rated),
     ]),
   ])
 }
@@ -142,9 +142,33 @@ pub fn wines(conn: Connection, user: User) -> Response {
   let wines = db.list_wines(conn, user.username)
   let count = int.to_string(list.length(wines))
 
-  page("Wines \u{2014} Rebstock", user, [
-    page_header("Wines", count <> " total"),
-    wine_table(wines, show_cellar: True),
+  page("All Wines \u{2014} Rebstock", user, [
+    page_header("All Wines", count <> " total"),
+    wine_table(wines, show_cellar: True, show_my_rating: True),
+  ])
+}
+
+// --- Wishlist ---
+
+pub fn wishlist(conn: Connection, user: User, username: String) -> Response {
+  let wines = db.wishlist_wines(conn, username)
+  let count = int.to_string(list.length(wines))
+
+  page("Wishlist \u{2014} Rebstock", user, [
+    page_header("Wishlist", count <> " wines"),
+    wine_table(wines, show_cellar: False, show_my_rating: False),
+  ])
+}
+
+// --- My Ratings ---
+
+pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
+  let wines = db.rated_wines(conn, username)
+  let count = int.to_string(list.length(wines))
+
+  page("My Ratings \u{2014} Rebstock", user, [
+    page_header("My Ratings", count <> " wines"),
+    wine_table(wines, show_cellar: False, show_my_rating: True),
   ])
 }
 
@@ -317,7 +341,7 @@ pub fn winery_detail(conn: Connection, id: Int, user: User) -> Response {
           ),
         ]),
         page_header(display, int.to_string(winery.wine_count) <> " wines"),
-        wine_table(wines, show_cellar: True),
+        wine_table(wines, show_cellar: True, show_my_rating: False),
       ])
     }
   }
@@ -325,8 +349,8 @@ pub fn winery_detail(conn: Connection, id: Int, user: User) -> Response {
 
 // --- Cellar ---
 
-pub fn cellar(conn: Connection, user: User) -> Response {
-  let wines = db.cellar_wines(conn, user.username)
+pub fn cellar(conn: Connection, user: User, username: String) -> Response {
+  let wines = db.cellar_wines(conn, username)
   let total_bottles =
     list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
 
@@ -343,26 +367,26 @@ pub fn cellar(conn: Connection, user: User) -> Response {
       html.div([attr.class("flex gap-2")], [
         html.a(
           [
-            attr.href("/cellar/export.csv"),
+            attr.href("/~" <> username <> "/cellar/export.csv"),
             attr.class("px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors"),
           ],
           [html.Text("Export CSV")],
         ),
         html.a(
           [
-            attr.href("/cellar/print"),
+            attr.href("/~" <> username <> "/cellar/print"),
             attr.class("px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors"),
           ],
           [html.Text("Wine List")],
         ),
       ]),
     ]),
-    wine_table(wines, show_cellar: True),
+    wine_table(wines, show_cellar: True, show_my_rating: True),
   ])
 }
 
-pub fn cellar_print(conn: Connection, user: User) -> Response {
-  let wines = db.cellar_wines_by_type(conn, user.username)
+pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response {
+  let wines = db.cellar_wines_by_type(conn, username)
   let total_bottles =
     list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
 
@@ -374,7 +398,7 @@ pub fn cellar_print(conn: Connection, user: User) -> Response {
           html.h2([attr.class("cellar-type-heading")], [
             html.Text(first.wine_type),
           ]),
-          wine_table(group, show_cellar: True),
+          wine_table(group, show_cellar: True, show_my_rating: False),
         ]
         _ -> []
       }
@@ -402,8 +426,8 @@ pub fn cellar_print(conn: Connection, user: User) -> Response {
   |> render
 }
 
-pub fn cellar_csv(conn: Connection, user: User) -> Response {
-  let wines = db.cellar_wines(conn, user.username)
+pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
+  let wines = db.cellar_wines(conn, username)
   let header = "Winery,Wine,Vintage,Country,Type,Rating,Bottles"
   let rows =
     list.map(wines, fn(w) {
@@ -459,7 +483,7 @@ fn page_header(title: String, subtitle: String) -> Node {
   ])
 }
 
-fn wine_table(wines: List(Wine), show_cellar sc: Bool) -> Node {
+fn wine_table(wines: List(Wine), show_cellar sc: Bool, show_my_rating mr: Bool) -> Node {
   html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
     html.table([attr.class("w-full text-sm")], [
       html.thead([], [
@@ -470,13 +494,13 @@ fn wine_table(wines: List(Wine), show_cellar sc: Bool) -> Node {
           th("Country"),
           th("Type"),
           th("Rating"),
-          ..case sc {
-            True -> [th("Cellar")]
-            False -> []
-          }
+          ..list.flatten([
+            case mr { True -> [th("You")] False -> [] },
+            case sc { True -> [th("Cellar")] False -> [] },
+          ])
         ]),
       ]),
-      html.tbody([], list.index_map(wines, fn(w, i) { wine_row(w, i, sc) })),
+      html.tbody([], list.index_map(wines, fn(w, i) { wine_row(w, i, sc, mr) })),
     ]),
   ])
 }
@@ -488,7 +512,7 @@ fn th(label: String) -> Node {
   )
 }
 
-fn wine_row(wine: Wine, idx: Int, show_cellar: Bool) -> Node {
+fn wine_row(wine: Wine, idx: Int, show_cellar: Bool, show_my_rating: Bool) -> Node {
   let bg = case idx % 2 {
     0 -> "bg-white"
     _ -> "bg-stone-50/30"
@@ -518,17 +542,27 @@ fn wine_row(wine: Wine, idx: Int, show_cellar: Bool) -> Node {
       html.td([attr.class("px-4 py-3 tabular-nums")], [
         rating_display(wine.avg_rating),
       ]),
-      ..case show_cellar {
-        True -> [
-          html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
-            html.Text(case wine.in_cellar {
-              0 -> ""
-              n -> int.to_string(n)
-            }),
-          ]),
-        ]
+      ..list.flatten([
+        case show_my_rating {
+          True -> [
+            html.td([attr.class("px-4 py-3 tabular-nums")], [
+              rating_display(wine.user_rating),
+            ]),
+          ]
+          False -> []
+        },
+        case show_cellar {
+          True -> [
+            html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
+              html.Text(case wine.in_cellar {
+                0 -> ""
+                n -> int.to_string(n)
+              }),
+            ]),
+          ]
         False -> []
-      }
+      },
+      ])
     ],
   )
 }
@@ -622,12 +656,15 @@ fn site_header(user: User) -> Node {
         ]),
         html.div([attr.class("flex items-center gap-6")], [
           html.nav([attr.class("flex gap-6 text-sm")], [
-            nav_link("Wines", "/wines"),
-            nav_link("Wineries", "/wineries"),
-            nav_link("Cellar", "/cellar"),
-          ]),
-          html.span([attr.class("text-xs text-stone-400")], [
-            html.Text(display_name),
+            nav_link("All Wines", "/wines"),
+            nav_link("All Wineries", "/wineries"),
+            html.span([attr.class("text-stone-300")], [html.Text("//")]),
+            html.span([attr.class("text-sm text-stone-400")], [
+              html.Text("~" <> user.username <> ":"),
+            ]),
+            nav_link("Cellar", "/~" <> user.username <> "/cellar"),
+            nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
+            nav_link("Ratings", "/~" <> user.username <> "/ratings"),
           ]),
         ]),
       ]),
