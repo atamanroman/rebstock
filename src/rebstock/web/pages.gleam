@@ -469,7 +469,7 @@ fn csv_field(value: String) -> String {
 
 fn nav_link(label: String, href: String) -> Node {
   html.a(
-    [attr.href(href), attr.class("text-stone-500 hover:text-stone-800 transition-colors")],
+    [attr.href(href), attr.class("text-stone-500 hover:text-red-900 transition-colors")],
     [html.Text(label)],
   )
 }
