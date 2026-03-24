@@ -88,12 +88,14 @@ pub fn wine_decoder() -> decode.Decoder(Wine) {
   ))
 }
 
+const wine_cols = "id, winery, name, vintage, region, country, style,
+        avg_rating, rating_count, user_rating, user_review,
+        personal_note, wine_type, vivino_link, in_cellar, wishlisted"
+
 pub fn list_wines(conn: Connection) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT id, winery, name, vintage, region, country, style,
-              avg_rating, rating_count, user_rating, user_review,
-              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+      "SELECT " <> wine_cols <> "
        FROM wines ORDER BY winery, name",
       on: conn,
       with: [],
@@ -128,9 +130,7 @@ pub fn list_wineries(conn: Connection) -> List(Winery) {
 pub fn wines_by_winery(conn: Connection, winery: String) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT id, winery, name, vintage, region, country, style,
-              avg_rating, rating_count, user_rating, user_review,
-              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+      "SELECT " <> wine_cols <> "
        FROM wines WHERE winery = ? ORDER BY name, vintage",
       on: conn,
       with: [sqlight.text(winery)],
@@ -142,9 +142,7 @@ pub fn wines_by_winery(conn: Connection, winery: String) -> List(Wine) {
 pub fn get_wine(conn: Connection, id: Int) -> Result(Wine, Nil) {
   let result =
     sqlight.query(
-      "SELECT id, winery, name, vintage, region, country, style,
-              avg_rating, rating_count, user_rating, user_review,
-              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+      "SELECT " <> wine_cols <> "
        FROM wines WHERE id = ?",
       on: conn,
       with: [sqlight.int(id)],
@@ -159,12 +157,62 @@ pub fn get_wine(conn: Connection, id: Int) -> Result(Wine, Nil) {
 pub fn cellar_wines(conn: Connection) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(
-      "SELECT id, winery, name, vintage, region, country, style,
-              avg_rating, rating_count, user_rating, user_review,
-              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+      "SELECT " <> wine_cols <> "
        FROM wines WHERE in_cellar > 0 ORDER BY winery, name",
       on: conn,
       with: [],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn top_cellar(conn: Connection, limit: Int) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> "
+       FROM wines WHERE in_cellar > 0
+       ORDER BY avg_rating DESC, in_cellar DESC LIMIT ?",
+      on: conn,
+      with: [sqlight.int(limit)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn top_rated_by_user(conn: Connection, limit: Int) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> "
+       FROM wines WHERE user_rating IS NOT NULL
+       ORDER BY user_rating DESC, avg_rating DESC LIMIT ?",
+      on: conn,
+      with: [sqlight.int(limit)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn latest_rated(conn: Connection, limit: Int) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> "
+       FROM wines WHERE user_rating IS NOT NULL
+       ORDER BY id DESC LIMIT ?",
+      on: conn,
+      with: [sqlight.int(limit)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn latest_cellar(conn: Connection, limit: Int) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> "
+       FROM wines WHERE in_cellar > 0
+       ORDER BY id DESC LIMIT ?",
+      on: conn,
+      with: [sqlight.int(limit)],
       expecting: wine_decoder(),
     )
   wines

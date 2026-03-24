@@ -14,12 +14,17 @@ import rebstock/db.{type Wine, type Winery}
 
 pub fn home(conn: Connection) -> Response {
   let wine_count = db.count_wines(conn)
-  let cellar_wines = db.cellar_wines(conn)
+  let all_cellar = db.cellar_wines(conn)
   let cellar_count =
-    list.fold(cellar_wines, 0, fn(acc, w) { acc + w.in_cellar })
+    list.fold(all_cellar, 0, fn(acc, w) { acc + w.in_cellar })
+
+  let top_cellar = db.top_cellar(conn, 10)
+  let top_rated = db.top_rated_by_user(conn, 10)
+  let latest_rated = db.latest_rated(conn, 10)
+  let latest_cellar = db.latest_cellar(conn, 10)
 
   page("Rebstock", [
-    html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4")], [
+    html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10")], [
       stat_card("Wines", int.to_string(wine_count), "/wines"),
       stat_card(
         "In Cellar",
@@ -32,7 +37,91 @@ pub fn home(conn: Connection) -> Response {
         "/wineries",
       ),
     ]),
+    html.div([attr.class("grid grid-cols-1 lg:grid-cols-2 gap-8")], [
+      section("Top Cellar Wines", "/cellar", top_cellar),
+      section("Your Top Rated", "/wines", top_rated),
+      section("Recently Added to Cellar", "/cellar", latest_cellar),
+      section("Recently Rated", "/wines", latest_rated),
+    ]),
   ])
+}
+
+fn section(title: String, link: String, wines: List(Wine)) -> Node {
+  case wines {
+    [] -> html.Nothing
+    _ ->
+      html.div([], [
+        html.div([attr.class("flex items-baseline justify-between mb-3")], [
+          html.h2([attr.class("text-lg font-medium text-stone-800")], [
+            html.Text(title),
+          ]),
+          html.a(
+            [attr.href(link), attr.class("text-xs text-stone-400 hover:text-stone-600 transition-colors")],
+            [html.Text("View all \u{2192}")],
+          ),
+        ]),
+        compact_wine_list(wines),
+      ])
+  }
+}
+
+fn compact_wine_list(wines: List(Wine)) -> Node {
+  html.div(
+    [attr.class("bg-white rounded-lg border border-stone-200 divide-y divide-stone-100")],
+    list.map(wines, compact_wine_row),
+  )
+}
+
+fn compact_wine_row(wine: Wine) -> Node {
+  html.a(
+    [attr.href("/wines/" <> int.to_string(wine.id)), attr.class("flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block")],
+    [
+      html.div([attr.class("min-w-0 flex-1")], [
+        html.div([attr.class("flex items-center gap-2")], [
+          html.span([attr.class("font-medium text-stone-800 text-sm truncate")], [
+            html.Text(wine.name),
+          ]),
+          html.span([attr.class("text-xs text-stone-400 shrink-0")], [
+            html.Text(case wine.vintage {
+              0 -> ""
+              v -> int.to_string(v)
+            }),
+          ]),
+        ]),
+        html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
+          html.Text(wine.winery),
+        ]),
+      ]),
+      html.div([attr.class("flex items-center gap-3 ml-4 shrink-0")], [
+        wine_type_badge(wine.wine_type),
+        ..compact_stats(wine)
+      ]),
+    ],
+  )
+}
+
+fn compact_stats(wine: Wine) -> List(Node) {
+  let rating = case wine.user_rating {
+    Some(r) ->
+      [html.span([attr.class("text-sm font-medium text-amber-700 tabular-nums")], [
+        html.Text(float.to_string(r)),
+      ])]
+    None -> case wine.avg_rating {
+      Some(r) ->
+        [html.span([attr.class("text-sm text-stone-500 tabular-nums")], [
+          html.Text(float.to_string(r)),
+        ])]
+      None -> []
+    }
+  }
+  let cellar = case wine.in_cellar {
+    0 -> []
+    n ->
+      [html.span([attr.class("text-xs text-stone-400 tabular-nums")], [
+        html.Text(int.to_string(n) <> "\u{00d7}"),
+      ])]
+  }
+  list.append(rating, cellar)
 }
 
 fn stat_card(label: String, value: String, href: String) -> Node {
