@@ -3,3 +3,9 @@
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+html {
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100vw;
+}
