@@ -513,6 +513,10 @@ fn logo_svg() -> String {
   </svg>"
 }
 
+fn favicon_data_uri() -> String {
+  "data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='8' r='4' fill='%2378180e' opacity='0.8'/%3E%3Ccircle cx='18' cy='6' r='3.5' fill='%2378180e' opacity='0.65'/%3E%3Ccircle cx='14' cy='13' r='3.5' fill='%2378180e' opacity='0.75'/%3E%3Ccircle cx='22' cy='11' r='3' fill='%2378180e' opacity='0.5'/%3E%3Cpath d='M14 18 C14 18 13 24 16 28' stroke='%2378716c' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M16 28 C16 28 12 29 10 28' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3Cpath d='M16 28 C16 28 20 29 22 28' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3Cpath d='M14 20 C11 19 8 20 7 18' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.4'/%3E%3Cpath d='M15 22 C18 21 20 22 22 20' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.4'/%3E%3C/svg%3E"
+}
+
 fn layout(title: String, content: List(Node)) -> Node {
   html.Html([attr.class("antialiased")], [
     html.Head([
@@ -525,6 +529,11 @@ fn layout(title: String, content: List(Node)) -> Node {
       html.link([
         attr.rel("stylesheet"),
         attr.href("/static/css/app.css"),
+      ]),
+      html.link([
+        attr.rel("icon"),
+        attr.type_("image/svg+xml"),
+        attr.href(favicon_data_uri()),
       ]),
     ]),
     html.Body([attr.class("bg-stone-100 text-stone-900 min-h-screen font-sans")], content),
