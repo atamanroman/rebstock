@@ -343,23 +343,7 @@ pub fn cellar(conn: Connection, user: User) -> Response {
     list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
 
   page("Cellar \u{2014} Rebstock", user, [
-    // Print header — hidden on screen, shown in print
-    html.div([attr.class("print-header hidden")], [
-      html.div([attr.class("flex items-center gap-3")], [
-        html.UnsafeInlineHtml(logo_svg()),
-        html.span([attr.class("text-xl font-light tracking-tight")], [
-          html.Text("Rebstock"),
-        ]),
-      ]),
-      html.h1([attr.class("text-2xl font-light mt-4 mb-1")], [
-        html.Text("Cellar Inventory"),
-      ]),
-      html.p([attr.class("text-sm text-stone-500")], [
-        html.Text(int.to_string(total_bottles) <> " bottles"),
-      ]),
-    ]),
-    // Screen header
-    html.div([attr.class("flex items-end justify-between mb-6 print:hidden")], [
+    html.div([attr.class("flex items-end justify-between mb-6")], [
       html.div([], [
         html.h1([attr.class("text-3xl font-light text-stone-800 tracking-tight")], [
           html.Text("Cellar"),
@@ -376,17 +360,58 @@ pub fn cellar(conn: Connection, user: User) -> Response {
           ],
           [html.Text("Export CSV")],
         ),
-        html.button(
+        html.a(
           [
+            attr.href("/cellar/print"),
             attr.class("px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors"),
-            attr.Attr("onclick", "window.print()"),
           ],
-          [html.Text("Print")],
+          [html.Text("Wine List")],
         ),
       ]),
     ]),
     wine_table(wines, show_cellar: True),
   ])
+}
+
+pub fn cellar_print(conn: Connection, user: User) -> Response {
+  let wines = db.cellar_wines_by_type(conn, user.username)
+  let total_bottles =
+    list.fold(wines, 0, fn(acc, w) { acc + w.in_cellar })
+
+  let grouped =
+    list.chunk(wines, fn(w) { w.wine_type })
+    |> list.flat_map(fn(group) {
+      case group {
+        [first, ..] -> [
+          html.h2([attr.class("cellar-type-heading")], [
+            html.Text(first.wine_type),
+          ]),
+          wine_table(group, show_cellar: True),
+        ]
+        _ -> []
+      }
+    })
+
+  layout("Cellar Inventory \u{2014} Rebstock", [
+    html.div([attr.class("cellar-print-page")], [
+      html.div([attr.class("print-header")], [
+        html.div([attr.class("flex items-center gap-3")], [
+          html.UnsafeInlineHtml(logo_svg()),
+          html.span([attr.class("text-xl font-light tracking-tight")], [
+            html.Text("Rebstock"),
+          ]),
+        ]),
+        html.h1([attr.class("text-2xl font-light mt-4 mb-1")], [
+          html.Text("Cellar Inventory"),
+        ]),
+        html.p([attr.class("text-sm text-stone-500")], [
+          html.Text(int.to_string(total_bottles) <> " bottles"),
+        ]),
+      ]),
+      ..grouped
+    ]),
+  ])
+  |> render
 }
 
 pub fn cellar_csv(conn: Connection, user: User) -> Response {

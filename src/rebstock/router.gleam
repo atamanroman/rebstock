@@ -26,6 +26,7 @@ pub fn handle_request(
     ["wineries"] -> pages.wineries(conn, user)
     ["wineries", name] -> pages.winery_detail(conn, name, user)
     ["cellar"] -> pages.cellar(conn, user)
+    ["cellar", "print"] -> pages.cellar_print(conn, user)
     ["cellar", "export.csv"] -> pages.cellar_csv(conn, user)
     _ -> wisp.not_found()
   }

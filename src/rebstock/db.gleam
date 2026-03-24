@@ -151,6 +151,19 @@ pub fn cellar_wines(conn: Connection, username: String) -> List(Wine) {
   wines
 }
 
+pub fn cellar_wines_by_type(conn: Connection, username: String) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT " <> wine_cols <> "
+       FROM wines WHERE username = ? AND in_cellar > 0
+       ORDER BY wine_type, region, winery, name",
+      on: conn,
+      with: [sqlight.text(username)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
 pub fn top_cellar(conn: Connection, username: String, limit: Int) -> List(Wine) {
   let assert Ok(wines) =
     sqlight.query(

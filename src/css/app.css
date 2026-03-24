@@ -10,6 +10,89 @@ html {
   width: 100vw;
 }
 
+/* Cellar print page — wine-list style on screen */
+.cellar-print-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  background: white;
+  font-size: 11pt;
+}
+
+.cellar-print-page .print-header {
+  display: block;
+  text-align: center;
+  margin-bottom: 1.5em;
+  padding-bottom: 0.75em;
+  border-bottom: 1px solid #a8a29e;
+}
+
+.cellar-print-page .print-header svg {
+  display: inline-block;
+}
+
+.cellar-print-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+.cellar-print-page thead tr {
+  background: none;
+}
+
+.cellar-print-page th {
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.3em 0.5em;
+  color: #57534e;
+  border-bottom: 2px solid #44403c;
+}
+
+.cellar-print-page tbody tr {
+  background: none;
+}
+
+.cellar-print-page td {
+  padding: 0.35em 0.5em;
+  color: #1c1917;
+  box-shadow: inset 0 -1px 0 #e7e5e4;
+}
+
+.cellar-print-page td span[class*="rounded"] {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.cellar-print-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cellar-print-page .overflow-x-auto {
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+}
+
+.cellar-print-page .cellar-type-heading {
+  font-size: 9pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #57534e;
+  margin-top: 1.5em;
+  margin-bottom: 2em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid #a8a29e;
+}
+
+.cellar-print-page .cellar-type-heading:first-child {
+  margin-top: 0;
+}
+
 @media print {
   /* Reset page */
   html, body {
@@ -99,5 +182,23 @@ html {
   .max-w-6xl {
     max-width: none;
     padding: 0;
+  }
+
+
+  /* Wine type section headers */
+  .cellar-type-heading {
+    font-size: 9pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #57534e;
+    margin-top: 1.5em;
+    margin-bottom: 2em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid #a8a29e;
+  }
+
+  .cellar-type-heading:first-child {
+    margin-top: 0;
   }
 }
