@@ -19,15 +19,7 @@ pub fn home(conn: Connection) -> Response {
     list.fold(cellar_wines, 0, fn(acc, w) { acc + w.in_cellar })
 
   page("Rebstock", [
-    html.div([attr.class("mb-8")], [
-      html.h1([attr.class("text-3xl font-light text-stone-800 tracking-tight")], [
-        html.Text("Rebstock"),
-      ]),
-      html.p([attr.class("text-stone-500 mt-1")], [
-        html.Text("Your wine cellar"),
-      ]),
-    ]),
-    html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8")], [
+    html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4")], [
       stat_card("Wines", int.to_string(wine_count), "/wines"),
       stat_card(
         "In Cellar",
@@ -40,7 +32,6 @@ pub fn home(conn: Connection) -> Response {
         "/wineries",
       ),
     ]),
-    nav_links(),
   ])
 }
 
@@ -63,7 +54,6 @@ pub fn wines(conn: Connection) -> Response {
 
   page("Wines \u{2014} Rebstock", [
     page_header("Wines", count <> " total"),
-    nav_links(),
     wine_table(wines, show_cellar: True),
   ])
 }
@@ -193,7 +183,6 @@ pub fn wineries(conn: Connection) -> Response {
 
   page("Wineries \u{2014} Rebstock", [
     page_header("Wineries", count <> " total"),
-    nav_links(),
     html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
       html.table([attr.class("w-full text-sm")], [
         html.thead([], [
@@ -262,20 +251,11 @@ pub fn cellar(conn: Connection) -> Response {
 
   page("Cellar \u{2014} Rebstock", [
     page_header("Cellar", int.to_string(total_bottles) <> " bottles"),
-    nav_links(),
     wine_table(wines, show_cellar: True),
   ])
 }
 
 // --- Shared components ---
-
-fn nav_links() -> Node {
-  html.nav([attr.class("flex gap-6 mb-6 text-sm")], [
-    nav_link("Wines", "/wines"),
-    nav_link("Wineries", "/wineries"),
-    nav_link("Cellar", "/cellar"),
-  ])
-}
 
 fn nav_link(label: String, href: String) -> Node {
   html.a(
@@ -402,9 +382,46 @@ fn rating_display(rating: option.Option(Float)) -> Node {
 
 fn page(title: String, content: List(Node)) -> Response {
   layout(title, [
-    html.div([attr.class("max-w-6xl mx-auto px-4 py-8")], content),
+    site_header(),
+    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
   ])
   |> render
+}
+
+fn site_header() -> Node {
+  html.header(
+    [attr.class("border-b border-stone-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10 mb-8")],
+    [
+      html.div([attr.class("max-w-6xl mx-auto px-4 py-4 flex items-center justify-between")], [
+        html.a([attr.href("/"), attr.class("flex items-center gap-3 group")], [
+          html.UnsafeInlineHtml(logo_svg()),
+          html.span(
+            [attr.class("text-xl font-light tracking-tight text-stone-800 group-hover:text-rose-800 transition-colors")],
+            [html.Text("Rebstock")],
+          ),
+        ]),
+        html.nav([attr.class("flex gap-6 text-sm")], [
+          nav_link("Wines", "/wines"),
+          nav_link("Wineries", "/wineries"),
+          nav_link("Cellar", "/cellar"),
+        ]),
+      ]),
+    ],
+  )
+}
+
+fn logo_svg() -> String {
+  "<svg width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">
+    <circle cx=\"10\" cy=\"8\" r=\"4\" fill=\"#78180e\" opacity=\"0.8\"/>
+    <circle cx=\"18\" cy=\"6\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.65\"/>
+    <circle cx=\"14\" cy=\"13\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.75\"/>
+    <circle cx=\"22\" cy=\"11\" r=\"3\" fill=\"#78180e\" opacity=\"0.5\"/>
+    <path d=\"M14 18 C14 18 13 24 16 28\" stroke=\"#78716c\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>
+    <path d=\"M16 28 C16 28 12 29 10 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
+    <path d=\"M16 28 C16 28 20 29 22 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
+    <path d=\"M14 20 C11 19 8 20 7 18\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
+    <path d=\"M15 22 C18 21 20 22 22 20\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
+  </svg>"
 }
 
 fn layout(title: String, content: List(Node)) -> Node {
