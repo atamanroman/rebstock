@@ -102,6 +102,74 @@ pub fn list_wines(conn: Connection) -> List(Wine) {
   wines
 }
 
+pub type Winery {
+  Winery(name: String, wine_count: Int, country: String)
+}
+
+pub fn list_wineries(conn: Connection) -> List(Winery) {
+  let decoder = {
+    use name <- decode.field(0, decode.string)
+    use wine_count <- decode.field(1, decode.int)
+    use country <- decode.field(2, decode.string)
+    decode.success(Winery(name:, wine_count:, country:))
+  }
+  let assert Ok(wineries) =
+    sqlight.query(
+      "SELECT winery, COUNT(*) as wine_count, country
+       FROM wines WHERE winery != ''
+       GROUP BY winery ORDER BY winery",
+      on: conn,
+      with: [],
+      expecting: decoder,
+    )
+  wineries
+}
+
+pub fn wines_by_winery(conn: Connection, winery: String) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT id, winery, name, vintage, region, country, style,
+              avg_rating, rating_count, user_rating, user_review,
+              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+       FROM wines WHERE winery = ? ORDER BY name, vintage",
+      on: conn,
+      with: [sqlight.text(winery)],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
+pub fn get_wine(conn: Connection, id: Int) -> Result(Wine, Nil) {
+  let result =
+    sqlight.query(
+      "SELECT id, winery, name, vintage, region, country, style,
+              avg_rating, rating_count, user_rating, user_review,
+              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+       FROM wines WHERE id = ?",
+      on: conn,
+      with: [sqlight.int(id)],
+      expecting: wine_decoder(),
+    )
+  case result {
+    Ok([wine]) -> Ok(wine)
+    _ -> Error(Nil)
+  }
+}
+
+pub fn cellar_wines(conn: Connection) -> List(Wine) {
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT id, winery, name, vintage, region, country, style,
+              avg_rating, rating_count, user_rating, user_review,
+              personal_note, wine_type, vivino_link, in_cellar, wishlisted
+       FROM wines WHERE in_cellar > 0 ORDER BY winery, name",
+      on: conn,
+      with: [],
+      expecting: wine_decoder(),
+    )
+  wines
+}
+
 pub fn count_wines(conn: Connection) -> Int {
   let count_decoder = {
     use count <- decode.field(0, decode.int)

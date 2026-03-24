@@ -1,3 +1,4 @@
+import gleam/int
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
@@ -9,6 +10,15 @@ pub fn handle_request(req: Request, conn: Connection) -> Response {
 
   case wisp.path_segments(req) {
     [] -> pages.home(conn)
+    ["wines"] -> pages.wines(conn)
+    ["wines", id_str] ->
+      case int.parse(id_str) {
+        Ok(id) -> pages.wine_detail(conn, id)
+        Error(_) -> wisp.not_found()
+      }
+    ["wineries"] -> pages.wineries(conn)
+    ["wineries", name] -> pages.winery_detail(conn, name)
+    ["cellar"] -> pages.cellar(conn)
     _ -> wisp.not_found()
   }
 }
