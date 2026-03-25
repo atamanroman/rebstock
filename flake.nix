@@ -245,7 +245,7 @@
 
           meta = with pkgs.lib; {
             description = "Self-hosted wine inventory manager";
-            license = licenses.unfree;
+            license = { spdxId = "PolyForm-Noncommercial-1.0.0"; free = false; };
             platforms = platforms.unix;
             mainProgram = "rebstock";
           };
