@@ -4,22 +4,22 @@ import sqlight
 import wisp
 import wisp/wisp_mist
 
-import rebstock/auth
+import rebstock/config
 import rebstock/db
 import rebstock/router
 
 pub fn main() -> Nil {
   wisp.configure_logger()
 
-  let assert Ok(conn) = sqlight.open("rebstock.db")
+  let cfg = config.load(config.parse_args())
+
+  let assert Ok(conn) = sqlight.open(cfg.database_uri)
   db.migrate(conn)
 
-  let auth_config = auth.config_from_env()
-
   let assert Ok(_) =
-    wisp_mist.handler(router.handle_request(_, conn, auth_config), "secret-signing-key")
+    wisp_mist.handler(router.handle_request(_, conn, cfg.auth), "secret")
     |> mist.new
-    |> mist.port(3000)
+    |> mist.port(cfg.port)
     |> mist.start
 
   process.sleep_forever()

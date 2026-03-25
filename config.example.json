@@ -1,0 +1,10 @@
+{
+  "$schema": "./config.schema.json",
+  "port": 3000,
+  "database_uri": "file:rebstock.db",
+  "auth": {
+    "single": {
+      "user": "admin"
+    }
+  }
+}

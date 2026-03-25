@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rebstock Configuration",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "default": 3000,
+      "description": "HTTP server port"
+    },
+    "database_uri": {
+      "type": "string",
+      "default": "file:rebstock.db",
+      "description": "SQLite database URI"
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration. Exactly one of 'single' or 'forward' must be set.",
+      "oneOf": [
+        {
+          "required": ["single"],
+          "properties": {
+            "single": {
+              "type": "object",
+              "description": "Single-user mode",
+              "properties": {
+                "user": {
+                  "type": "string",
+                  "default": "admin",
+                  "description": "Username for single-user mode"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["forward"],
+          "properties": {
+            "forward": {
+              "type": "object",
+              "description": "Forward auth mode (e.g. Caddy forward_auth)",
+              "properties": {
+                "header_user": {
+                  "type": "string",
+                  "default": "x-webauth-user",
+                  "description": "Header containing the username"
+                },
+                "header_name": {
+                  "type": "string",
+                  "default": "x-webauth-name",
+                  "description": "Header containing the display name"
+                },
+                "header_email": {
+                  "type": "string",
+                  "default": "x-webauth-email",
+                  "description": "Header containing the email"
+                },
+                "header_groups": {
+                  "type": "string",
+                  "default": "x-webauth-groups",
+                  "description": "Header containing comma-separated groups"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": ["auth"],
+  "additionalProperties": false
+}

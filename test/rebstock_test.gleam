@@ -5,6 +5,7 @@ import sqlight
 import wisp/simulate
 
 import rebstock/auth
+import rebstock/config
 import rebstock/db
 import rebstock/router
 import rebstock/vivino
@@ -102,6 +103,35 @@ pub fn wine_detail_test() {
     simulate.request(http.Get, "/wines/1")
     |> router.handle_request(conn, test_auth)
   let assert 200 = response.status
+  Nil
+}
+
+pub fn config_single_mode_test() {
+  let cfg = config.parse("{\"auth\": {\"single\": {\"user\": \"bob\"}}}")
+  let assert auth.Single("bob") = cfg.auth
+  let assert 3000 = cfg.port
+  let assert "file:rebstock.db" = cfg.database_uri
+  Nil
+}
+
+pub fn config_forward_mode_test() {
+  let cfg = config.parse("{\"port\": 8080, \"auth\": {\"forward\": {\"header_user\": \"x-user\"}}}")
+  let assert auth.Forward(header_user: "x-user", header_name: "x-webauth-name", ..) = cfg.auth
+  let assert 8080 = cfg.port
+  Nil
+}
+
+pub fn config_defaults_test() {
+  let cfg = config.parse("{\"auth\": {\"single\": {}}}")
+  let assert auth.Single("admin") = cfg.auth
+  let assert 3000 = cfg.port
+  let assert "file:rebstock.db" = cfg.database_uri
+  Nil
+}
+
+pub fn config_missing_file_test() {
+  let cfg = config.load("/nonexistent/config.json")
+  let assert auth.Single("admin") = cfg.auth
   Nil
 }
 

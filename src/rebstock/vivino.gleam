@@ -1,5 +1,4 @@
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{None}
 import gleam/string
@@ -8,13 +7,14 @@ import simplifile
 import sqlight.{type Connection}
 
 import rebstock/db
+import wisp
 
 pub fn import_data(conn: Connection, data_dir: String, username: String) -> Nil {
   import_cellar(conn, data_dir <> "/cellar.csv", username)
   import_full_wine_list(conn, data_dir <> "/full_wine_list.csv", username)
   import_wishlisted(conn, data_dir <> "/wishlisted.csv", username)
   let count = db.count_wines(conn, username)
-  io.println("Imported " <> int.to_string(count) <> " wines for " <> username)
+  wisp.log_info("Imported " <> int.to_string(count) <> " wines for " <> username)
 }
 
 fn is_blank(s: String) -> Bool {
