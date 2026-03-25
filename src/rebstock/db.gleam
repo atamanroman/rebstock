@@ -3,6 +3,7 @@ import gleam/float
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string
+import gleam/uri
 import migrant
 import sqlight.{type Connection}
 
@@ -436,6 +437,8 @@ pub fn slugify(text: String) -> String {
   |> string.replace("'", "")
   |> string.replace("\"", "")
   |> string.replace("&", "and")
+  |> string.replace("/", "-")
   |> string.replace(",", "")
   |> string.replace(".", "")
+  |> uri.percent_encode
 }
