@@ -1,5 +1,5 @@
 {
-  description = "Rebstock – self-hosted wine inventory manager";
+  description = "Rebstock - self-hosted wine inventory manager";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
