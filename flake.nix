@@ -131,7 +131,11 @@
     in
     (flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfreePredicate = pkg:
+            builtins.elem (nixpkgs.lib.getName pkg) [ "rebstock" "rebstock-deps" ];
+        };
 
         # Fixed-output derivation to fetch hex dependencies
         deps = pkgs.stdenv.mkDerivation {
