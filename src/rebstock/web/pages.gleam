@@ -2,7 +2,7 @@ import gleam/bytes_tree
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import nakai
 import nakai/attr
@@ -241,15 +241,18 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-stone-700")],
                   [html.Text(display_winery(wine.winery_name))],
                 ),
-                html.Text(" \u{00b7} " <> display_vintage(wine.vintage)),
+                html.Text(case wine.vintage {
+                  None -> ""
+                  _ -> " \u{00b7} " <> display_vintage(wine.vintage)
+                }),
               ]),
             ]),
             wine_type_badge(wine.wine_type),
           ]),
           detail_grid([
-            #("Region", wine.region),
+            #("Region", display_optional(wine.region)),
             #("Country", display_country(wine.country)),
-            #("Style", wine.style),
+            #("Style", display_optional(wine.style)),
           ]),
           html.div([attr.class("grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-stone-100")], [
             detail_stat("Avg Rating", rating_display(wine.avg_rating)),
@@ -296,8 +299,8 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   ])
               },
               case wine.personal_note {
-                "" -> html.Nothing
-                note ->
+                None -> html.Nothing
+                Some(note) ->
                   html.div([attr.class("mt-4")], [
                     html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-2")], [
                       html.Text("Personal Note"),
@@ -306,8 +309,8 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   ])
               },
               case wine.vivino_link {
-                "" -> html.Nothing
-                link ->
+                None -> html.Nothing
+                Some(link) ->
                   html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
                     html.a(
                       [attr.href(link), attr.class("text-sm text-rose-800 hover:text-rose-900")],
@@ -505,12 +508,8 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
       [
         csv_field(w.winery_name),
         csv_field(w.name),
-        case w.vintage {
-          -1 -> ""
-          0 -> "N.V."
-          v -> int.to_string(v)
-        },
-        csv_field(w.country),
+        display_vintage(w.vintage),
+        csv_field(display_country(w.country)),
         w.wine_type,
         case w.avg_rating {
           Some(r) -> float.to_string(r)
@@ -722,18 +721,25 @@ fn display_winery(winery: String) -> String {
   }
 }
 
-fn display_vintage(vintage: Int) -> String {
+fn display_vintage(vintage: Option(Int)) -> String {
   case vintage {
-    -1 -> "Unknown"
-    0 -> "N.V."
-    v -> int.to_string(v)
+    None -> ""
+    Some(0) -> "N.V."
+    Some(v) -> int.to_string(v)
   }
 }
 
-fn display_country(country: String) -> String {
+fn display_country(country: Option(String)) -> String {
   case country {
-    "" -> "Unknown"
-    c -> c
+    None -> ""
+    Some(c) -> c
+  }
+}
+
+fn display_optional(value: Option(String)) -> String {
+  case value {
+    None -> ""
+    Some(v) -> v
   }
 }
 

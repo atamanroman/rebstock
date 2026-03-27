@@ -14,15 +14,15 @@ pub type Wine {
     winery_id: Int,
     winery_name: String,
     name: String,
-    vintage: Int,
-    region: String,
-    country: String,
-    style: String,
+    vintage: Option(Int),
+    region: Option(String),
+    country: Option(String),
+    style: Option(String),
     avg_rating: Option(Float),
     rating_count: Option(Int),
-    personal_note: String,
+    personal_note: Option(String),
     wine_type: String,
-    vivino_link: String,
+    vivino_link: Option(String),
     in_cellar: Int,
     wishlisted: Bool,
   )
@@ -41,7 +41,7 @@ pub type Rating {
 }
 
 pub type Winery {
-  Winery(id: Int, name: String, wine_count: Int, country: String)
+  Winery(id: Int, name: String, wine_count: Int, country: Option(String))
 }
 
 pub fn migrate(conn: Connection) -> Nil {
@@ -64,15 +64,15 @@ fn wine_decoder() -> decode.Decoder(Wine) {
   use winery_id <- decode.field(2, decode.int)
   use winery_name <- decode.field(3, decode.string)
   use name <- decode.field(4, decode.string)
-  use vintage <- decode.field(5, decode.int)
-  use region <- decode.field(6, decode.string)
-  use country <- decode.field(7, decode.string)
-  use style <- decode.field(8, decode.string)
+  use vintage <- decode.field(5, decode.optional(decode.int))
+  use region <- decode.field(6, decode.optional(decode.string))
+  use country <- decode.field(7, decode.optional(decode.string))
+  use style <- decode.field(8, decode.optional(decode.string))
   use avg_rating <- decode.field(9, decode.optional(decode.float))
   use rating_count <- decode.field(10, decode.optional(decode.int))
-  use personal_note <- decode.field(11, decode.string)
+  use personal_note <- decode.field(11, decode.optional(decode.string))
   use wine_type <- decode.field(12, decode.string)
-  use vivino_link <- decode.field(13, decode.string)
+  use vivino_link <- decode.field(13, decode.optional(decode.string))
   use in_cellar <- decode.field(14, decode.int)
   use wishlisted_int <- decode.field(15, decode.int)
   decode.success(Wine(
@@ -140,7 +140,7 @@ pub fn list_wineries(conn: Connection, created_by: String) -> List(Winery) {
     use id <- decode.field(0, decode.int)
     use name <- decode.field(1, decode.string)
     use wine_count <- decode.field(2, decode.int)
-    use country <- decode.field(3, decode.string)
+    use country <- decode.field(3, decode.optional(decode.string))
     decode.success(Winery(id:, name:, wine_count:, country:))
   }
   let assert Ok(wineries) =
@@ -161,7 +161,7 @@ pub fn get_winery(conn: Connection, created_by: String, id: Int) -> Result(Winer
     use id <- decode.field(0, decode.int)
     use name <- decode.field(1, decode.string)
     use wine_count <- decode.field(2, decode.int)
-    use country <- decode.field(3, decode.string)
+    use country <- decode.field(3, decode.optional(decode.string))
     decode.success(Winery(id:, name:, wine_count:, country:))
   }
   let result =
@@ -320,7 +320,7 @@ pub fn count_wines(conn: Connection) -> Int {
   count
 }
 
-fn upsert_winery(conn: Connection, created_by: String, name: String, country: String) -> Int {
+fn upsert_winery(conn: Connection, created_by: String, name: String, country: Option(String)) -> Int {
   let id_decoder = {
     use id <- decode.field(0, decode.int)
     decode.success(id)
@@ -329,9 +329,9 @@ fn upsert_winery(conn: Connection, created_by: String, name: String, country: St
     sqlight.query(
       "INSERT INTO wineries (created_by, name, country) VALUES (?, ?, ?)
        ON CONFLICT(created_by, name) DO UPDATE SET
-         country = CASE WHEN excluded.country = '' THEN wineries.country ELSE excluded.country END",
+         country = COALESCE(excluded.country, wineries.country)",
       on: conn,
-      with: [sqlight.text(created_by), sqlight.text(name), sqlight.text(country)],
+      with: [sqlight.text(created_by), sqlight.text(name), nullable_text(country)],
       expecting: decode.success(Nil),
     )
   let assert Ok([id]) =
@@ -349,15 +349,15 @@ pub fn upsert_wine(
   created_by created_by: String,
   winery winery: String,
   name name: String,
-  vintage vintage: Int,
-  region region: String,
-  country country: String,
-  style style: String,
+  vintage vintage: Option(Int),
+  region region: Option(String),
+  country country: Option(String),
+  style style: Option(String),
   avg_rating avg_rating: Option(Float),
   rating_count rating_count: Option(Int),
-  personal_note personal_note: String,
+  personal_note personal_note: Option(String),
   wine_type wine_type: String,
-  vivino_link vivino_link: String,
+  vivino_link vivino_link: Option(String),
   in_cellar in_cellar: Int,
   wishlisted wishlisted: Bool,
 ) -> Int {
@@ -369,15 +369,15 @@ pub fn upsert_wine(
                         personal_note, wine_type, vivino_link, in_cellar, wishlisted)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(created_by, winery_id, name, vivino_link) DO UPDATE SET
-       vintage = CASE WHEN excluded.vintage > 0 THEN excluded.vintage ELSE wines.vintage END,
-       region = excluded.region,
-       country = excluded.country,
-       style = excluded.style,
-       avg_rating = excluded.avg_rating,
+       vintage = COALESCE(excluded.vintage, wines.vintage),
+       region = COALESCE(excluded.region, wines.region),
+       country = COALESCE(excluded.country, wines.country),
+       style = COALESCE(excluded.style, wines.style),
+       avg_rating = COALESCE(excluded.avg_rating, wines.avg_rating),
        rating_count = COALESCE(excluded.rating_count, wines.rating_count),
-       personal_note = CASE WHEN excluded.personal_note = '' THEN wines.personal_note ELSE excluded.personal_note END,
-       wine_type = excluded.wine_type,
-       vivino_link = excluded.vivino_link,
+       personal_note = COALESCE(excluded.personal_note, wines.personal_note),
+       wine_type = COALESCE(excluded.wine_type, wines.wine_type),
+       vivino_link = COALESCE(excluded.vivino_link, wines.vivino_link),
        in_cellar = CASE WHEN excluded.in_cellar > wines.in_cellar THEN excluded.in_cellar ELSE wines.in_cellar END,
        wishlisted = CASE WHEN excluded.wishlisted = 1 THEN 1 ELSE wines.wishlisted END
      RETURNING id"
@@ -394,15 +394,15 @@ pub fn upsert_wine(
         sqlight.text(created_by),
         sqlight.int(winery_id),
         sqlight.text(name),
-        sqlight.int(vintage),
-        sqlight.text(region),
-        sqlight.text(country),
-        sqlight.text(style),
+        nullable_int(vintage),
+        nullable_text(region),
+        nullable_text(country),
+        nullable_text(style),
         nullable_float(avg_rating),
         nullable_int(rating_count),
-        sqlight.text(personal_note),
+        nullable_text(personal_note),
         sqlight.text(wine_type),
-        sqlight.text(vivino_link),
+        nullable_text(vivino_link),
         sqlight.int(in_cellar),
         sqlight.bool(wishlisted),
       ],
@@ -479,13 +479,13 @@ pub fn parse_int_or_zero(s: String) -> Int {
   }
 }
 
-pub fn parse_vintage(s: String) -> Int {
+pub fn parse_vintage(s: String) -> Option(Int) {
   case string.trim(s) {
-    "" -> -1
+    "" -> None
     trimmed ->
       case int.parse(trimmed) {
-        Ok(v) -> v
-        Error(_) -> -1
+        Ok(v) -> Some(v)
+        Error(_) -> None
       }
   }
 }
@@ -502,6 +502,13 @@ pub fn parse_optional_float(s: String) -> Option(Float) {
             Error(_) -> None
           }
       }
+  }
+}
+
+pub fn optional_non_empty(s: String) -> Option(String) {
+  case string.trim(s) {
+    "" -> None
+    trimmed -> Some(trimmed)
   }
 }
 

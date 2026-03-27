@@ -1,25 +1,25 @@
 CREATE TABLE wineries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  created_by TEXT NOT NULL DEFAULT '',
-  name TEXT NOT NULL DEFAULT '',
-  country TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
+  name TEXT NOT NULL,
+  country TEXT,
   UNIQUE(created_by, name)
 );
 
 CREATE TABLE wines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  created_by TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
   winery_id INTEGER NOT NULL REFERENCES wineries(id),
-  name TEXT NOT NULL DEFAULT '',
-  vintage INTEGER NOT NULL DEFAULT -1,
-  region TEXT NOT NULL DEFAULT '',
-  country TEXT NOT NULL DEFAULT '',
-  style TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  vintage INTEGER,
+  region TEXT,
+  country TEXT,
+  style TEXT,
   avg_rating REAL,
   rating_count INTEGER,
-  personal_note TEXT NOT NULL DEFAULT '',
-  wine_type TEXT NOT NULL DEFAULT '',
-  vivino_link TEXT NOT NULL DEFAULT '',
+  personal_note TEXT,
+  wine_type TEXT NOT NULL,
+  vivino_link TEXT,
   in_cellar INTEGER NOT NULL DEFAULT 0,
   wishlisted INTEGER NOT NULL DEFAULT 0,
   UNIQUE(created_by, winery_id, name, vivino_link)
