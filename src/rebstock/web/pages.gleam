@@ -254,47 +254,62 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
             #("Country", display_country(wine.country)),
             #("Style", display_optional(wine.style)),
           ]),
-          html.div([attr.class("grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-stone-100")], [
-            detail_stat("Avg Rating", rating_display(wine.avg_rating)),
-            detail_stat("In Cellar", html.Text(case wine.in_cellar {
-              0 -> "No"
-              n -> int.to_string(n) <> " bottles"
-            })),
-            detail_stat("Wishlisted", html.Text(case wine.wishlisted {
-              True -> "Yes"
-              False -> "No"
-            })),
-          ]),
           ..{
-            let wine_ratings = db.ratings_for_wine(conn, wine.id)
+            let all_ratings = db.ratings_for_wine(conn, wine.id)
+            let my_ratings = list.filter(all_ratings, fn(r) { r.username == user.username })
+            let other_ratings = list.filter(all_ratings, fn(r) { r.username != user.username })
+            let my_rating_display = case my_ratings {
+              [] -> html.Text("\u{2014}")
+              _ ->
+                html.div([attr.class("space-y-1")], list.map(my_ratings, fn(r) {
+                  html.span([attr.class("inline-flex items-center gap-2")], [
+                    case r.rating {
+                      Some(v) -> rating_display(Some(v))
+                      None -> html.Nothing
+                    },
+                    case r.tasting_notes {
+                      Some(_) ->
+                        html.span([attr.class("text-xs text-stone-400")], [
+                          html.Text("w/ notes"),
+                        ])
+                      None -> html.Nothing
+                    },
+                  ])
+                }))
+            }
             [
-              case wine_ratings {
+              html.div([attr.class("grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-stone-100")], [
+                detail_stat("Avg Rating", rating_display(wine.avg_rating)),
+                html.div([attr.class("bg-amber-50 rounded-lg px-3 py-2 -mx-1 w-fit")], [
+                  html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
+                    html.Text(case my_ratings {
+                      [_] -> "Your Rating"
+                      [_, _, ..] -> "Your Ratings"
+                      [] -> "Your Rating"
+                    }),
+                  ]),
+                  html.div([attr.class("text-lg text-stone-800 mt-0.5")], [
+                    my_rating_display,
+                  ]),
+                ]),
+                detail_stat("In Cellar", html.Text(case wine.in_cellar {
+                  0 -> "No"
+                  n -> int.to_string(n) <> " bottles"
+                })),
+                detail_stat("Wishlisted", html.Text(case wine.wishlisted {
+                  True -> "Yes"
+                  False -> "No"
+                })),
+              ]),
+              case other_ratings {
                 [] -> html.Nothing
                 _ ->
                   html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
-                    html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-3")], [
-                      html.Text("Ratings"),
+                    html.h3([attr.class("text-xs uppercase tracking-wider text-stone-400 mb-3")], [
+                      html.Text("Other Ratings"),
                     ]),
-                    html.div([attr.class("space-y-3")], list.map(wine_ratings, fn(r) {
-                      html.div([attr.class("flex items-start justify-between")], [
-                        html.div([], [
-                          case r.tasting_notes {
-                            Some(notes) ->
-                              html.p([attr.class("text-stone-700")], [html.Text(notes)])
-                            None -> html.Nothing
-                          },
-                          html.p([attr.class("text-xs text-stone-400 mt-1")], [
-                            html.Text(r.username <> " \u{00b7} " <> case r.rated_at {
-                              Some(date) -> date
-                              None -> "imported " <> r.created_at
-                            }),
-                          ]),
-                        ]),
-                        case r.rating {
-                          Some(v) -> rating_display(Some(v))
-                          None -> html.Nothing
-                        },
-                      ])
+                    html.div([attr.class("space-y-2")], list.map(other_ratings, fn(r) {
+                      rating_entry(r, show_username: True)
                     })),
                   ])
               },
@@ -627,6 +642,31 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
         ],
       )
   }
+}
+
+fn rating_entry(r: Rating, show_username su: Bool) -> Node {
+  html.div([attr.class("flex items-start justify-between")], [
+    html.div([], [
+      case r.tasting_notes {
+        Some(notes) ->
+          html.p([attr.class("text-stone-700")], [html.Text(notes)])
+        None -> html.Nothing
+      },
+      html.p([attr.class("text-xs text-stone-400 mt-1")], [
+        html.Text({
+          let who = case su { True -> r.username <> " \u{00b7} " False -> "" }
+          who <> case r.rated_at {
+            Some(date) -> date
+            None -> "imported " <> r.created_at
+          }
+        }),
+      ]),
+    ]),
+    case r.rating {
+      Some(v) -> rating_display(Some(v))
+      None -> html.Nothing
+    },
+  ])
 }
 
 fn th(label: String) -> Node {
