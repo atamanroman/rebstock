@@ -11,7 +11,7 @@ import sqlight.{type Connection}
 import wisp.{type Response}
 
 import rebstock/auth.{type User}
-import rebstock/db.{type Wine, type Winery}
+import rebstock/db.{type Rating, type Wine, type Winery}
 
 // --- Home ---
 
@@ -23,8 +23,8 @@ pub fn home(conn: Connection, user: User) -> Response {
     list.fold(all_cellar, 0, fn(acc, w) { acc + w.in_cellar })
 
   let top_cellar = db.top_cellar(conn, u, 10)
-  let top_rated = db.top_rated_by_user(conn, u, 10)
-  let latest_rated = db.latest_rated(conn, u, 10)
+  let top_rated = db.top_ratings_by_user(conn, u, 10)
+  let latest_rated = db.latest_ratings(conn, u, 10)
   let latest_cellar = db.latest_cellar(conn, u, 10)
 
   page("Rebstock", user, [
@@ -42,30 +42,83 @@ pub fn home(conn: Connection, user: User) -> Response {
       ),
     ]),
     html.div([attr.class("grid grid-cols-1 lg:grid-cols-2 gap-8")], [
-      section("Top Cellar Wines", "/~" <> u <> "/cellar", top_cellar),
-      section("Your Top Rated", "/~" <> u <> "/ratings", top_rated),
-      section("Recently Added to Cellar", "/~" <> u <> "/cellar", latest_cellar),
-      section("Recently Rated", "/~" <> u <> "/ratings", latest_rated),
+      wine_section("Top Cellar Wines", "/~" <> u <> "/cellar", top_cellar),
+      rating_section("Your Top Rated", "/~" <> u <> "/ratings", top_rated, conn),
+      wine_section("Recently Added to Cellar", "/~" <> u <> "/cellar", latest_cellar),
+      rating_section("Recently Rated", "/~" <> u <> "/ratings", latest_rated, conn),
     ]),
   ])
 }
 
-fn section(title: String, link: String, wines: List(Wine)) -> Node {
+fn section_header(title: String, link: String) -> Node {
+  html.div([attr.class("flex items-baseline justify-between mb-3")], [
+    html.h2([attr.class("text-lg font-medium text-stone-800")], [
+      html.Text(title),
+    ]),
+    html.a(
+      [attr.href(link), attr.class("text-xs text-stone-400 hover:text-stone-600 transition-colors")],
+      [html.Text("View all \u{2192}")],
+    ),
+  ])
+}
+
+fn wine_section(title: String, link: String, wines: List(Wine)) -> Node {
   case wines {
     [] -> html.Nothing
     _ ->
       html.div([], [
-        html.div([attr.class("flex items-baseline justify-between mb-3")], [
-          html.h2([attr.class("text-lg font-medium text-stone-800")], [
-            html.Text(title),
-          ]),
-          html.a(
-            [attr.href(link), attr.class("text-xs text-stone-400 hover:text-stone-600 transition-colors")],
-            [html.Text("View all \u{2192}")],
-          ),
-        ]),
+        section_header(title, link),
         compact_wine_list(wines),
       ])
+  }
+}
+
+fn rating_section(title: String, link: String, ratings: List(Rating), conn: Connection) -> Node {
+  case ratings {
+    [] -> html.Nothing
+    _ ->
+      html.div([], [
+        section_header(title, link),
+        html.div(
+          [attr.class("bg-white rounded-lg border border-stone-200 divide-y divide-stone-100")],
+          list.map(ratings, fn(r) { compact_rating_row(r, conn) }),
+        ),
+      ])
+  }
+}
+
+fn compact_rating_row(rating: Rating, conn: Connection) -> Node {
+  case db.get_wine_by_id(conn, rating.wine_id) {
+    Error(_) -> html.Nothing
+    Ok(wine) ->
+      html.a(
+        [attr.href(wine_url(wine)), attr.class("flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block")],
+        [
+          html.div([attr.class("min-w-0 flex-1")], [
+            html.div([attr.class("flex items-center gap-2")], [
+              html.span([attr.class("font-medium text-stone-800 text-sm truncate")], [
+                html.Text(wine.name),
+              ]),
+              html.span([attr.class("text-xs text-stone-400 shrink-0")], [
+                html.Text(display_vintage(wine.vintage)),
+              ]),
+            ]),
+            html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
+              html.Text(display_winery(wine.winery_name)),
+            ]),
+          ]),
+          html.div([attr.class("flex items-center gap-3 ml-4 shrink-0")], [
+            wine_type_badge(wine.wine_type),
+            ..case rating.rating {
+              Some(r) ->
+                [html.span([attr.class("text-sm font-medium text-amber-700 tabular-nums")], [
+                  html.Text(float.to_string(r)),
+                ])]
+              None -> []
+            }
+          ]),
+        ],
+      )
   }
 }
 
@@ -102,18 +155,12 @@ fn compact_wine_row(wine: Wine) -> Node {
 }
 
 fn compact_stats(wine: Wine) -> List(Node) {
-  let rating = case wine.user_rating {
+  let rating = case wine.avg_rating {
     Some(r) ->
-      [html.span([attr.class("text-sm font-medium text-amber-700 tabular-nums")], [
+      [html.span([attr.class("text-sm text-stone-500 tabular-nums")], [
         html.Text(float.to_string(r)),
       ])]
-    None -> case wine.avg_rating {
-      Some(r) ->
-        [html.span([attr.class("text-sm text-stone-500 tabular-nums")], [
-          html.Text(float.to_string(r)),
-        ])]
-      None -> []
-    }
+    None -> []
   }
   let cellar = case wine.in_cellar {
     0 -> []
@@ -144,7 +191,7 @@ pub fn wines(conn: Connection, user: User) -> Response {
 
   page("All Wines \u{2014} Rebstock", user, [
     page_header("All Wines", count <> " total"),
-    wine_table(wines, show_cellar: True, show_my_rating: True),
+    wine_table(wines, show_cellar: True),
   ])
 }
 
@@ -156,19 +203,19 @@ pub fn wishlist(conn: Connection, user: User, username: String) -> Response {
 
   page("Wishlist \u{2014} Rebstock", user, [
     page_header("Wishlist", count <> " wines"),
-    wine_table(wines, show_cellar: False, show_my_rating: False),
+    wine_table(wines, show_cellar: False),
   ])
 }
 
 // --- My Ratings ---
 
 pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
-  let wines = db.rated_wines(conn, username)
-  let count = int.to_string(list.length(wines))
+  let ratings = db.ratings_by_user(conn, username)
+  let count = int.to_string(list.length(ratings))
 
   page("My Ratings \u{2014} Rebstock", user, [
-    page_header("My Ratings", count <> " wines"),
-    wine_table(wines, show_cellar: False, show_my_rating: True),
+    page_header("My Ratings", count <> " ratings"),
+    rating_table(ratings, conn),
   ])
 }
 
@@ -204,9 +251,8 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
             #("Country", display_country(wine.country)),
             #("Style", wine.style),
           ]),
-          html.div([attr.class("grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-stone-100")], [
+          html.div([attr.class("grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-stone-100")], [
             detail_stat("Avg Rating", rating_display(wine.avg_rating)),
-            detail_stat("Your Rating", rating_display(wine.user_rating)),
             detail_stat("In Cellar", html.Text(case wine.in_cellar {
               0 -> "No"
               n -> int.to_string(n) <> " bottles"
@@ -216,36 +262,61 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
               False -> "No"
             })),
           ]),
-          case wine.user_review {
-            "" -> html.Nothing
-            review ->
-              html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
-                html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-2")], [
-                  html.Text("Your Review"),
-                ]),
-                html.p([attr.class("text-stone-700")], [html.Text(review)]),
-              ])
-          },
-          case wine.personal_note {
-            "" -> html.Nothing
-            note ->
-              html.div([attr.class("mt-4")], [
-                html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-2")], [
-                  html.Text("Personal Note"),
-                ]),
-                html.p([attr.class("text-stone-700")], [html.Text(note)]),
-              ])
-          },
-          case wine.vivino_link {
-            "" -> html.Nothing
-            link ->
-              html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
-                html.a(
-                  [attr.href(link), attr.class("text-sm text-rose-800 hover:text-rose-900")],
-                  [html.Text("View on Vivino \u{2192}")],
-                ),
-              ])
-          },
+          ..{
+            let wine_ratings = db.ratings_for_wine(conn, wine.id)
+            [
+              case wine_ratings {
+                [] -> html.Nothing
+                _ ->
+                  html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+                    html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-3")], [
+                      html.Text("Ratings"),
+                    ]),
+                    html.div([attr.class("space-y-3")], list.map(wine_ratings, fn(r) {
+                      html.div([attr.class("flex items-start justify-between")], [
+                        html.div([], [
+                          case r.tasting_notes {
+                            Some(notes) ->
+                              html.p([attr.class("text-stone-700")], [html.Text(notes)])
+                            None -> html.Nothing
+                          },
+                          html.p([attr.class("text-xs text-stone-400 mt-1")], [
+                            html.Text(r.username <> " \u{00b7} " <> case r.rated_at {
+                              Some(date) -> date
+                              None -> "imported " <> r.created_at
+                            }),
+                          ]),
+                        ]),
+                        case r.rating {
+                          Some(v) -> rating_display(Some(v))
+                          None -> html.Nothing
+                        },
+                      ])
+                    })),
+                  ])
+              },
+              case wine.personal_note {
+                "" -> html.Nothing
+                note ->
+                  html.div([attr.class("mt-4")], [
+                    html.h3([attr.class("text-xs uppercase tracking-wider text-stone-500 mb-2")], [
+                      html.Text("Personal Note"),
+                    ]),
+                    html.p([attr.class("text-stone-700")], [html.Text(note)]),
+                  ])
+              },
+              case wine.vivino_link {
+                "" -> html.Nothing
+                link ->
+                  html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+                    html.a(
+                      [attr.href(link), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                      [html.Text("View on Vivino \u{2192}")],
+                    ),
+                  ])
+              },
+            ]
+          }
         ]),
       ])
   }
@@ -341,7 +412,7 @@ pub fn winery_detail(conn: Connection, id: Int, user: User) -> Response {
           ),
         ]),
         page_header(display, int.to_string(winery.wine_count) <> " wines"),
-        wine_table(wines, show_cellar: True, show_my_rating: False),
+        wine_table(wines, show_cellar: True),
       ])
     }
   }
@@ -381,7 +452,7 @@ pub fn cellar(conn: Connection, user: User, username: String) -> Response {
         ),
       ]),
     ]),
-    wine_table(wines, show_cellar: True, show_my_rating: True),
+    wine_table(wines, show_cellar: True),
   ])
 }
 
@@ -398,7 +469,7 @@ pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response
           html.h2([attr.class("cellar-type-heading")], [
             html.Text(first.wine_type),
           ]),
-          wine_table(group, show_cellar: True, show_my_rating: False),
+          wine_table(group, show_cellar: True),
         ]
         _ -> []
       }
@@ -483,7 +554,7 @@ fn page_header(title: String, subtitle: String) -> Node {
   ])
 }
 
-fn wine_table(wines: List(Wine), show_cellar sc: Bool, show_my_rating mr: Bool) -> Node {
+fn wine_table(wines: List(Wine), show_cellar sc: Bool) -> Node {
   html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
     html.table([attr.class("w-full text-sm")], [
       html.thead([], [
@@ -494,15 +565,69 @@ fn wine_table(wines: List(Wine), show_cellar sc: Bool, show_my_rating mr: Bool) 
           th("Country"),
           th("Type"),
           th("Rating"),
-          ..list.flatten([
-            case mr { True -> [th("You")] False -> [] },
-            case sc { True -> [th("Cellar")] False -> [] },
-          ])
+          ..case sc { True -> [th("Cellar")] False -> [] }
         ]),
       ]),
-      html.tbody([], list.index_map(wines, fn(w, i) { wine_row(w, i, sc, mr) })),
+      html.tbody([], list.index_map(wines, fn(w, i) { wine_row(w, i, sc) })),
     ]),
   ])
+}
+
+fn rating_table(ratings: List(Rating), conn: Connection) -> Node {
+  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
+    html.table([attr.class("w-full text-sm")], [
+      html.thead([], [
+        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
+          th("Wine"),
+          th("Winery"),
+          th("Rating"),
+          th("Notes"),
+          th("Date"),
+        ]),
+      ]),
+      html.tbody([], list.index_map(ratings, fn(r, i) { rating_row(r, i, conn) })),
+    ]),
+  ])
+}
+
+fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
+  let bg = case idx % 2 {
+    0 -> "bg-white"
+    _ -> "bg-stone-50/30"
+  }
+  case db.get_wine_by_id(conn, rating.wine_id) {
+    Error(_) -> html.Nothing
+    Ok(wine) ->
+      html.tr(
+        [attr.class(bg <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+        [
+          html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
+            html.a(
+              [attr.href(wine_url(wine)), attr.class("hover:text-rose-800 transition-colors")],
+              [html.Text(wine.name)],
+            ),
+          ]),
+          html.td([attr.class("px-4 py-3 text-stone-700")], [
+            html.Text(display_winery(wine.winery_name)),
+          ]),
+          html.td([attr.class("px-4 py-3 tabular-nums")], [
+            rating_display(rating.rating),
+          ]),
+          html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
+            html.Text(case rating.tasting_notes {
+              Some(notes) -> notes
+              None -> ""
+            }),
+          ]),
+          html.td([attr.class("px-4 py-3 text-stone-500 text-xs")], [
+            html.Text(case rating.rated_at {
+              Some(date) -> date
+              None -> "imported"
+            }),
+          ]),
+        ],
+      )
+  }
 }
 
 fn th(label: String) -> Node {
@@ -512,7 +637,7 @@ fn th(label: String) -> Node {
   )
 }
 
-fn wine_row(wine: Wine, idx: Int, show_cellar: Bool, show_my_rating: Bool) -> Node {
+fn wine_row(wine: Wine, idx: Int, show_cellar: Bool) -> Node {
   let bg = case idx % 2 {
     0 -> "bg-white"
     _ -> "bg-stone-50/30"
@@ -542,27 +667,17 @@ fn wine_row(wine: Wine, idx: Int, show_cellar: Bool, show_my_rating: Bool) -> No
       html.td([attr.class("px-4 py-3 tabular-nums")], [
         rating_display(wine.avg_rating),
       ]),
-      ..list.flatten([
-        case show_my_rating {
-          True -> [
-            html.td([attr.class("px-4 py-3 tabular-nums")], [
-              rating_display(wine.user_rating),
-            ]),
-          ]
-          False -> []
-        },
-        case show_cellar {
-          True -> [
-            html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
-              html.Text(case wine.in_cellar {
-                0 -> ""
-                n -> int.to_string(n)
-              }),
-            ]),
-          ]
+      ..case show_cellar {
+        True -> [
+          html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
+            html.Text(case wine.in_cellar {
+              0 -> ""
+              n -> int.to_string(n)
+            }),
+          ]),
+        ]
         False -> []
-      },
-      ])
+      }
     ],
   )
 }
