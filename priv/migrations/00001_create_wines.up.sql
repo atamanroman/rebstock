@@ -20,8 +20,17 @@ CREATE TABLE wines (
   personal_note TEXT,
   wine_type TEXT NOT NULL,
   vivino_link TEXT,
-  wishlisted INTEGER NOT NULL DEFAULT 0,
   UNIQUE(created_by, winery_id, name, vivino_link)
+);
+
+CREATE TABLE wishlist (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  wine_id INTEGER NOT NULL REFERENCES wines(id),
+  notes TEXT,
+  dated_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(username, wine_id)
 );
 
 CREATE TABLE cellar (

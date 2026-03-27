@@ -46,7 +46,6 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   personal_note: None,
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
-                  wishlisted: False,
                 )
                 let bottles = db.parse_int_or_zero(cellar_count)
                 case bottles > 0 {
@@ -96,7 +95,6 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
 
-                  wishlisted: False,
                 )
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)
@@ -146,8 +144,13 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
-
-                  wishlisted: True,
+                )
+                db.upsert_wishlist(
+                  conn,
+                  username: created_by,
+                  wine_id:,
+                  notes: None,
+                  dated_at: None,
                 )
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)

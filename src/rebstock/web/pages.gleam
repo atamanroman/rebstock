@@ -11,7 +11,7 @@ import sqlight.{type Connection}
 import wisp.{type Response}
 
 import rebstock/auth.{type User}
-import rebstock/db.{type CellarEntry, type CellarWine, type Rating, type Wine, type Winery}
+import rebstock/db.{type CellarEntry, type CellarWine, type Rating, type Wine, type WishlistWine, type Winery}
 
 // --- Home ---
 
@@ -272,12 +272,12 @@ pub fn wines(conn: Connection, user: User) -> Response {
 // --- Wishlist ---
 
 pub fn wishlist(conn: Connection, user: User, username: String) -> Response {
-  let wines = db.wishlist_wines(conn, username)
-  let count = int.to_string(list.length(wines))
+  let wishlist = db.wishlist_wines(conn, username)
+  let count = int.to_string(list.length(wishlist))
 
   page("Wishlist \u{2014} Rebstock", user, [
     page_header("Wishlist", count <> " wines"),
-    wine_table(wines),
+    wishlist_table(wishlist),
   ])
 }
 
@@ -373,7 +373,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                     n -> int.to_string(n) <> " bottles"
                   })
                 }),
-                detail_stat("Wishlisted", html.Text(case wine.wishlisted {
+                detail_stat("Wishlisted", html.Text(case db.is_wishlisted(conn, user.username, wine.id) {
                   True -> "Yes"
                   False -> "No"
                 })),
@@ -680,6 +680,63 @@ fn cellar_wine_table(wines: List(CellarWine)) -> Node {
       html.tbody([], list.index_map(wines, cellar_wine_row)),
     ]),
   ])
+}
+
+fn wishlist_table(wines: List(WishlistWine)) -> Node {
+  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
+    html.table([attr.class("w-full text-sm")], [
+      html.thead([], [
+        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
+          th("Winery"),
+          th("Wine"),
+          th("Vintage"),
+          th("Country"),
+          th("Type"),
+          th("Rating"),
+          th("Notes"),
+        ]),
+      ]),
+      html.tbody([], list.index_map(wines, wishlist_row)),
+    ]),
+  ])
+}
+
+fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
+  let wine = ww.wine
+  let bg = case idx % 2 {
+    0 -> "bg-white"
+    _ -> "bg-stone-50/30"
+  }
+  html.tr(
+    [attr.class(bg <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [
+      html.td([attr.class("px-4 py-3 text-stone-700")], [
+        html.a(
+          [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-rose-800 transition-colors")],
+          [html.Text(display_winery(wine.winery_name))],
+        ),
+      ]),
+      html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
+        html.a(
+          [attr.href(wine_url(wine)), attr.class("hover:text-rose-800 transition-colors")],
+          [html.Text(wine.name)],
+        ),
+      ]),
+      html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
+        html.Text(display_vintage(wine.vintage)),
+      ]),
+      html.td([attr.class("px-4 py-3 text-stone-600")], [
+        html.Text(display_country(wine.country)),
+      ]),
+      html.td([attr.class("px-4 py-3")], [wine_type_badge(wine.wine_type)]),
+      html.td([attr.class("px-4 py-3 tabular-nums")], [
+        rating_display(wine.avg_rating),
+      ]),
+      html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
+        html.Text(display_optional(ww.notes)),
+      ]),
+    ],
+  )
 }
 
 fn rating_table(ratings: List(Rating), conn: Connection) -> Node {
