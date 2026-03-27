@@ -32,7 +32,7 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
             case is_blank(name) {
               True -> Nil
               False -> {
-                db.upsert_wine(
+                let wine_id = db.upsert_wine(
                   conn,
                   created_by:,
                   winery:,
@@ -46,10 +46,21 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   personal_note: None,
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
-                  in_cellar: db.parse_int_or_zero(cellar_count),
                   wishlisted: False,
                 )
-                Nil
+                let bottles = db.parse_int_or_zero(cellar_count)
+                case bottles > 0 {
+                  True ->
+                    db.insert_cellar_entry(
+                      conn,
+                      username: created_by,
+                      wine_id:,
+                      quantity: bottles,
+                      notes: None,
+                      dated_at: None,
+                    )
+                  False -> Nil
+                }
               }
             }
           _ -> Nil
@@ -84,7 +95,7 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
-                  in_cellar: 0,
+
                   wishlisted: False,
                 )
                 let rating = db.parse_optional_float(user_rating)
@@ -135,7 +146,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_link: db.optional_non_empty(vivino_link),
-                  in_cellar: 0,
+
                   wishlisted: True,
                 )
                 let rating = db.parse_optional_float(user_rating)
