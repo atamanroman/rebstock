@@ -91,6 +91,11 @@ html {
   margin-top: 0;
 }
 
+.target-highlight:target {
+  background-color: oklch(92.4% 0.12 95.746);
+  scroll-margin-top: calc(33vh - 1rem);
+}
+
 @media print {
   /* Reset page */
   html, body {

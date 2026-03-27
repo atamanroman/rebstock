@@ -366,17 +366,6 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                     my_rating_display,
                   ]),
                 ]),
-                detail_stat("In Cellar", {
-                  let bottles = db.cellar_bottle_count(conn, user.username, wine.id)
-                  html.Text(case bottles {
-                    0 -> "No"
-                    n -> int.to_string(n) <> " bottles"
-                  })
-                }),
-                detail_stat("Wishlisted", html.Text(case db.is_wishlisted(conn, user.username, wine.id) {
-                  True -> "Yes"
-                  False -> "No"
-                })),
               ]),
               case other_ratings {
                 [] -> html.Nothing
@@ -400,15 +389,36 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                     html.p([attr.class("text-stone-700")], [html.Text(note)]),
                   ])
               },
-              case wine.vivino_link {
-                None -> html.Nothing
-                Some(link) ->
-                  html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
-                    html.a(
+              {
+                let bottles = db.cellar_bottle_count(conn, user.username, wine.id)
+                let wishlisted = db.is_wishlisted(conn, user.username, wine.id)
+                let links = [
+                  case bottles > 0 {
+                    True -> [html.a(
+                      [attr.href("/~" <> user.username <> "/cellar#wine-" <> int.to_string(wine.id)), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                      [html.Text("View in cellar (" <> int.to_string(bottles) <> " bottles) \u{2192}")],
+                    )]
+                    False -> []
+                  },
+                  case wishlisted {
+                    True -> [html.a(
+                      [attr.href("/~" <> user.username <> "/wishlist#wine-" <> int.to_string(wine.id)), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                      [html.Text("View in wishlist \u{2192}")],
+                    )]
+                    False -> []
+                  },
+                  case wine.vivino_link {
+                    Some(link) -> [html.a(
                       [attr.href(link), attr.class("text-sm text-rose-800 hover:text-rose-900")],
                       [html.Text("View on Vivino \u{2192}")],
-                    ),
-                  ])
+                    )]
+                    None -> []
+                  },
+                ] |> list.flatten
+                case links {
+                  [] -> html.Nothing
+                  _ -> html.div([attr.class("mt-6 pt-6 border-t border-stone-100 flex flex-col gap-2")], links)
+                }
               },
             ]
           }
@@ -708,7 +718,7 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.class(bg <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> int.to_string(wine.id)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
@@ -869,7 +879,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.class(bg <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> int.to_string(wine.id)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
