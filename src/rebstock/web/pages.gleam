@@ -29,23 +29,23 @@ pub fn home(conn: Connection, user: User) -> Response {
 
   page("Rebstock", user, [
     html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10")], [
-      stat_card("All Wines", int.to_string(wine_count), "/wines"),
+      stat_card("Known Wines", int.to_string(wine_count), "/wines"),
       stat_card(
-        "In Cellar",
-        int.to_string(cellar_count) <> " bottles",
-        "/~" <> u <> "/cellar",
-      ),
-      stat_card(
-        "Wineries",
+        "Known Wineries",
         int.to_string(list.length(db.list_wineries(conn, u))),
         "/wineries",
       ),
+      stat_card(
+             "In Cellar",
+             int.to_string(cellar_count) <> " bottles",
+             "/~" <> u <> "/cellar",
+           ),
     ]),
     html.div([attr.class("grid grid-cols-1 lg:grid-cols-2 gap-8")], [
-      cellar_wine_section("Top Cellar Wines", "/~" <> u <> "/cellar", top_cellar),
-      rating_section("Your Top Rated", "/~" <> u <> "/ratings", top_rated, conn),
       cellar_entry_section("Recently Added to Cellar", "/~" <> u <> "/cellar", latest_cellar, conn),
+      cellar_wine_section("Top Cellar Wines", "/~" <> u <> "/cellar", top_cellar),
       rating_section("Recently Rated", "/~" <> u <> "/ratings", latest_rated, conn),
+      rating_section("Your Top Rated", "/~" <> u <> "/ratings", top_rated, conn),
     ]),
   ])
 }
