@@ -1,4 +1,6 @@
 import gleam/http
+import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
 import sqlight
@@ -132,6 +134,92 @@ pub fn config_defaults_test() {
 pub fn config_missing_file_test() {
   let cfg = config.load("/nonexistent/config.json")
   let assert auth.Single("admin") = cfg.auth
+  Nil
+}
+
+fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
+  let wine_a = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Alice",
+    name: "Pinot Noir Reserve",
+    vintage: Some(2020),
+    region: Some("Burgundy"),
+    country: Some("France"),
+    style: None,
+    avg_rating: Some(4.2),
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: None,
+  )
+  let wine_b = db.upsert_wine(
+    conn,
+    created_by: "bob",
+    winery: "Bodega Bob",
+    name: "Tempranillo Gran Reserva",
+    vintage: Some(2018),
+    region: Some("Rioja"),
+    country: Some("Spain"),
+    style: None,
+    avg_rating: Some(4.5),
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: None,
+  )
+  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, quantity: 6, notes: None, dated_at: None)
+  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, quantity: 3, notes: None, dated_at: None)
+  db.insert_rating(conn, username: "alice", wine_id: wine_a, rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None)
+  db.insert_rating(conn, username: "bob", wine_id: wine_b, rating: Some(3.8), tasting_notes: None, rated_at: None)
+  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, notes: Some("Want to try"), dated_at: None)
+  #(wine_a, wine_b)
+}
+
+pub fn cellar_isolation_test() {
+  use conn <- with_empty_db
+  let #(wine_a, _wine_b) = seed_two_users(conn)
+  let alice_cellar = db.cellar_wines(conn, "alice")
+  let bob_cellar = db.cellar_wines(conn, "bob")
+  let assert 1 = list.length(alice_cellar)
+  let assert 1 = list.length(bob_cellar)
+  let assert 6 = db.cellar_bottle_count(conn, "alice", wine_a)
+  let assert 0 = db.cellar_bottle_count(conn, "bob", wine_a)
+  Nil
+}
+
+pub fn ratings_isolation_test() {
+  use conn <- with_empty_db
+  let #(_wine_a, _wine_b) = seed_two_users(conn)
+  let alice_ratings = db.ratings_by_user(conn, "alice")
+  let bob_ratings = db.ratings_by_user(conn, "bob")
+  let assert 1 = list.length(alice_ratings)
+  let assert 1 = list.length(bob_ratings)
+  let assert [r] = alice_ratings
+  let assert Some(4.5) = r.rating
+  Nil
+}
+
+pub fn wishlist_isolation_test() {
+  use conn <- with_empty_db
+  let #(_wine_a, wine_b) = seed_two_users(conn)
+  let alice_wishlist = db.wishlist_wines(conn, "alice")
+  let bob_wishlist = db.wishlist_wines(conn, "bob")
+  let assert 1 = list.length(alice_wishlist)
+  let assert 0 = list.length(bob_wishlist)
+  let assert True = db.is_wishlisted(conn, "alice", wine_b)
+  let assert False = db.is_wishlisted(conn, "bob", wine_b)
+  Nil
+}
+
+pub fn wines_global_but_scoped_by_creator_test() {
+  use conn <- with_empty_db
+  let #(_wine_a, _wine_b) = seed_two_users(conn)
+  let alice_wines = db.list_wines(conn, "alice")
+  let bob_wines = db.list_wines(conn, "bob")
+  let assert 1 = list.length(alice_wines)
+  let assert 1 = list.length(bob_wines)
+  let assert 2 = db.count_wines(conn)
   Nil
 }
 
