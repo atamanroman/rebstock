@@ -143,7 +143,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     created_by: "alice",
     winery: "Domaine Alice",
     name: "Pinot Noir Reserve",
-    vintage: Some(2020),
+    vintages: Some("2020"),
     region: Some("Burgundy"),
     country: Some("France"),
     style: None,
@@ -158,7 +158,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     created_by: "bob",
     winery: "Bodega Bob",
     name: "Tempranillo Gran Reserva",
-    vintage: Some(2018),
+    vintages: Some("2018"),
     region: Some("Rioja"),
     country: Some("Spain"),
     style: None,
@@ -168,11 +168,11 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     wine_type: "Red Wine",
     vivino_link: None,
   )
-  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, quantity: 6, notes: None, dated_at: None)
-  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, quantity: 3, notes: None, dated_at: None)
-  db.insert_rating(conn, username: "alice", wine_id: wine_a, rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None)
-  db.insert_rating(conn, username: "bob", wine_id: wine_b, rating: Some(3.8), tasting_notes: None, rated_at: None)
-  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, notes: Some("Want to try"), dated_at: None)
+  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage: 2020, quantity: 6, notes: None, dated_at: None)
+  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage: 2018, quantity: 3, notes: None, dated_at: None)
+  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage: Some(2020), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None)
+  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage: Some(2018), rating: Some(3.8), tasting_notes: None, rated_at: None)
+  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage: Some(2018), notes: Some("Want to try"), dated_at: None)
   #(wine_a, wine_b)
 }
 
@@ -220,6 +220,136 @@ pub fn wines_global_but_scoped_by_creator_test() {
   let assert 1 = list.length(alice_wines)
   let assert 1 = list.length(bob_wines)
   let assert 2 = db.count_wines(conn)
+  Nil
+}
+
+pub fn upsert_wine_deduplicates_by_name_test() {
+  use conn <- with_empty_db
+  let id1 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Chardonnay",
+    vintages: Some("2020"),
+    region: Some("Burgundy"),
+    country: Some("France"),
+    style: None,
+    avg_rating: Some(4.0),
+    rating_count: None,
+    personal_note: None,
+    wine_type: "White Wine",
+    vivino_link: Some("https://vivino.com/wines/111"),
+  )
+  let id2 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Chardonnay",
+    vintages: Some("2022"),
+    region: None,
+    country: None,
+    style: None,
+    avg_rating: Some(4.3),
+    rating_count: None,
+    personal_note: None,
+    wine_type: "White Wine",
+    vivino_link: Some("https://vivino.com/wines/222"),
+  )
+  // Same wine, same id
+  let assert True = id1 == id2
+  // Only one wine exists
+  let assert 1 = db.count_wines(conn)
+  // Vintages merged
+  let assert Ok(wine) = db.get_wine_by_id(conn, id1)
+  let assert Some(vintages) = wine.vintages
+  let assert True = string.contains(vintages, "2020")
+  let assert True = string.contains(vintages, "2022")
+  Nil
+}
+
+pub fn upsert_wine_no_duplicate_vintage_test() {
+  use conn <- with_empty_db
+  let _id1 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Merlot",
+    vintages: Some("2020"),
+    region: None,
+    country: None,
+    style: None,
+    avg_rating: None,
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: None,
+  )
+  let id2 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Merlot",
+    vintages: Some("2020"),
+    region: None,
+    country: None,
+    style: None,
+    avg_rating: None,
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: None,
+  )
+  let assert Ok(wine) = db.get_wine_by_id(conn, id2)
+  // Same vintage twice should not duplicate
+  let assert Some("2020") = wine.vintages
+  Nil
+}
+
+pub fn upsert_wine_different_vivino_links_merge_test() {
+  use conn <- with_empty_db
+  let id1 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Syrah",
+    vintages: Some("2019"),
+    region: None,
+    country: None,
+    style: None,
+    avg_rating: None,
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: Some("https://vivino.com/wines/aaa"),
+  )
+  let id2 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Domaine Test",
+    name: "Syrah",
+    vintages: Some("2021"),
+    region: None,
+    country: None,
+    style: None,
+    avg_rating: None,
+    rating_count: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_link: Some("https://vivino.com/wines/bbb"),
+  )
+  // Same wine despite different vivino links
+  let assert True = id1 == id2
+  let assert 1 = db.count_wines(conn)
+  Nil
+}
+
+pub fn vivino_import_no_duplicate_wines_test() {
+  use conn <- with_seeded_db
+  let wines = db.list_wines(conn, "test")
+  let wine_names = list.map(wines, fn(w) { w.winery_name <> " " <> w.name })
+  // Check no duplicate names
+  let unique = list.unique(wine_names)
+  let assert True = list.length(wine_names) == list.length(unique)
   Nil
 }
 

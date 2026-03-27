@@ -100,7 +100,7 @@ fn compact_rating_row(rating: Rating, conn: Connection) -> Node {
                 html.Text(wine.name),
               ]),
               html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-                html.Text(display_vintage(wine.vintage)),
+                html.Text(display_vintage(rating.vintage)),
               ]),
             ]),
             html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -139,7 +139,7 @@ fn compact_wine_row(wine: Wine) -> Node {
             html.Text(wine.name),
           ]),
           html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-            html.Text(display_vintage(wine.vintage)),
+            html.Text(display_vintages(wine.vintages)),
           ]),
         ]),
         html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -182,7 +182,7 @@ fn cellar_wine_section(title: String, link: String, wines: List(CellarWine)) -> 
                       html.Text(cw.wine.name),
                     ]),
                     html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-                      html.Text(display_vintage(cw.wine.vintage)),
+                      html.Text(display_vintages(cw.wine.vintages)),
                     ]),
                   ]),
                   html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -224,7 +224,7 @@ fn cellar_entry_section(title: String, link: String, entries: List(CellarEntry),
                           html.Text(wine.name),
                         ]),
                         html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-                          html.Text(display_vintage(wine.vintage)),
+                          html.Text(display_vintages(wine.vintages)),
                         ]),
                       ]),
                       html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -315,9 +315,9 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-stone-700")],
                   [html.Text(display_winery(wine.winery_name))],
                 ),
-                html.Text(case wine.vintage {
+                html.Text(case wine.vintages {
                   None -> ""
-                  _ -> " \u{00b7} " <> display_vintage(wine.vintage)
+                  Some(_) -> " \u{00b7} " <> display_vintages(wine.vintages)
                 }),
               ]),
             ]),
@@ -610,7 +610,7 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
       [
         csv_field(cw.wine.winery_name),
         csv_field(cw.wine.name),
-        display_vintage(cw.wine.vintage),
+        display_vintages(cw.wine.vintages),
         csv_field(display_country(cw.wine.country)),
         cw.wine.wine_type,
         case cw.wine.avg_rating {
@@ -733,7 +733,7 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
         ),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(display_vintage(wine.vintage)),
+        html.Text(display_vintages(wine.vintages)),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(display_country(wine.country)),
@@ -756,6 +756,7 @@ fn rating_table(ratings: List(Rating), conn: Connection) -> Node {
         html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
           th("Wine"),
           th("Winery"),
+          th("Vintage"),
           th("Rating"),
           th("Notes"),
           th("Date"),
@@ -786,6 +787,9 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
           html.td([attr.class("px-4 py-3 text-stone-700")], [
             html.Text(display_winery(wine.winery_name)),
           ]),
+          html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
+            html.Text(display_vintage(rating.vintage)),
+          ]),
           html.td([attr.class("px-4 py-3 tabular-nums")], [
             rating_display(rating.rating),
           ]),
@@ -798,7 +802,7 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
           html.td([attr.class("px-4 py-3 text-stone-500 text-xs")], [
             html.Text(case rating.rated_at {
               Some(date) -> date
-              None -> "imported"
+              None -> rating.created_at
             }),
           ]),
         ],
@@ -817,7 +821,8 @@ fn rating_entry(r: Rating, show_username su: Bool) -> Node {
       html.p([attr.class("text-xs text-stone-400 mt-1")], [
         html.Text({
           let who = case su { True -> r.username <> " \u{00b7} " False -> "" }
-          who <> case r.rated_at {
+          let yr = case r.vintage { Some(_) -> display_vintage(r.vintage) <> " \u{00b7} " None -> "" }
+          who <> yr <> case r.rated_at {
             Some(date) -> date
             None -> "imported " <> r.created_at
           }
@@ -859,7 +864,7 @@ fn wine_row(wine: Wine, idx: Int) -> Node {
         ),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(display_vintage(wine.vintage)),
+        html.Text(display_vintages(wine.vintages)),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(display_country(wine.country)),
@@ -894,7 +899,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
         ),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(display_vintage(wine.vintage)),
+        html.Text(display_vintages(wine.vintages)),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(display_country(wine.country)),
@@ -928,19 +933,23 @@ fn rating_display(rating: option.Option(Float)) -> Node {
   case rating {
     None -> html.Text("\u{2014}")
     Some(r) -> {
-      // Map 3..5 to hue 0 (red) → 60 (yellow) → 120 (green)
-      let clamped = case r <. 3.0 { True -> 3.0 False -> case r >. 5.0 { True -> 5.0 False -> r } }
-      let t = { clamped -. 3.0 } /. 2.0
-      let hue = float.round(t *. 120.0)
-      let color = "hsl(" <> int.to_string(hue) <> " 70% 35%)"
+
       html.span([
         attr.class("font-medium tabular-nums"),
-        attr.style("color: " <> color),
+        attr.style("color: " <> red_green_scale(r)),
       ], [
         html.Text(float.to_string(r)),
       ])
     }
   }
+}
+
+// Map 3..5 to hue 0 (red) → 60 (yellow) → 120 (green)
+fn red_green_scale(rating: Float) -> String {
+  let clamped = case rating <. 3.0 { True -> 3.0 False -> case rating >. 5.0 { True -> 5.0 False -> rating } }
+  let t = { clamped -. 3.0 } /. 2.0
+  let hue = float.round(t *. 120.0)
+  "hsl(" <> int.to_string(hue) <> " 70% 35%)"
 }
 
 fn display_winery(winery: String) -> String {
@@ -955,6 +964,13 @@ fn display_vintage(vintage: Option(Int)) -> String {
     None -> ""
     Some(0) -> "N.V."
     Some(v) -> int.to_string(v)
+  }
+}
+
+fn display_vintages(vintages: Option(String)) -> String {
+  case vintages {
+    None -> ""
+    Some(v) -> v
   }
 }
 
