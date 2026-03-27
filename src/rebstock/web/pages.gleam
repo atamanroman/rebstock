@@ -17,7 +17,7 @@ import rebstock/db.{type Wine, type Winery}
 
 pub fn home(conn: Connection, user: User) -> Response {
   let u = user.username
-  let wine_count = db.count_wines(conn, u)
+  let wine_count = db.count_wines(conn)
   let all_cellar = db.cellar_wines(conn, u)
   let cellar_count =
     list.fold(all_cellar, 0, fn(acc, w) { acc + w.in_cellar })

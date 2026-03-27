@@ -9,19 +9,19 @@ import sqlight.{type Connection}
 import rebstock/db
 import wisp
 
-pub fn import_data(conn: Connection, data_dir: String, username: String) -> Nil {
-  import_cellar(conn, data_dir <> "/cellar.csv", username)
-  import_full_wine_list(conn, data_dir <> "/full_wine_list.csv", username)
-  import_wishlisted(conn, data_dir <> "/wishlisted.csv", username)
-  let count = db.count_wines(conn, username)
-  wisp.log_info("Imported " <> int.to_string(count) <> " wines for " <> username)
+pub fn import_data(conn: Connection, data_dir: String, created_by: String) -> Nil {
+  import_cellar(conn, data_dir <> "/cellar.csv", created_by)
+  import_full_wine_list(conn, data_dir <> "/full_wine_list.csv", created_by)
+  import_wishlisted(conn, data_dir <> "/wishlisted.csv", created_by)
+  let count = db.count_wines(conn)
+  wisp.log_info("Imported " <> int.to_string(count) <> " wines for " <> created_by)
 }
 
 fn is_blank(s: String) -> Bool {
   string.trim(s) == ""
 }
 
-fn import_cellar(conn: Connection, path: String, username: String) -> Nil {
+fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
   let assert Ok(content) = simplifile.read(path)
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
@@ -34,7 +34,7 @@ fn import_cellar(conn: Connection, path: String, username: String) -> Nil {
               False ->
                 db.upsert_wine(
                   conn,
-                  username:,
+                  created_by:,
                   winery:,
                   name:,
                   vintage: db.parse_vintage(vintage),
@@ -59,7 +59,7 @@ fn import_cellar(conn: Connection, path: String, username: String) -> Nil {
   }
 }
 
-fn import_full_wine_list(conn: Connection, path: String, username: String) -> Nil {
+fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> Nil {
   let assert Ok(content) = simplifile.read(path)
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
@@ -72,7 +72,7 @@ fn import_full_wine_list(conn: Connection, path: String, username: String) -> Ni
               False ->
                 db.upsert_wine(
                   conn,
-                  username:,
+                  created_by:,
                   winery:,
                   name:,
                   vintage: db.parse_vintage(vintage),
@@ -97,7 +97,7 @@ fn import_full_wine_list(conn: Connection, path: String, username: String) -> Ni
   }
 }
 
-fn import_wishlisted(conn: Connection, path: String, username: String) -> Nil {
+fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil {
   let assert Ok(content) = simplifile.read(path)
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
@@ -110,7 +110,7 @@ fn import_wishlisted(conn: Connection, path: String, username: String) -> Nil {
               False ->
                 db.upsert_wine(
                   conn,
-                  username:,
+                  created_by:,
                   winery:,
                   name:,
                   vintage: db.parse_vintage(vintage),

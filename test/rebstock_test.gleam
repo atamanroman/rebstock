@@ -59,7 +59,7 @@ pub fn not_found_test() {
 
 pub fn import_and_count_test() {
   use conn <- with_seeded_db
-  let count = db.count_wines(conn, "test")
+  let count = db.count_wines(conn)
   let assert True = count > 0
   Nil
 }

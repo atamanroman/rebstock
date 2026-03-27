@@ -24,7 +24,7 @@ pub fn main() -> Nil {
     auth.Forward(..) -> "admin"
   }
 
-  case db.count_wines(conn, username) {
+  case db.count_wines(conn) {
     0 -> vivino.import_data(conn, "vivino_data", username)
     n -> wisp.log_info("DB already has " <> int.to_string(n) <> " wines, skipping seed")
   }

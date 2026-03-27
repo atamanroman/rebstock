@@ -1,14 +1,14 @@
 CREATE TABLE wineries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL DEFAULT '',
   country TEXT NOT NULL DEFAULT '',
-  UNIQUE(username, name)
+  UNIQUE(created_by, name)
 );
 
 CREATE TABLE wines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL DEFAULT '',
   winery_id INTEGER NOT NULL REFERENCES wineries(id),
   name TEXT NOT NULL DEFAULT '',
   vintage INTEGER NOT NULL DEFAULT -1,
@@ -24,5 +24,5 @@ CREATE TABLE wines (
   vivino_link TEXT NOT NULL DEFAULT '',
   in_cellar INTEGER NOT NULL DEFAULT 0,
   wishlisted INTEGER NOT NULL DEFAULT 0,
-  UNIQUE(username, winery_id, name, vivino_link)
+  UNIQUE(created_by, winery_id, name, vivino_link)
 );
