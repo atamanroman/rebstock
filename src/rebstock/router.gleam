@@ -34,6 +34,11 @@ pub fn handle_request(
     ["~" <> username, "cellar", "export.csv"] -> pages.cellar_csv(conn, user, username)
     ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
     ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
+    ["ratings", id_str] ->
+      case int.parse(id_str) {
+        Ok(id) -> pages.rating_detail(conn, id, user)
+        Error(_) -> wisp.not_found()
+      }
     _ -> wisp.not_found()
   }
 }

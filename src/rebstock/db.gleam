@@ -482,6 +482,21 @@ pub fn latest_ratings(conn: Connection, username: String, limit: Int) -> List(Ra
   ratings
 }
 
+pub fn get_rating_by_id(conn: Connection, id: Int) -> Result(Rating, Nil) {
+  let result =
+    sqlight.query(
+      "SELECT id, username, wine_id, vintage, rating, tasting_notes, rated_at, source, created_at
+       FROM ratings WHERE id = ?",
+      on: conn,
+      with: [sqlight.int(id)],
+      expecting: rating_decoder(),
+    )
+  case result {
+    Ok([rating]) -> Ok(rating)
+    _ -> Error(Nil)
+  }
+}
+
 pub fn ratings_for_wine(conn: Connection, wine_id: Int) -> List(Rating) {
   let assert Ok(ratings) =
     sqlight.query(

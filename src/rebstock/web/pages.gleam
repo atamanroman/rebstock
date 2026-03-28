@@ -287,6 +287,67 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
   ])
 }
 
+pub fn rating_detail(conn: Connection, id: Int, user: User) -> Response {
+  case db.get_rating_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(rating) ->
+      case db.get_wine_by_id(conn, rating.wine_id) {
+        Error(_) -> wisp.not_found()
+        Ok(wine) -> {
+          let title = wine.name <> " Rating \u{2014} Rebstock"
+          page(title, user, [
+            html.div([attr.class("mb-6")], [
+              html.a(
+                [attr.href(wine_url(wine)), attr.class("text-sm text-stone-500 hover:text-stone-700")],
+                [html.Text("\u{2190} " <> wine.name)],
+              ),
+            ]),
+            html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+              html.div([attr.class("flex items-start justify-between mb-4")], [
+                html.div([], [
+                  html.h1([attr.class("text-2xl font-light text-stone-800")], [
+                    html.Text(wine.name),
+                  ]),
+                  html.p([attr.class("text-stone-500 mt-1")], [
+                    html.Text(display_winery(wine.winery_name)),
+                    html.Text(case rating.vintage {
+                      None -> ""
+                      Some(_) -> " \u{00b7} " <> display_vintage(rating.vintage)
+                    }),
+                  ]),
+                ]),
+                case rating.rating {
+                  Some(_) ->
+                    html.div([attr.class("text-2xl")], [
+                      rating_display(rating.rating),
+                    ])
+                  None -> html.Nothing
+                },
+              ]),
+              html.div([attr.class("text-xs text-stone-400 mb-4")], [
+                html.Text(
+                  rating.username <> " \u{00b7} " <> case rating.rated_at {
+                    Some(date) -> date
+                    None -> rating.created_at
+                  }
+                ),
+              ]),
+              case rating.tasting_notes {
+                Some(notes) ->
+                  html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+                    html.p([attr.class("text-stone-700 whitespace-pre-line")], [
+                      html.Text(notes),
+                    ]),
+                  ])
+                None -> html.Nothing
+              },
+            ]),
+          ])
+        }
+      }
+  }
+}
+
 pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> wisp.not_found()
@@ -373,7 +434,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                                     rating_display(r.rating),
                                     case r.tasting_notes {
                                       Some(_) ->
-                                        html.span([attr.class("text-xs text-stone-400")], [
+                                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("text-xs text-rose-800 hover:text-rose-900")], [
                                           html.Text("w/ notes"),
                                         ])
                                       None -> html.Nothing
@@ -429,7 +490,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                           rating_display(r.rating),
                           case r.tasting_notes {
                             Some(_) ->
-                              html.span([attr.class("text-xs text-stone-400")], [html.Text("w/ notes")])
+                              html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("text-xs text-rose-800 hover:text-rose-900")], [html.Text("w/ notes")])
                             None -> html.Nothing
                           },
                         ])
@@ -854,10 +915,14 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
             rating_display(rating.rating),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
-            html.Text(case rating.tasting_notes {
-              Some(notes) -> notes
-              None -> ""
-            }),
+            case rating.tasting_notes {
+              Some(notes) ->
+                html.a(
+                  [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("hover:text-rose-800 transition-colors")],
+                  [html.Text(notes)],
+                )
+              None -> html.Nothing
+            },
           ]),
           html.td([attr.class("px-4 py-3 text-stone-500 text-xs")], [
             html.Text(case rating.rated_at {
