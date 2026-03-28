@@ -415,25 +415,34 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                           html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Vintage")]),
                           html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Vivino")]),
                           html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Your Rating")]),
-                          html.th([], []),
                         ]),
                       ]),
                       html.tbody([], list.map(vintage_rows, fn(row) {
-                        let #(v_str, _year, vivino_r, my_r, other_rs) = row
+                        let #(v_str, _year, vivino_r, my_r, _other_rs) = row
                         html.tr([], [
                           html.td([attr.class("py-1 pr-4 font-medium tabular-nums")], [
                             html.Text(v_str),
                           ]),
                           html.td([attr.class("py-1 pr-4 tabular-nums")], [
-                              case vivino_r {
-                                Ok(r) -> rating_display(r.rating)
-                                Error(_) -> html.Text("\u{2014}")
-                              },
-                            ]),
+                            case vivino_r, wine.vivino_id {
+                              Ok(r), Some(id) ->
+                                html.a(
+                                  [attr.href("https://www.vivino.com/wines/" <> id <> "?year=" <> v_str), attr.class("underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")],
+                                  [rating_display(r.rating)],
+                                )
+                              Ok(r), None -> rating_display(r.rating)
+                              Error(_), Some(id) ->
+                                html.a(
+                                  [attr.href("https://www.vivino.com/wines/" <> id <> "?year=" <> v_str), attr.class("text-xs text-stone-400 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800")],
+                                  [html.Text("view")],
+                                )
+                              Error(_), None -> html.Text("\u{2014}")
+                            },
+                          ]),
                           html.td([attr.class("py-1 pr-4 tabular-nums")], [
                             case my_r {
                                 Ok(r) ->
-                                  html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-2 hover:text-rose-800 transition-colors")], [
+                                  html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-2 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
                                     rating_display(r.rating),
                                     case r.tasting_notes {
                                       Some(_) ->
@@ -446,25 +455,6 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                                 Error(_) -> html.Text("\u{2014}")
                               },
                             ]),
-                          html.td([attr.class("py-1")], [
-                            case wine.vivino_id {
-                              Some(id) ->
-                                html.a(
-                                  [attr.href("https://www.vivino.com/wines/" <> id <> "?year=" <> v_str), attr.class("text-xs text-rose-800 hover:text-rose-900")],
-                                  [html.Text("Vivino \u{2192}")],
-                                )
-                              None -> html.Nothing
-                            },
-                            ..case other_rs {
-                              [] -> []
-                              _ -> list.map(other_rs, fn(r) {
-                                html.span([attr.class("text-xs text-stone-400 ml-2")], [
-                                  html.Text(r.username <> ": "),
-                                  rating_display(r.rating),
-                                ])
-                              })
-                            }
-                          ]),
                         ])
                       })),
                     ]),
@@ -488,7 +478,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                         Error(_) -> html.Nothing
                       },
                       ..list.map(my_general, fn(r) {
-                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-1 hover:text-rose-800 transition-colors")], [
+                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-1 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
                           html.span([attr.class("text-xs text-stone-400")], [html.Text("You:")]),
                           rating_display(r.rating),
                           case r.tasting_notes {
@@ -916,7 +906,7 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
           ]),
           html.td([attr.class("px-4 py-3 tabular-nums")], [
             html.a(
-              [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("hover:text-rose-800 transition-colors")],
+              [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")],
               [rating_display(rating.rating)],
             ),
           ]),
