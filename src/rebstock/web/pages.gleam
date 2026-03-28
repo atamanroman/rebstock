@@ -303,44 +303,47 @@ pub fn rating_detail(conn: Connection, id: Int, user: User) -> Response {
               ),
             ]),
             html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
-              html.div([attr.class("flex items-start justify-between mb-4")], [
+              html.div([attr.class("flex items-start justify-between mb-2")], [
                 html.div([], [
                   html.h1([attr.class("text-2xl font-light text-stone-800")], [
-                    html.Text(wine.name),
+                    html.a(
+                      [attr.href(wine_url(wine)), attr.class("hover:text-rose-800 transition-colors")],
+                      [html.Text(wine.name)],
+                    ),
                   ]),
                   html.p([attr.class("text-stone-500 mt-1")], [
-                    html.Text(display_winery(wine.winery_name)),
+                    html.a(
+                      [attr.href(winery_url(wine.winery_id, wine.winery_name)), attr.class("hover:text-stone-700 transition-colors")],
+                      [html.Text(display_winery(wine.winery_name))],
+                    ),
                     html.Text(case rating.vintage {
                       None -> ""
                       Some(_) -> " \u{00b7} " <> display_vintage(rating.vintage)
                     }),
                   ]),
                 ]),
-                case rating.rating {
-                  Some(_) ->
-                    html.div([attr.class("text-2xl")], [
-                      rating_display(rating.rating),
-                    ])
-                  None -> html.Nothing
-                },
+                html.div([attr.class("text-2xl")], [
+                  rating_display(rating.rating),
+                ]),
               ]),
-              html.div([attr.class("text-xs text-stone-400 mb-4")], [
-                html.Text(
-                  rating.username <> " \u{00b7} " <> case rating.rated_at {
-                    Some(date) -> date
-                    None -> rating.created_at
-                  }
-                ),
+              html.p([attr.class("text-sm text-stone-500 mb-4")], [
+                html.Text(case rating.rated_at {
+                  Some(date) -> date
+                  None -> rating.created_at
+                }),
               ]),
-              case rating.tasting_notes {
-                Some(notes) ->
-                  html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+              html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+                case rating.tasting_notes {
+                  Some(notes) ->
                     html.p([attr.class("text-stone-700 whitespace-pre-line")], [
                       html.Text(notes),
-                    ]),
-                  ])
-                None -> html.Nothing
-              },
+                    ])
+                  None ->
+                    html.p([attr.class("text-stone-400 italic")], [
+                      html.Text("No tasting notes"),
+                    ])
+                },
+              ]),
             ]),
           ])
         }
@@ -430,11 +433,11 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                           html.td([attr.class("py-1 pr-4 tabular-nums")], [
                             case my_r {
                                 Ok(r) ->
-                                  html.span([attr.class("inline-flex items-center gap-2")], [
+                                  html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-2 hover:text-rose-800 transition-colors")], [
                                     rating_display(r.rating),
                                     case r.tasting_notes {
                                       Some(_) ->
-                                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("text-xs text-rose-800 hover:text-rose-900")], [
+                                        html.span([attr.class("text-xs text-stone-400")], [
                                           html.Text("w/ notes"),
                                         ])
                                       None -> html.Nothing
@@ -485,12 +488,12 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                         Error(_) -> html.Nothing
                       },
                       ..list.map(my_general, fn(r) {
-                        html.span([attr.class("inline-flex items-center gap-1")], [
+                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-1 hover:text-rose-800 transition-colors")], [
                           html.span([attr.class("text-xs text-stone-400")], [html.Text("You:")]),
                           rating_display(r.rating),
                           case r.tasting_notes {
                             Some(_) ->
-                              html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("text-xs text-rose-800 hover:text-rose-900")], [html.Text("w/ notes")])
+                              html.span([attr.class("text-xs text-stone-400")], [html.Text("w/ notes")])
                             None -> html.Nothing
                           },
                         ])
@@ -912,17 +915,16 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
             html.Text(display_vintage(rating.vintage)),
           ]),
           html.td([attr.class("px-4 py-3 tabular-nums")], [
-            rating_display(rating.rating),
+            html.a(
+              [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("hover:text-rose-800 transition-colors")],
+              [rating_display(rating.rating)],
+            ),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
-            case rating.tasting_notes {
-              Some(notes) ->
-                html.a(
-                  [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("hover:text-rose-800 transition-colors")],
-                  [html.Text(notes)],
-                )
-              None -> html.Nothing
-            },
+            html.Text(case rating.tasting_notes {
+              Some(notes) -> notes
+              None -> ""
+            }),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-500 text-xs")], [
             html.Text(case rating.rated_at {
