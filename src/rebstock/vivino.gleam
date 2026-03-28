@@ -35,6 +35,21 @@ fn vintage_or_zero(v: Option(Int)) -> Int {
   }
 }
 
+fn extract_vivino_id(url: String) -> Option(String) {
+  case db.optional_non_empty(url) {
+    None -> None
+    Some(u) ->
+      case string.split(u, "/wines/") {
+        [_, id_part] ->
+          case string.split(id_part, "?") {
+            [id, ..] -> db.optional_non_empty(id)
+            _ -> None
+          }
+        _ -> None
+      }
+  }
+}
+
 fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
   let assert Ok(content) = simplifile.read(path)
   let assert Ok(rows) = gsv.to_lists(content, ",")
@@ -60,7 +75,7 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   rating_count: db.parse_optional_int(rating_count),
                   personal_note: None,
                   wine_type:,
-                  vivino_link: db.optional_non_empty(vivino_link),
+                  vivino_id: extract_vivino_id(vivino_link),
                 )
                 let bottles = db.parse_int_or_zero(cellar_count)
                 case bottles > 0 {
@@ -110,7 +125,7 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   rating_count: None,
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
-                  vivino_link: db.optional_non_empty(vivino_link),
+                  vivino_id: extract_vivino_id(vivino_link),
                 )
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)
@@ -161,7 +176,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   rating_count: None,
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
-                  vivino_link: db.optional_non_empty(vivino_link),
+                  vivino_id: extract_vivino_id(vivino_link),
                 )
                 db.upsert_wishlist(
                   conn,

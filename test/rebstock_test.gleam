@@ -151,7 +151,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: None,
+    vivino_id: None,
   )
   let wine_b = db.upsert_wine(
     conn,
@@ -166,7 +166,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: None,
+    vivino_id: None,
   )
   db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage: 2020, quantity: 6, notes: None, dated_at: None)
   db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage: 2018, quantity: 3, notes: None, dated_at: None)
@@ -238,7 +238,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "White Wine",
-    vivino_link: Some("https://vivino.com/wines/111"),
+    vivino_id: Some("111"),
   )
   let id2 = db.upsert_wine(
     conn,
@@ -253,7 +253,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "White Wine",
-    vivino_link: Some("https://vivino.com/wines/222"),
+    vivino_id: Some("222"),
   )
   // Same wine, same id
   let assert True = id1 == id2
@@ -282,7 +282,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: None,
+    vivino_id: None,
   )
   let id2 = db.upsert_wine(
     conn,
@@ -297,7 +297,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: None,
+    vivino_id: None,
   )
   let assert Ok(wine) = db.get_wine_by_id(conn, id2)
   // Same vintage twice should not duplicate
@@ -305,7 +305,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
   Nil
 }
 
-pub fn upsert_wine_different_vivino_links_merge_test() {
+pub fn upsert_wine_different_vivino_ids_merge_test() {
   use conn <- with_empty_db
   let id1 = db.upsert_wine(
     conn,
@@ -320,7 +320,7 @@ pub fn upsert_wine_different_vivino_links_merge_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: Some("https://vivino.com/wines/aaa"),
+    vivino_id: Some("aaa"),
   )
   let id2 = db.upsert_wine(
     conn,
@@ -335,9 +335,9 @@ pub fn upsert_wine_different_vivino_links_merge_test() {
     rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
-    vivino_link: Some("https://vivino.com/wines/bbb"),
+    vivino_id: Some("bbb"),
   )
-  // Same wine despite different vivino links
+  // Same wine despite different vivino ids
   let assert True = id1 == id2
   let assert 1 = db.count_wines(conn)
   Nil

@@ -407,9 +407,9 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                     )]
                     False -> []
                   },
-                  case wine.vivino_link {
-                    Some(link) -> [html.a(
-                      [attr.href(link), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                  case wine.vivino_id {
+                    Some(id) -> [html.a(
+                      [attr.href("https://www.vivino.com/wines/" <> id), attr.class("text-sm text-rose-800 hover:text-rose-900")],
                       [html.Text("View on Vivino \u{2192}")],
                     )]
                     None -> []
