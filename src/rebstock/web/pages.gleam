@@ -327,7 +327,7 @@ pub fn rating_detail(conn: Connection, id: Int, user: User) -> Response {
                 ]),
               ]),
               html.p([attr.class("text-sm text-stone-500 mb-4")], [
-                html.Text(case rating.rated_at {
+                date_node(case rating.rated_at {
                   Some(date) -> date
                   None -> rating.created_at
                 }),
@@ -927,7 +927,7 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
             }),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-500 text-xs")], [
-            html.Text(case rating.rated_at {
+            date_node(case rating.rated_at {
               Some(date) -> date
               None -> rating.created_at
             }),
@@ -949,10 +949,11 @@ fn rating_entry(r: Rating, show_username su: Bool) -> Node {
         html.Text({
           let who = case su { True -> r.username <> " \u{00b7} " False -> "" }
           let yr = case r.vintage { Some(_) -> display_vintage(r.vintage) <> " \u{00b7} " None -> "" }
-          who <> yr <> case r.rated_at {
-            Some(date) -> date
-            None -> "imported " <> r.created_at
-          }
+          who <> yr
+        }),
+        date_node(case r.rated_at {
+          Some(date) -> date
+          None -> r.created_at
         }),
       ]),
     ]),
@@ -1093,6 +1094,24 @@ fn display_vintages(vintages: Option(String)) -> String {
     None -> ""
     Some(v) -> v
   }
+}
+
+fn format_date(iso: String) -> String {
+  case string.split(iso, " ") {
+    [date, ..] -> {
+      case string.split(date, "-") {
+        [y, m, d] -> d <> "." <> m <> "." <> y
+        _ -> date
+      }
+    }
+    _ -> iso
+  }
+}
+
+fn date_node(iso: String) -> Node {
+  html.span([attr.Attr("title", iso)], [
+    html.Text(format_date(iso)),
+  ])
 }
 
 fn display_country(country: Option(String)) -> String {
