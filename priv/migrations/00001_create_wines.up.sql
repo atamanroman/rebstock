@@ -3,6 +3,7 @@ CREATE TABLE wineries (
   created_by TEXT NOT NULL,
   name TEXT NOT NULL,
   country TEXT,
+  vivino_id TEXT,
   UNIQUE(created_by, name)
 );
 
@@ -15,11 +16,9 @@ CREATE TABLE wines (
   region TEXT,
   country TEXT,
   style TEXT,
-  avg_rating REAL,
-  rating_count INTEGER,
   personal_note TEXT,
   wine_type TEXT NOT NULL,
-  vivino_link TEXT,
+  vivino_id TEXT,
   UNIQUE(created_by, winery_id, name)
 );
 
@@ -53,5 +52,6 @@ CREATE TABLE ratings (
   rating REAL,
   tasting_notes TEXT,
   rated_at TEXT,
+  source TEXT NOT NULL DEFAULT 'user',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

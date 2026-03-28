@@ -57,7 +57,7 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
     [_header, ..data] ->
       list.each(data, fn(row) {
         case row {
-          [winery, name, vintage, region, country, style, avg_rating, rating_count, wine_type, vivino_link, cellar_count] ->
+          [winery, name, vintage, region, country, style, avg_rating, _rating_count, wine_type, vivino_link, cellar_count] ->
             case is_blank(name) {
               True -> Nil
               False -> {
@@ -71,12 +71,15 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   region: db.optional_non_empty(region),
                   country: db.optional_non_empty(country),
                   style: db.optional_non_empty(style),
-                  avg_rating: db.parse_optional_float(avg_rating),
-                  rating_count: db.parse_optional_int(rating_count),
                   personal_note: None,
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                case db.parse_optional_float(avg_rating) {
+                  Some(r) ->
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                  None -> Nil
+                }
                 let bottles = db.parse_int_or_zero(cellar_count)
                 case bottles > 0 {
                   True ->
@@ -121,12 +124,15 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   region: db.optional_non_empty(region),
                   country: db.optional_non_empty(country),
                   style: db.optional_non_empty(style),
-                  avg_rating: db.parse_optional_float(avg_rating),
-                  rating_count: None,
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                case db.parse_optional_float(avg_rating) {
+                  Some(r) ->
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                  None -> Nil
+                }
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)
                 case rating, tasting_notes {
@@ -140,6 +146,7 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                       rating:,
                       tasting_notes:,
                       rated_at: None,
+                      source: "user",
                     )
                 }
               }
@@ -172,12 +179,15 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   region: db.optional_non_empty(region),
                   country: db.optional_non_empty(country),
                   style: db.optional_non_empty(style),
-                  avg_rating: db.parse_optional_float(avg_rating),
-                  rating_count: None,
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                case db.parse_optional_float(avg_rating) {
+                  Some(r) ->
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                  None -> Nil
+                }
                 db.upsert_wishlist(
                   conn,
                   username: created_by,
@@ -199,6 +209,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                       rating:,
                       tasting_notes:,
                       rated_at: None,
+                      source: "user",
                     )
                 }
               }

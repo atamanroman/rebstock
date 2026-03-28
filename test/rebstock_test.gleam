@@ -147,8 +147,6 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     region: Some("Burgundy"),
     country: Some("France"),
     style: None,
-    avg_rating: Some(4.2),
-    rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
@@ -162,16 +160,14 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     region: Some("Rioja"),
     country: Some("Spain"),
     style: None,
-    avg_rating: Some(4.5),
-    rating_count: None,
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
   )
   db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage: 2020, quantity: 6, notes: None, dated_at: None)
   db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage: 2018, quantity: 3, notes: None, dated_at: None)
-  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage: Some(2020), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None)
-  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage: Some(2018), rating: Some(3.8), tasting_notes: None, rated_at: None)
+  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage: Some(2020), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None, source: "user")
+  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage: Some(2018), rating: Some(3.8), tasting_notes: None, rated_at: None, source: "user")
   db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage: Some(2018), notes: Some("Want to try"), dated_at: None)
   #(wine_a, wine_b)
 }
@@ -234,8 +230,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     region: Some("Burgundy"),
     country: Some("France"),
     style: None,
-    avg_rating: Some(4.0),
-    rating_count: None,
+
     personal_note: None,
     wine_type: "White Wine",
     vivino_id: Some("111"),
@@ -249,8 +244,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     region: None,
     country: None,
     style: None,
-    avg_rating: Some(4.3),
-    rating_count: None,
+
     personal_note: None,
     wine_type: "White Wine",
     vivino_id: Some("222"),
@@ -278,8 +272,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     region: None,
     country: None,
     style: None,
-    avg_rating: None,
-    rating_count: None,
+
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
@@ -293,8 +286,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     region: None,
     country: None,
     style: None,
-    avg_rating: None,
-    rating_count: None,
+
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
@@ -316,8 +308,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     region: None,
     country: None,
     style: None,
-    avg_rating: None,
-    rating_count: None,
+
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: Some("aaa"),
@@ -331,8 +322,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     region: None,
     country: None,
     style: None,
-    avg_rating: None,
-    rating_count: None,
+
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: Some("bbb"),

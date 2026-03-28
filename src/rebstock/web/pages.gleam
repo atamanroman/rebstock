@@ -154,14 +154,8 @@ fn compact_wine_row(wine: Wine) -> Node {
   )
 }
 
-fn compact_stats(wine: Wine) -> List(Node) {
-  case wine.avg_rating {
-    Some(r) ->
-      [html.span([attr.class("text-sm text-stone-500 tabular-nums")], [
-        html.Text(float.to_string(r)),
-      ])]
-    None -> []
-  }
+fn compact_stats(_wine: Wine) -> List(Node) {
+  []
 }
 
 fn cellar_wine_section(title: String, link: String, wines: List(CellarWine)) -> Node {
@@ -330,8 +324,9 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
           ]),
           ..{
             let all_ratings = db.ratings_for_wine(conn, wine.id)
-            let my_ratings = list.filter(all_ratings, fn(r) { r.username == user.username })
-            let other_ratings = list.filter(all_ratings, fn(r) { r.username != user.username })
+            let vivino_ratings = list.filter(all_ratings, fn(r) { r.source == "vivino" })
+            let my_ratings = list.filter(all_ratings, fn(r) { r.source == "user" && r.username == user.username })
+            let other_ratings = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username })
             let my_rating_display = case my_ratings {
               [] -> html.Text("\u{2014}")
               _ ->
@@ -351,9 +346,35 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   ])
                 }))
             }
+            let vivino_display = case vivino_ratings {
+              [] -> html.Text("\u{2014}")
+              _ ->
+                html.div([attr.class("space-y-1")], list.map(vivino_ratings, fn(r) {
+                  html.span([attr.class("inline-flex items-center gap-2 tabular-nums")], [
+                    case r.rating {
+                      Some(v) -> rating_display(Some(v))
+                      None -> html.Nothing
+                    },
+                    case r.vintage {
+                      Some(v) ->
+                        html.span([attr.class("text-xs text-stone-400")], [
+                          html.Text("(" <> int.to_string(v) <> ")"),
+                        ])
+                      None -> html.Nothing
+                    },
+                  ])
+                }))
+            }
             [
               html.div([attr.class("grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-stone-100")], [
-                detail_stat("Avg Rating", rating_display(wine.avg_rating)),
+                html.div([], [
+                  html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
+                    html.Text("Vivino"),
+                  ]),
+                  html.div([attr.class("text-lg text-stone-800 mt-0.5")], [
+                    vivino_display,
+                  ]),
+                ]),
                 html.div([attr.class("bg-amber-50 rounded-lg px-3 py-2 -mx-1 w-fit")], [
                   html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
                     html.Text(case my_ratings {
@@ -604,7 +625,7 @@ pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response
 
 pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
   let wines = db.cellar_wines(conn, username)
-  let header = "Winery,Wine,Vintage,Country,Type,Rating,Bottles"
+  let header = "Winery,Wine,Vintage,Country,Type,Bottles"
   let rows =
     list.map(wines, fn(cw) {
       [
@@ -613,10 +634,6 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
         display_vintages(cw.wine.vintages),
         csv_field(display_country(cw.wine.country)),
         cw.wine.wine_type,
-        case cw.wine.avg_rating {
-          Some(r) -> float.to_string(r)
-          None -> ""
-        },
         int.to_string(cw.bottles),
       ]
       |> string.join(",")
@@ -665,7 +682,6 @@ fn wine_table(wines: List(Wine)) -> Node {
           th("Vintage"),
           th("Country"),
           th("Type"),
-          th("Rating"),
         ]),
       ]),
       html.tbody([], list.index_map(wines, wine_row)),
@@ -683,7 +699,6 @@ fn cellar_wine_table(wines: List(CellarWine)) -> Node {
           th("Vintage"),
           th("Country"),
           th("Type"),
-          th("Rating"),
           th("Cellar"),
         ]),
       ]),
@@ -702,7 +717,6 @@ fn wishlist_table(wines: List(WishlistWine)) -> Node {
           th("Vintage"),
           th("Country"),
           th("Type"),
-          th("Rating"),
           th("Notes"),
         ]),
       ]),
@@ -739,9 +753,6 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
         html.Text(display_country(wine.country)),
       ]),
       html.td([attr.class("px-4 py-3")], [wine_type_badge(wine.wine_type)]),
-      html.td([attr.class("px-4 py-3 tabular-nums")], [
-        rating_display(wine.avg_rating),
-      ]),
       html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
         html.Text(display_optional(ww.notes)),
       ]),
@@ -870,9 +881,6 @@ fn wine_row(wine: Wine, idx: Int) -> Node {
         html.Text(display_country(wine.country)),
       ]),
       html.td([attr.class("px-4 py-3")], [wine_type_badge(wine.wine_type)]),
-      html.td([attr.class("px-4 py-3 tabular-nums")], [
-        rating_display(wine.avg_rating),
-      ]),
     ],
   )
 }
@@ -905,9 +913,6 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
         html.Text(display_country(wine.country)),
       ]),
       html.td([attr.class("px-4 py-3")], [wine_type_badge(wine.wine_type)]),
-      html.td([attr.class("px-4 py-3 tabular-nums")], [
-        rating_display(wine.avg_rating),
-      ]),
       html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
         html.Text(int.to_string(cw.bottles)),
       ]),
