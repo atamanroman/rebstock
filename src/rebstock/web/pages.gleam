@@ -324,78 +324,127 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
           ]),
           ..{
             let all_ratings = db.ratings_for_wine(conn, wine.id)
-            let vivino_ratings = list.filter(all_ratings, fn(r) { r.source == "vivino" })
-            let my_ratings = list.filter(all_ratings, fn(r) { r.source == "user" && r.username == user.username })
-            let other_ratings = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username })
-            let my_rating_display = case my_ratings {
-              [] -> html.Text("\u{2014}")
-              _ ->
-                html.div([attr.class("space-y-1")], list.map(my_ratings, fn(r) {
-                  html.span([attr.class("inline-flex items-center gap-2")], [
-                    case r.rating {
-                      Some(v) -> rating_display(Some(v))
-                      None -> html.Nothing
-                    },
-                    case r.tasting_notes {
-                      Some(_) ->
-                        html.span([attr.class("text-xs text-stone-400")], [
-                          html.Text("w/ notes"),
-                        ])
-                      None -> html.Nothing
-                    },
-                  ])
-                }))
+            // Build vintage rows from all ratings
+            let vintages_str = case wine.vintages {
+              None -> []
+              Some(v) -> string.split(v, ",") |> list.map(string.trim)
             }
-            let vivino_display = case vivino_ratings {
-              [] -> html.Text("\u{2014}")
-              _ ->
-                html.div([attr.class("space-y-1")], list.map(vivino_ratings, fn(r) {
-                  html.span([attr.class("inline-flex items-center gap-2 tabular-nums")], [
-                    case r.rating {
-                      Some(v) -> rating_display(Some(v))
-                      None -> html.Nothing
-                    },
-                    case r.vintage {
-                      Some(v) ->
-                        html.span([attr.class("text-xs text-stone-400")], [
-                          html.Text("(" <> int.to_string(v) <> ")"),
-                        ])
-                      None -> html.Nothing
-                    },
-                  ])
-                }))
-            }
+            let vintage_rows = list.map(vintages_str, fn(v) {
+              let year = db.parse_vintage(v)
+              let vivino_r = list.find(all_ratings, fn(r) { r.source == "vivino" && r.vintage == year })
+              let my_r = list.find(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == year })
+              let other_rs = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username && r.vintage == year })
+              #(v, year, vivino_r, my_r, other_rs)
+            })
+            // Ratings without a vintage (general ratings)
+            let my_general = list.filter(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == None })
+            let other_general = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username && r.vintage == None })
+            let vivino_general = list.find(all_ratings, fn(r) { r.source == "vivino" && r.vintage == None })
             [
-              html.div([attr.class("grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-stone-100")], [
-                html.div([], [
-                  html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
-                    html.Text("Vivino"),
-                  ]),
-                  html.div([attr.class("text-lg text-stone-800 mt-0.5")], [
-                    vivino_display,
-                  ]),
-                ]),
-                html.div([attr.class("bg-amber-50 rounded-lg px-3 py-2 -mx-1 w-fit")], [
-                  html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
-                    html.Text(case my_ratings {
-                      [_] -> "Your Rating"
-                      [_, _, ..] -> "Your Ratings"
-                      [] -> "Your Rating"
-                    }),
-                  ]),
-                  html.div([attr.class("text-lg text-stone-800 mt-0.5")], [
-                    my_rating_display,
-                  ]),
-                ]),
-              ]),
-              case other_ratings {
+              case vintage_rows {
                 [] -> html.Nothing
                 _ ->
                   html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+                    html.table([attr.class("w-full text-sm")], [
+                      html.thead([], [
+                        html.tr([], [
+                          html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Vintage")]),
+                          html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Vivino")]),
+                          html.th([attr.class("py-1 pr-4 text-left text-xs uppercase tracking-wider text-stone-400 font-medium")], [html.Text("Your Rating")]),
+                          html.th([], []),
+                        ]),
+                      ]),
+                      html.tbody([], list.map(vintage_rows, fn(row) {
+                        let #(v_str, _year, vivino_r, my_r, other_rs) = row
+                        html.tr([], [
+                          html.td([attr.class("py-1 pr-4 font-medium tabular-nums")], [
+                            html.Text(v_str),
+                          ]),
+                          html.td([attr.class("py-1 pr-4 tabular-nums")], [
+                              case vivino_r {
+                                Ok(r) -> rating_display(r.rating)
+                                Error(_) -> html.Text("\u{2014}")
+                              },
+                            ]),
+                          html.td([attr.class("py-1 pr-4 tabular-nums")], [
+                            case my_r {
+                                Ok(r) ->
+                                  html.span([attr.class("inline-flex items-center gap-2")], [
+                                    rating_display(r.rating),
+                                    case r.tasting_notes {
+                                      Some(_) ->
+                                        html.span([attr.class("text-xs text-stone-400")], [
+                                          html.Text("w/ notes"),
+                                        ])
+                                      None -> html.Nothing
+                                    },
+                                  ])
+                                Error(_) -> html.Text("\u{2014}")
+                              },
+                            ]),
+                          html.td([attr.class("py-1")], [
+                            case wine.vivino_id {
+                              Some(id) ->
+                                html.a(
+                                  [attr.href("https://www.vivino.com/wines/" <> id <> "?year=" <> v_str), attr.class("text-xs text-rose-800 hover:text-rose-900")],
+                                  [html.Text("Vivino \u{2192}")],
+                                )
+                              None -> html.Nothing
+                            },
+                            ..case other_rs {
+                              [] -> []
+                              _ -> list.map(other_rs, fn(r) {
+                                html.span([attr.class("text-xs text-stone-400 ml-2")], [
+                                  html.Text(r.username <> ": "),
+                                  rating_display(r.rating),
+                                ])
+                              })
+                            }
+                          ]),
+                        ])
+                      })),
+                    ]),
+                  ])
+              },
+              // General ratings (no vintage)
+              case my_general, vivino_general {
+                [], Error(_) -> html.Nothing
+                _, _ ->
+                  html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+                    html.h3([attr.class("text-xs uppercase tracking-wider text-stone-400 mb-2")], [
+                      html.Text("General (no vintage)"),
+                    ]),
+                    html.div([attr.class("flex items-center gap-6")], [
+                      case vivino_general {
+                        Ok(r) ->
+                          html.span([attr.class("inline-flex items-center gap-1")], [
+                            html.span([attr.class("text-xs text-stone-400")], [html.Text("Vivino:")]),
+                            rating_display(r.rating),
+                          ])
+                        Error(_) -> html.Nothing
+                      },
+                      ..list.map(my_general, fn(r) {
+                        html.span([attr.class("inline-flex items-center gap-1")], [
+                          html.span([attr.class("text-xs text-stone-400")], [html.Text("You:")]),
+                          rating_display(r.rating),
+                          case r.tasting_notes {
+                            Some(_) ->
+                              html.span([attr.class("text-xs text-stone-400")], [html.Text("w/ notes")])
+                            None -> html.Nothing
+                          },
+                        ])
+                      })
+                    ]),
+                  ])
+              },
+              case other_general {
+                [] -> html.Nothing
+                _ ->
+                  html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
                     html.h3([attr.class("text-xs uppercase tracking-wider text-stone-400 mb-3")], [
                       html.Text("Other Ratings"),
                     ]),
-                    html.div([attr.class("space-y-2")], list.map(other_ratings, fn(r) {
+                    html.div([attr.class("space-y-2")], list.map(other_general, fn(r) {
                       rating_entry(r, show_username: True)
                     })),
                   ])
