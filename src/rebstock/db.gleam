@@ -309,15 +309,15 @@ pub fn upsert_wishlist(
   Nil
 }
 
-/// Wine + bottle count for cellar views
+/// Wine + vintage + bottle count for cellar views
 pub type CellarWine {
-  CellarWine(wine: Wine, bottles: Int)
+  CellarWine(wine: Wine, vintage: Int, bottles: Int)
 }
 
 const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name, w.vintages,
         w.region, w.country, w.style,
         w.personal_note, w.wine_type,
-        w.vivino_id, COALESCE(SUM(c.quantity), 0) as bottles"
+        w.vivino_id, c.vintage, COALESCE(SUM(c.quantity), 0) as bottles"
 
 const cellar_wine_join = "FROM wines w
         JOIN wineries wy ON w.winery_id = wy.id
@@ -336,13 +336,15 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
   use personal_note <- decode.field(9, decode.optional(decode.string))
   use wine_type <- decode.field(10, decode.string)
   use vivino_id <- decode.field(11, decode.optional(decode.string))
-  use bottles <- decode.field(12, decode.int)
+  use vintage <- decode.field(12, decode.int)
+  use bottles <- decode.field(13, decode.int)
   decode.success(CellarWine(
     wine: Wine(
       id:, created_by:, winery_id:, winery_name:, name:, vintages:,
       region:, country:, style:,
       personal_note:, wine_type:, vivino_id:,
     ),
+    vintage:,
     bottles:,
   ))
 }
@@ -352,7 +354,7 @@ pub fn cellar_wines(conn: Connection, username: String) -> List(CellarWine) {
     sqlight.query(
       "SELECT " <> cellar_wine_cols <> " " <> cellar_wine_join
         <> " WHERE c.username = ?
-       GROUP BY w.id HAVING bottles > 0
+       GROUP BY w.id, c.vintage HAVING bottles > 0
        ORDER BY wy.name, w.name",
       on: conn,
       with: [sqlight.text(username)],
@@ -366,7 +368,7 @@ pub fn cellar_wines_by_type(conn: Connection, username: String) -> List(CellarWi
     sqlight.query(
       "SELECT " <> cellar_wine_cols <> " " <> cellar_wine_join
         <> " WHERE c.username = ?
-       GROUP BY w.id HAVING bottles > 0
+       GROUP BY w.id, c.vintage HAVING bottles > 0
        ORDER BY w.wine_type, w.region, wy.name, w.name",
       on: conn,
       with: [sqlight.text(username)],
@@ -380,7 +382,7 @@ pub fn top_cellar(conn: Connection, username: String, limit: Int) -> List(Cellar
     sqlight.query(
       "SELECT " <> cellar_wine_cols <> " " <> cellar_wine_join
         <> " WHERE c.username = ?
-       GROUP BY w.id HAVING bottles > 0
+       GROUP BY w.id, c.vintage HAVING bottles > 0
        ORDER BY (SELECT AVG(r.rating) FROM ratings r WHERE r.wine_id = w.id AND r.source = 'vivino') DESC, bottles DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],

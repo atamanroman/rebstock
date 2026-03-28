@@ -176,7 +176,7 @@ fn cellar_wine_section(title: String, link: String, wines: List(CellarWine)) -> 
                       html.Text(cw.wine.name),
                     ]),
                     html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-                      html.Text(display_vintages(cw.wine.vintages)),
+                      html.Text(display_vintage(Some(cw.vintage))),
                     ]),
                   ]),
                   html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -529,7 +529,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                 let links = [
                   case bottles > 0 {
                     True -> [html.a(
-                      [attr.href("/~" <> user.username <> "/cellar#wine-" <> int.to_string(wine.id)), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                      [attr.href("/~" <> user.username <> "/cellar"), attr.class("text-sm text-rose-800 hover:text-rose-900")],
                       [html.Text("View in cellar (" <> int.to_string(bottles) <> " bottles) \u{2192}")],
                     )]
                     False -> []
@@ -744,7 +744,7 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
       [
         csv_field(cw.wine.winery_name),
         csv_field(cw.wine.name),
-        display_vintages(cw.wine.vintages),
+        display_vintage(Some(cw.vintage)),
         csv_field(display_country(cw.wine.country)),
         cw.wine.wine_type,
         int.to_string(cw.bottles),
@@ -1009,7 +1009,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.id("wine-" <> int.to_string(wine.id)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> int.to_string(wine.id) <> "-" <> int.to_string(cw.vintage)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
@@ -1024,7 +1024,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
         ),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(display_vintages(wine.vintages)),
+        html.Text(display_vintage(Some(cw.vintage))),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(display_country(wine.country)),
