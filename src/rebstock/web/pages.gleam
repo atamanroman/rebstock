@@ -62,17 +62,6 @@ fn section_header(title: String, link: String) -> Node {
   ])
 }
 
-fn wine_section(title: String, link: String, wines: List(Wine)) -> Node {
-  case wines {
-    [] -> html.Nothing
-    _ ->
-      html.div([], [
-        section_header(title, link),
-        compact_wine_list(wines),
-      ])
-  }
-}
-
 fn rating_section(title: String, link: String, ratings: List(Rating), conn: Connection) -> Node {
   case ratings {
     [] -> html.Nothing
@@ -120,42 +109,6 @@ fn compact_rating_row(rating: Rating, conn: Connection) -> Node {
         ],
       )
   }
-}
-
-fn compact_wine_list(wines: List(Wine)) -> Node {
-  html.div(
-    [attr.class("bg-white rounded-lg border border-stone-200 divide-y divide-stone-100")],
-    list.map(wines, compact_wine_row),
-  )
-}
-
-fn compact_wine_row(wine: Wine) -> Node {
-  html.a(
-    [attr.href(wine_url(wine)), attr.class("flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block")],
-    [
-      html.div([attr.class("min-w-0 flex-1")], [
-        html.div([attr.class("flex items-center gap-2")], [
-          html.span([attr.class("font-medium text-stone-800 text-sm truncate")], [
-            html.Text(wine.name),
-          ]),
-          html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-            html.Text(display_vintages(wine.vintages)),
-          ]),
-        ]),
-        html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
-          html.Text(display_winery(wine.winery_name)),
-        ]),
-      ]),
-      html.div([attr.class("flex items-center gap-3 ml-4 shrink-0")], [
-        wine_type_badge(wine.wine_type),
-        ..compact_stats(wine)
-      ]),
-    ],
-  )
-}
-
-fn compact_stats(_wine: Wine) -> List(Node) {
-  []
 }
 
 fn cellar_wine_section(title: String, link: String, wines: List(CellarWine)) -> Node {
@@ -567,17 +520,6 @@ fn detail_grid(items: List(#(String, String))) -> Node {
       }
     }),
   )
-}
-
-fn detail_stat(label: String, value: Node) -> Node {
-  html.div([], [
-    html.div([attr.class("text-xs uppercase tracking-wider text-stone-400")], [
-      html.Text(label),
-    ]),
-    html.div([attr.class("text-lg text-stone-800 mt-0.5")], [
-      value,
-    ]),
-  ])
 }
 
 // --- Wineries ---
@@ -1174,10 +1116,6 @@ fn page(title: String, user: User, content: List(Node)) -> Response {
 }
 
 fn site_header(user: User) -> Node {
-  let display_name = case user.display_name {
-    Some(name) -> name
-    None -> user.username
-  }
   html.header(
     [attr.class("border-b border-stone-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10 mb-8")],
     [

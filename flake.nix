@@ -221,7 +221,8 @@
               --content './src/**/*.gleam,./src/**/*.css' \
               --minify
 
-            # Build the Erlang shipment
+            # Check for warnings, then build the Erlang shipment
+            gleam build --warnings-as-errors
             gleam export erlang-shipment
 
             runHook postBuild
