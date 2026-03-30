@@ -1306,30 +1306,18 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
       attr.id("wine-" <> wine.id),
       attr.class(
         bg
-        <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors",
+        <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors cursor-pointer",
       ),
+      attr.Attr("hx-get", "/wishlist/" <> ww.id <> "/overlay"),
+      attr.Attr("hx-target", "#overlay"),
+      attr.Attr("hx-swap", "outerHTML"),
     ],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
-        html.a(
-          [
-            attr.href(winery_url(wine.winery_id, wine.winery_name)),
-            attr.class("hover:text-rose-800 transition-colors"),
-          ],
-          [html.Text(display_winery(wine.winery_name))],
-        ),
+        html.Text(display_winery(wine.winery_name)),
       ]),
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
-        html.a(
-          [
-            attr.href("/wishlist/" <> ww.id),
-            attr.class("hover:text-rose-800 transition-colors"),
-            attr.Attr("hx-get", "/wishlist/" <> ww.id <> "/overlay"),
-            attr.Attr("hx-target", "#overlay"),
-            attr.Attr("hx-swap", "outerHTML"),
-          ],
-          [html.Text(wine.name)],
-        ),
+        html.Text(wine.name),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
         html.Text(display_vintages(wine.vintages)),
@@ -1378,18 +1366,15 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
         [
           attr.class(
             bg
-            <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors",
+            <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors cursor-pointer",
           ),
+          attr.Attr("hx-get", "/ratings/" <> rating.id <> "/overlay"),
+          attr.Attr("hx-target", "#overlay"),
+          attr.Attr("hx-swap", "outerHTML"),
         ],
         [
           html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
-            html.a(
-              [
-                attr.href(wine_url(wine)),
-                attr.class("hover:text-rose-800 transition-colors"),
-              ],
-              [html.Text(wine.name)],
-            ),
+            html.Text(wine.name),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-700")], [
             html.Text(display_winery(wine.winery_name)),
@@ -1398,7 +1383,7 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
             html.Text(display_vintage(rating.vintage)),
           ]),
           html.td([attr.class("px-4 py-3 tabular-nums")], [
-            rating_link(rating, [rating_display(rating.rating)]),
+            rating_display(rating.rating),
           ]),
           html.td([attr.class("px-4 py-3 text-stone-600 max-w-xs truncate")], [
             html.Text(case rating.tasting_notes {
@@ -1514,27 +1499,16 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
       attr.id("wine-" <> wine.id <> "-" <> option.unwrap(cw.vintage, "")),
       attr.class(
         bg
-        <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors",
+        <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors cursor-pointer",
       ),
+      attr.Attr("onclick", "window.location='" <> wine_url(wine) <> "'"),
     ],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
-        html.a(
-          [
-            attr.href(winery_url(wine.winery_id, wine.winery_name)),
-            attr.class("hover:text-rose-800 transition-colors"),
-          ],
-          [html.Text(display_winery(wine.winery_name))],
-        ),
+        html.Text(display_winery(wine.winery_name)),
       ]),
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
-        html.a(
-          [
-            attr.href(wine_url(wine)),
-            attr.class("hover:text-rose-800 transition-colors"),
-          ],
-          [html.Text(wine.name)],
-        ),
+        html.Text(wine.name),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
         html.Text(display_vintage(cw.vintage)),
