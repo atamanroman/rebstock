@@ -287,7 +287,7 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
   ])
 }
 
-pub fn rating_detail(conn: Connection, id: Int, user: User) -> Response {
+pub fn rating_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_rating_by_id(conn, id) {
     Error(_) -> wisp.not_found()
     Ok(rating) ->
@@ -351,7 +351,7 @@ pub fn rating_detail(conn: Connection, id: Int, user: User) -> Response {
   }
 }
 
-pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
+pub fn wine_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> wisp.not_found()
     Ok(wine) ->
@@ -388,17 +388,15 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
           ]),
           ..{
             let all_ratings = db.ratings_for_wine(conn, wine.id)
-            // Build vintage rows from all ratings
-            let vintages_str = case wine.vintages {
-              None -> []
-              Some(v) -> string.split(v, ",") |> list.map(string.trim)
-            }
-            let vintage_rows = list.map(vintages_str, fn(v) {
-              let year = db.parse_vintage(v)
+            let wine_vintages = db.vintages_for_wine(conn, wine.id)
+            // Build vintage rows from vintages table
+            let vintage_rows = list.map(wine_vintages, fn(v) {
+              let year = Some(v.year)
+              let v_str = int.to_string(v.year)
               let vivino_r = list.find(all_ratings, fn(r) { r.source == "vivino" && r.vintage == year })
               let my_r = list.find(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == year })
               let other_rs = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username && r.vintage == year })
-              #(v, year, vivino_r, my_r, other_rs)
+              #(v_str, year, vivino_r, my_r, other_rs)
             })
             // Ratings without a vintage (general ratings)
             let my_general = list.filter(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == None })
@@ -442,7 +440,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                           html.td([attr.class("py-1 pr-4 tabular-nums")], [
                             case my_r {
                                 Ok(r) ->
-                                  html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-2 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
+                                  html.a([attr.href("/ratings/" <> r.id), attr.class("inline-flex items-center gap-2 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
                                     rating_display(r.rating),
                                     case r.tasting_notes {
                                       Some(_) ->
@@ -478,7 +476,7 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                         Error(_) -> html.Nothing
                       },
                       ..list.map(my_general, fn(r) {
-                        html.a([attr.href("/ratings/" <> int.to_string(r.id)), attr.class("inline-flex items-center gap-1 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
+                        html.a([attr.href("/ratings/" <> r.id), attr.class("inline-flex items-center gap-1 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
                           html.span([attr.class("text-xs text-stone-400")], [html.Text("You:")]),
                           rating_display(r.rating),
                           case r.tasting_notes {
@@ -520,13 +518,13 @@ pub fn wine_detail(conn: Connection, id: Int, user: User) -> Response {
                   case bottles > 0 {
                     True -> [html.a(
                       [attr.href("/~" <> user.username <> "/cellar"), attr.class("text-sm text-rose-800 hover:text-rose-900")],
-                      [html.Text("View in cellar (" <> int.to_string(bottles) <> " bottles) \u{2192}")],
+                      [html.Text("View in cellar (" <> int.to_string(bottles) <> " bottles)")],
                     )]
                     False -> []
                   },
                   case wishlisted {
                     True -> [html.a(
-                      [attr.href("/~" <> user.username <> "/wishlist#wine-" <> int.to_string(wine.id)), attr.class("text-sm text-rose-800 hover:text-rose-900")],
+                      [attr.href("/~" <> user.username <> "/wishlist#wine-" <> wine.id), attr.class("text-sm text-rose-800 hover:text-rose-900")],
                       [html.Text("View in wishlist \u{2192}")],
                     )]
                     False -> []
@@ -627,7 +625,7 @@ fn winery_row(winery: Winery, idx: Int) -> Node {
   )
 }
 
-pub fn winery_detail(conn: Connection, id: Int, user: User) -> Response {
+pub fn winery_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_winery(conn, user.username, id) {
     Error(_) -> wisp.not_found()
     Ok(winery) -> {
@@ -835,7 +833,7 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.id("wine-" <> int.to_string(wine.id)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> wine.id), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
@@ -906,7 +904,7 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> Node {
           ]),
           html.td([attr.class("px-4 py-3 tabular-nums")], [
             html.a(
-              [attr.href("/ratings/" <> int.to_string(rating.id)), attr.class("underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")],
+              [attr.href("/ratings/" <> rating.id), attr.class("underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")],
               [rating_display(rating.rating)],
             ),
           ]),
@@ -999,7 +997,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.id("wine-" <> int.to_string(wine.id) <> "-" <> int.to_string(cw.vintage)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> wine.id <> "-" <> int.to_string(cw.vintage)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
@@ -1119,11 +1117,11 @@ fn display_optional(value: Option(String)) -> String {
 }
 
 fn wine_url(wine: Wine) -> String {
-  "/wines/" <> int.to_string(wine.id) <> "/" <> db.slugify(wine.name)
+  "/wines/" <> wine.id <> "/" <> db.slugify(wine.name)
 }
 
-fn winery_url(id: Int, name: String) -> String {
-  "/wineries/" <> int.to_string(id) <> "/" <> db.slugify(name)
+fn winery_url(id: String, name: String) -> String {
+  "/wineries/" <> id <> "/" <> db.slugify(name)
 }
 
 fn page(title: String, user: User, content: List(Node)) -> Response {

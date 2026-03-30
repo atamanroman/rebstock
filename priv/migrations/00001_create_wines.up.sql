@@ -1,6 +1,10 @@
+CREATE TABLE users (
+  username TEXT PRIMARY KEY
+);
+
 CREATE TABLE wineries (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  created_by TEXT NOT NULL,
+  id TEXT PRIMARY KEY,
+  created_by TEXT NOT NULL REFERENCES users(username),
   name TEXT NOT NULL,
   country TEXT,
   vivino_id TEXT,
@@ -8,11 +12,10 @@ CREATE TABLE wineries (
 );
 
 CREATE TABLE wines (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  created_by TEXT NOT NULL,
-  winery_id INTEGER NOT NULL REFERENCES wineries(id),
+  id TEXT PRIMARY KEY,
+  created_by TEXT NOT NULL REFERENCES users(username),
+  winery_id TEXT NOT NULL REFERENCES wineries(id),
   name TEXT NOT NULL,
-  vintages TEXT,
   region TEXT,
   country TEXT,
   style TEXT,
@@ -22,33 +25,39 @@ CREATE TABLE wines (
   UNIQUE(created_by, winery_id, name)
 );
 
+CREATE TABLE vintages (
+  id TEXT PRIMARY KEY,
+  wine_id TEXT NOT NULL REFERENCES wines(id),
+  year INTEGER NOT NULL,
+  UNIQUE(wine_id, year)
+);
+
 CREATE TABLE wishlist (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL,
-  wine_id INTEGER NOT NULL REFERENCES wines(id),
-  vintage INTEGER,
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL REFERENCES users(username),
+  wine_id TEXT NOT NULL REFERENCES wines(id),
+  vintage_id TEXT REFERENCES vintages(id),
   notes TEXT,
-  dated_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(username, wine_id, vintage)
+  UNIQUE(username, wine_id, vintage_id)
 );
 
 CREATE TABLE cellar (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL,
-  wine_id INTEGER NOT NULL REFERENCES wines(id),
-  vintage INTEGER NOT NULL,
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL REFERENCES users(username),
+  wine_id TEXT NOT NULL REFERENCES wines(id),
+  vintage_id TEXT NOT NULL REFERENCES vintages(id),
   quantity INTEGER NOT NULL,
   notes TEXT,
-  dated_at TEXT,
+  date TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE ratings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL,
-  wine_id INTEGER NOT NULL REFERENCES wines(id),
-  vintage INTEGER,
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL REFERENCES users(username),
+  wine_id TEXT NOT NULL REFERENCES wines(id),
+  vintage_id TEXT REFERENCES vintages(id),
   rating REAL,
   tasting_notes TEXT,
   rated_at TEXT,

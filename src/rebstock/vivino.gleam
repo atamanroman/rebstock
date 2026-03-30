@@ -10,6 +10,7 @@ import rebstock/db
 import wisp
 
 pub fn import_data(conn: Connection, data_dir: String, created_by: String) -> Nil {
+  db.ensure_user(conn, created_by)
   import_cellar(conn, data_dir <> "/cellar.csv", created_by)
   import_full_wine_list(conn, data_dir <> "/full_wine_list.csv", created_by)
   import_wishlisted(conn, data_dir <> "/wishlisted.csv", created_by)
@@ -19,13 +20,6 @@ pub fn import_data(conn: Connection, data_dir: String, created_by: String) -> Ni
 
 fn is_blank(s: String) -> Bool {
   string.trim(s) == ""
-}
-
-fn vintage_to_vintages(v: Option(Int)) -> Option(String) {
-  case v {
-    None -> None
-    Some(year) -> Some(int.to_string(year))
-  }
 }
 
 fn vintage_or_zero(v: Option(Int)) -> Int {
@@ -67,31 +61,40 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   created_by:,
                   winery:,
                   name:,
-                  vintages: vintage_to_vintages(parsed_vintage),
+                  vintage: parsed_vintage,
                   region: db.optional_non_empty(region),
-                  country: db.optional_non_empty(country),
+                  country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: None,
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                let vintage_id = case parsed_vintage {
+                  Some(year) -> Some(db.upsert_vintage(conn, wine_id, year))
+                  None -> None
+                }
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
-                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage_id:, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
                   None -> Nil
                 }
                 let bottles = db.parse_int_or_zero(cellar_count)
                 case bottles > 0 {
-                  True ->
+                  True -> {
+                    let vid = case vintage_id {
+                      Some(id) -> id
+                      None -> db.upsert_vintage(conn, wine_id, vintage_or_zero(parsed_vintage))
+                    }
                     db.insert_cellar_entry(
                       conn,
                       username: created_by,
                       wine_id:,
-                      vintage: vintage_or_zero(parsed_vintage),
+                      vintage_id: vid,
                       quantity: bottles,
                       notes: None,
-                      dated_at: None,
+                      date: None,
                     )
+                  }
                   False -> Nil
                 }
               }
@@ -120,17 +123,21 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   created_by:,
                   winery:,
                   name:,
-                  vintages: vintage_to_vintages(parsed_vintage),
+                  vintage: parsed_vintage,
                   region: db.optional_non_empty(region),
-                  country: db.optional_non_empty(country),
+                  country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                let vintage_id = case parsed_vintage {
+                  Some(year) -> Some(db.upsert_vintage(conn, wine_id, year))
+                  None -> None
+                }
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
-                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage_id:, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
                   None -> Nil
                 }
                 let rating = db.parse_optional_float(user_rating)
@@ -142,7 +149,7 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                       conn,
                       username: created_by,
                       wine_id:,
-                      vintage: parsed_vintage,
+                      vintage_id:,
                       rating:,
                       tasting_notes:,
                       rated_at: None,
@@ -175,26 +182,29 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   created_by:,
                   winery:,
                   name:,
-                  vintages: vintage_to_vintages(parsed_vintage),
+                  vintage: parsed_vintage,
                   region: db.optional_non_empty(region),
-                  country: db.optional_non_empty(country),
+                  country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: db.optional_non_empty(personal_note),
                   wine_type:,
                   vivino_id: extract_vivino_id(vivino_link),
                 )
+                let vintage_id = case parsed_vintage {
+                  Some(year) -> Some(db.upsert_vintage(conn, wine_id, year))
+                  None -> None
+                }
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
-                    db.insert_rating(conn, username: created_by, wine_id:, vintage: parsed_vintage, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
+                    db.insert_rating(conn, username: created_by, wine_id:, vintage_id:, rating: Some(r), tasting_notes: None, rated_at: None, source: "vivino")
                   None -> Nil
                 }
                 db.upsert_wishlist(
                   conn,
                   username: created_by,
                   wine_id:,
-                  vintage: parsed_vintage,
+                  vintage_id:,
                   notes: None,
-                  dated_at: None,
                 )
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)
@@ -205,7 +215,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                       conn,
                       username: created_by,
                       wine_id:,
-                      vintage: parsed_vintage,
+                      vintage_id:,
                       rating:,
                       tasting_notes:,
                       rated_at: None,

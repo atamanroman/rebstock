@@ -33,6 +33,7 @@ fn with_empty_db(f: fn(sqlight.Connection) -> Nil) -> Nil {
 
 pub fn home_returns_200_test() {
   use conn <- with_empty_db
+  db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/")
     |> router.handle_request(conn, test_auth)
@@ -42,6 +43,7 @@ pub fn home_returns_200_test() {
 
 pub fn home_contains_rebstock_test() {
   use conn <- with_empty_db
+  db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/")
     |> router.handle_request(conn, test_auth)
@@ -101,8 +103,10 @@ pub fn cellar_page_test() {
 
 pub fn wine_detail_test() {
   use conn <- with_seeded_db
+  let wines = db.list_wines(conn, "test")
+  let assert [first, ..] = wines
   let response =
-    simulate.request(http.Get, "/wines/1")
+    simulate.request(http.Get, "/wines/" <> first.id)
     |> router.handle_request(conn, test_auth)
   let assert 200 = response.status
   Nil
@@ -137,15 +141,17 @@ pub fn config_missing_file_test() {
   Nil
 }
 
-fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
+fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
+  db.ensure_user(conn, "alice")
+  db.ensure_user(conn, "bob")
   let wine_a = db.upsert_wine(
     conn,
     created_by: "alice",
     winery: "Domaine Alice",
     name: "Pinot Noir Reserve",
-    vintages: Some("2020"),
+    vintage: Some(2020),
     region: Some("Burgundy"),
-    country: Some("France"),
+    country: Some("FR"),
     style: None,
     personal_note: None,
     wine_type: "Red Wine",
@@ -156,19 +162,21 @@ fn seed_two_users(conn: sqlight.Connection) -> #(Int, Int) {
     created_by: "bob",
     winery: "Bodega Bob",
     name: "Tempranillo Gran Reserva",
-    vintages: Some("2018"),
+    vintage: Some(2018),
     region: Some("Rioja"),
-    country: Some("Spain"),
+    country: Some("ES"),
     style: None,
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
   )
-  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage: 2020, quantity: 6, notes: None, dated_at: None)
-  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage: 2018, quantity: 3, notes: None, dated_at: None)
-  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage: Some(2020), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None, source: "user")
-  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage: Some(2018), rating: Some(3.8), tasting_notes: None, rated_at: None, source: "user")
-  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage: Some(2018), notes: Some("Want to try"), dated_at: None)
+  let vintage_a = db.upsert_vintage(conn, wine_a, 2020)
+  let vintage_b = db.upsert_vintage(conn, wine_b, 2018)
+  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage_id: vintage_a, quantity: 6, notes: None, date: None)
+  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage_id: vintage_b, quantity: 3, notes: None, date: None)
+  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage_id: Some(vintage_a), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None, source: "user")
+  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage_id: Some(vintage_b), rating: Some(3.8), tasting_notes: None, rated_at: None, source: "user")
+  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage_id: Some(vintage_b), notes: Some("Want to try"))
   #(wine_a, wine_b)
 }
 
@@ -221,16 +229,16 @@ pub fn wines_global_but_scoped_by_creator_test() {
 
 pub fn upsert_wine_deduplicates_by_name_test() {
   use conn <- with_empty_db
+  db.ensure_user(conn, "alice")
   let id1 = db.upsert_wine(
     conn,
     created_by: "alice",
     winery: "Domaine Test",
     name: "Chardonnay",
-    vintages: Some("2020"),
+    vintage: Some(2020),
     region: Some("Burgundy"),
-    country: Some("France"),
+    country: Some("FR"),
     style: None,
-
     personal_note: None,
     wine_type: "White Wine",
     vivino_id: Some("111"),
@@ -240,11 +248,10 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Chardonnay",
-    vintages: Some("2022"),
+    vintage: Some(2022),
     region: None,
     country: None,
     style: None,
-
     personal_note: None,
     wine_type: "White Wine",
     vivino_id: Some("222"),
@@ -253,26 +260,24 @@ pub fn upsert_wine_deduplicates_by_name_test() {
   let assert True = id1 == id2
   // Only one wine exists
   let assert 1 = db.count_wines(conn)
-  // Vintages merged
-  let assert Ok(wine) = db.get_wine_by_id(conn, id1)
-  let assert Some(vintages) = wine.vintages
-  let assert True = string.contains(vintages, "2020")
-  let assert True = string.contains(vintages, "2022")
+  // Vintages in vintages table
+  let vintages = db.vintages_for_wine(conn, id1)
+  let assert 2 = list.length(vintages)
   Nil
 }
 
 pub fn upsert_wine_no_duplicate_vintage_test() {
   use conn <- with_empty_db
+  db.ensure_user(conn, "alice")
   let _id1 = db.upsert_wine(
     conn,
     created_by: "alice",
     winery: "Domaine Test",
     name: "Merlot",
-    vintages: Some("2020"),
+    vintage: Some(2020),
     region: None,
     country: None,
     style: None,
-
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
@@ -282,33 +287,34 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Merlot",
-    vintages: Some("2020"),
+    vintage: Some(2020),
     region: None,
     country: None,
     style: None,
-
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: None,
   )
-  let assert Ok(wine) = db.get_wine_by_id(conn, id2)
   // Same vintage twice should not duplicate
-  let assert Some("2020") = wine.vintages
+  let vintages = db.vintages_for_wine(conn, id2)
+  let assert 1 = list.length(vintages)
+  let assert [v] = vintages
+  let assert 2020 = v.year
   Nil
 }
 
 pub fn upsert_wine_different_vivino_ids_merge_test() {
   use conn <- with_empty_db
+  db.ensure_user(conn, "alice")
   let id1 = db.upsert_wine(
     conn,
     created_by: "alice",
     winery: "Domaine Test",
     name: "Syrah",
-    vintages: Some("2019"),
+    vintage: Some(2019),
     region: None,
     country: None,
     style: None,
-
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: Some("aaa"),
@@ -318,11 +324,10 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Syrah",
-    vintages: Some("2021"),
+    vintage: Some(2021),
     region: None,
     country: None,
     style: None,
-
     personal_note: None,
     wine_type: "Red Wine",
     vivino_id: Some("bbb"),
@@ -346,8 +351,40 @@ pub fn vivino_import_no_duplicate_wines_test() {
 pub fn wine_detail_not_found_test() {
   use conn <- with_empty_db
   let response =
-    simulate.request(http.Get, "/wines/99999")
+    simulate.request(http.Get, "/wines/nonexistent")
     |> router.handle_request(conn, test_auth)
   let assert 404 = response.status
+  Nil
+}
+
+pub fn country_to_iso_test() {
+  let assert Some("FR") = db.country_to_iso("France")
+  let assert Some("IT") = db.country_to_iso("Italy")
+  let assert Some("DE") = db.country_to_iso("Germany")
+  let assert Some("DE") = db.country_to_iso("de")
+  let assert Some("US") = db.country_to_iso("United States")
+  let assert Some("CZ") = db.country_to_iso("Czech Republic")
+  let assert None = db.country_to_iso("")
+  Nil
+}
+
+pub fn ulid_generation_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "alice")
+  let id1 = db.upsert_wine(
+    conn,
+    created_by: "alice",
+    winery: "Test Winery",
+    name: "Test Wine",
+    vintage: None,
+    region: None,
+    country: None,
+    style: None,
+    personal_note: None,
+    wine_type: "Red Wine",
+    vivino_id: None,
+  )
+  // ULID is 26 chars
+  let assert 26 = string.length(id1)
   Nil
 }

@@ -1,4 +1,3 @@
-import gleam/int
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
@@ -18,27 +17,17 @@ pub fn handle_request(
   case wisp.path_segments(req) {
     [] -> pages.home(conn, user)
     ["wines"] -> pages.wines(conn, user)
-    ["wines", id_str] | ["wines", id_str, _slug] ->
-      case int.parse(id_str) {
-        Ok(id) -> pages.wine_detail(conn, id, user)
-        Error(_) -> wisp.not_found()
-      }
+    ["wines", id] | ["wines", id, _slug] ->
+      pages.wine_detail(conn, id, user)
     ["wineries"] -> pages.wineries(conn, user)
-    ["wineries", id_str] | ["wineries", id_str, _slug] ->
-      case int.parse(id_str) {
-        Ok(id) -> pages.winery_detail(conn, id, user)
-        Error(_) -> wisp.not_found()
-      }
+    ["wineries", id] | ["wineries", id, _slug] ->
+      pages.winery_detail(conn, id, user)
     ["~" <> username, "cellar"] -> pages.cellar(conn, user, username)
     ["~" <> username, "cellar", "print"] -> pages.cellar_print(conn, user, username)
     ["~" <> username, "cellar", "export.csv"] -> pages.cellar_csv(conn, user, username)
     ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
     ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
-    ["ratings", id_str] ->
-      case int.parse(id_str) {
-        Ok(id) -> pages.rating_detail(conn, id, user)
-        Error(_) -> wisp.not_found()
-      }
+    ["ratings", id] -> pages.rating_detail(conn, id, user)
     _ -> wisp.not_found()
   }
 }
