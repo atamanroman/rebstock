@@ -149,7 +149,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     created_by: "alice",
     winery: "Domaine Alice",
     name: "Pinot Noir Reserve",
-    vintage: Some(2020),
+    vintage: Some("2020"),
     region: Some("Burgundy"),
     country: Some("FR"),
     style: None,
@@ -162,7 +162,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     created_by: "bob",
     winery: "Bodega Bob",
     name: "Tempranillo Gran Reserva",
-    vintage: Some(2018),
+    vintage: Some("2018"),
     region: Some("Rioja"),
     country: Some("ES"),
     style: None,
@@ -170,13 +170,13 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     wine_type: "Red Wine",
     vivino_id: None,
   )
-  let vintage_a = db.upsert_vintage(conn, wine_a, 2020)
-  let vintage_b = db.upsert_vintage(conn, wine_b, 2018)
-  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage_id: vintage_a, quantity: 6, notes: None, date: None)
-  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage_id: vintage_b, quantity: 3, notes: None, date: None)
-  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage_id: Some(vintage_a), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None, source: "user")
-  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage_id: Some(vintage_b), rating: Some(3.8), tasting_notes: None, rated_at: None, source: "user")
-  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage_id: Some(vintage_b), notes: Some("Want to try"))
+  db.upsert_vintage(conn, wine_a, "2020")
+  db.upsert_vintage(conn, wine_b, "2018")
+  db.insert_cellar_entry(conn, username: "alice", wine_id: wine_a, vintage: Some("2020"), quantity: 6, notes: None, date: None)
+  db.insert_cellar_entry(conn, username: "bob", wine_id: wine_b, vintage: Some("2018"), quantity: 3, notes: None, date: None)
+  db.insert_rating(conn, username: "alice", wine_id: wine_a, vintage: Some("2020"), rating: Some(4.5), tasting_notes: Some("Excellent"), rated_at: None, source: "user")
+  db.insert_rating(conn, username: "bob", wine_id: wine_b, vintage: Some("2018"), rating: Some(3.8), tasting_notes: None, rated_at: None, source: "user")
+  db.upsert_wishlist(conn, username: "alice", wine_id: wine_b, vintage: Some("2018"), notes: Some("Want to try"))
   #(wine_a, wine_b)
 }
 
@@ -235,7 +235,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Chardonnay",
-    vintage: Some(2020),
+    vintage: Some("2020"),
     region: Some("Burgundy"),
     country: Some("FR"),
     style: None,
@@ -248,7 +248,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Chardonnay",
-    vintage: Some(2022),
+    vintage: Some("2022"),
     region: None,
     country: None,
     style: None,
@@ -274,7 +274,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Merlot",
-    vintage: Some(2020),
+    vintage: Some("2020"),
     region: None,
     country: None,
     style: None,
@@ -287,7 +287,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Merlot",
-    vintage: Some(2020),
+    vintage: Some("2020"),
     region: None,
     country: None,
     style: None,
@@ -298,8 +298,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
   // Same vintage twice should not duplicate
   let vintages = db.vintages_for_wine(conn, id2)
   let assert 1 = list.length(vintages)
-  let assert [v] = vintages
-  let assert 2020 = v.year
+  let assert ["2020"] = vintages
   Nil
 }
 
@@ -311,7 +310,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Syrah",
-    vintage: Some(2019),
+    vintage: Some("2019"),
     region: None,
     country: None,
     style: None,
@@ -324,7 +323,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     created_by: "alice",
     winery: "Domaine Test",
     name: "Syrah",
-    vintage: Some(2021),
+    vintage: Some("2021"),
     region: None,
     country: None,
     style: None,

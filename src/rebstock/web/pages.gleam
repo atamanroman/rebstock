@@ -129,7 +129,7 @@ fn cellar_wine_section(title: String, link: String, wines: List(CellarWine)) -> 
                       html.Text(cw.wine.name),
                     ]),
                     html.span([attr.class("text-xs text-stone-400 shrink-0")], [
-                      html.Text(display_vintage(Some(cw.vintage))),
+                      html.Text(display_vintage(cw.vintage)),
                     ]),
                   ]),
                   html.div([attr.class("text-xs text-stone-500 truncate mt-0.5")], [
@@ -344,12 +344,11 @@ pub fn wine_detail(conn: Connection, id: String, user: User) -> Response {
             let wine_vintages = db.vintages_for_wine(conn, wine.id)
             // Build vintage rows from vintages table
             let vintage_rows = list.map(wine_vintages, fn(v) {
-              let year = Some(v.year)
-              let v_str = int.to_string(v.year)
+              let year = Some(v)
               let vivino_r = list.find(all_ratings, fn(r) { r.source == "vivino" && r.vintage == year })
               let my_r = list.find(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == year })
               let other_rs = list.filter(all_ratings, fn(r) { r.source == "user" && r.username != user.username && r.vintage == year })
-              #(v_str, year, vivino_r, my_r, other_rs)
+              #(v, year, vivino_r, my_r, other_rs)
             })
             // Ratings without a vintage (general ratings)
             let my_general = list.filter(all_ratings, fn(r) { r.source == "user" && r.username == user.username && r.vintage == None })
@@ -676,7 +675,7 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
       [
         csv_field(cw.wine.winery_name),
         csv_field(cw.wine.name),
-        display_vintage(Some(cw.vintage)),
+        display_vintage(cw.vintage),
         csv_field(display_country(cw.wine.country)),
         cw.wine.wine_type,
         int.to_string(cw.bottles),
@@ -941,7 +940,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
     _ -> "bg-stone-50/30"
   }
   html.tr(
-    [attr.id("wine-" <> wine.id <> "-" <> int.to_string(cw.vintage)), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
+    [attr.id("wine-" <> wine.id <> "-" <> option.unwrap(cw.vintage, "")), attr.class(bg <> " target-highlight border-b border-stone-100 hover:bg-amber-50/50 transition-colors")],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
         html.a(
@@ -956,7 +955,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
         ),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(display_vintage(Some(cw.vintage))),
+        html.Text(display_vintage(cw.vintage)),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(display_country(wine.country)),
@@ -1013,11 +1012,11 @@ fn display_winery(winery: String) -> String {
   }
 }
 
-fn display_vintage(vintage: Option(Int)) -> String {
+fn display_vintage(vintage: Option(String)) -> String {
   case vintage {
     None -> ""
-    Some(0) -> "N.V."
-    Some(v) -> int.to_string(v)
+    Some("NV") -> "N.V."
+    Some(v) -> v
   }
 }
 

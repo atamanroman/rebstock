@@ -25,42 +25,44 @@ CREATE TABLE wines (
   UNIQUE(created_by, winery_id, name)
 );
 
-CREATE TABLE vintages (
-  id TEXT PRIMARY KEY,
+CREATE TABLE wine_vintages (
   wine_id TEXT NOT NULL REFERENCES wines(id),
-  year INTEGER NOT NULL,
-  UNIQUE(wine_id, year)
+  year TEXT NOT NULL,
+  PRIMARY KEY (wine_id, year)
 );
 
 CREATE TABLE wishlist (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL REFERENCES users(username),
   wine_id TEXT NOT NULL REFERENCES wines(id),
-  vintage_id TEXT REFERENCES vintages(id),
+  vintage TEXT,
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(username, wine_id, vintage_id)
+  UNIQUE(username, wine_id, vintage),
+  FOREIGN KEY (wine_id, vintage) REFERENCES wine_vintages(wine_id, year)
 );
 
 CREATE TABLE cellar (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL REFERENCES users(username),
   wine_id TEXT NOT NULL REFERENCES wines(id),
-  vintage_id TEXT NOT NULL REFERENCES vintages(id),
+  vintage TEXT,
   quantity INTEGER NOT NULL,
   notes TEXT,
   date TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (wine_id, vintage) REFERENCES wine_vintages(wine_id, year)
 );
 
 CREATE TABLE ratings (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL REFERENCES users(username),
   wine_id TEXT NOT NULL REFERENCES wines(id),
-  vintage_id TEXT REFERENCES vintages(id),
+  vintage TEXT,
   rating REAL,
   tasting_notes TEXT,
   rated_at TEXT,
   source TEXT NOT NULL DEFAULT 'user',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (wine_id, vintage) REFERENCES wine_vintages(wine_id, year)
 );
