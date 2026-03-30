@@ -3,10 +3,20 @@ name: Build
 on:
   push:
     branches: [main]
+    tags: ['*']
 
 jobs:
   build:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
+      - name: Check tag matches gleam.toml version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version=$(grep '^version = ' gleam.toml | sed 's/version = "\(.*\)"/\1/')
+          if [ "$tag" != "$version" ]; then
+            echo "Tag '$tag' does not match gleam.toml version '$version'"
+            exit 1
+          fi
       - run: nix build
