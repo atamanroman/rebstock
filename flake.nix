@@ -279,6 +279,7 @@
             pkgs.tailwindcss
             pkgs.watchexec
             pkgs.just
+            pkgs.lefthook
           ];
         };
       }

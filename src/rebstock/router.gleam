@@ -17,14 +17,15 @@ pub fn handle_request(
   case wisp.path_segments(req) {
     [] -> pages.home(conn, user)
     ["wines"] -> pages.wines(conn, user)
-    ["wines", id] | ["wines", id, _slug] ->
-      pages.wine_detail(conn, id, user)
+    ["wines", id] | ["wines", id, _slug] -> pages.wine_detail(conn, id, user)
     ["wineries"] -> pages.wineries(conn, user)
     ["wineries", id] | ["wineries", id, _slug] ->
       pages.winery_detail(conn, id, user)
     ["~" <> username, "cellar"] -> pages.cellar(conn, user, username)
-    ["~" <> username, "cellar", "print"] -> pages.cellar_print(conn, user, username)
-    ["~" <> username, "cellar", "export.csv"] -> pages.cellar_csv(conn, user, username)
+    ["~" <> username, "cellar", "print"] ->
+      pages.cellar_print(conn, user, username)
+    ["~" <> username, "cellar", "export.csv"] ->
+      pages.cellar_csv(conn, user, username)
     ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
     ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
     ["ratings", id] -> pages.rating_detail(conn, id, user)

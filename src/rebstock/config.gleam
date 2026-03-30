@@ -9,19 +9,11 @@ import rebstock/auth.{type AuthMode, Forward, Single}
 import wisp
 
 pub type Config {
-  Config(
-    port: Int,
-    database_uri: String,
-    auth: AuthMode,
-  )
+  Config(port: Int, database_uri: String, auth: AuthMode)
 }
 
 pub fn default() -> Config {
-  Config(
-    port: 3000,
-    database_uri: "file:rebstock.db",
-    auth: Single("admin"),
-  )
+  Config(port: 3000, database_uri: "file:rebstock.db", auth: Single("admin"))
 }
 
 pub fn parse_args() -> String {
@@ -44,16 +36,25 @@ pub fn load(path: String) -> Config {
   let auth_desc = case config.auth {
     Single(user) -> "single (user: " <> user <> ")"
     Forward(header_user:, header_name:, header_email:, header_groups:) ->
-      "forward (user: " <> header_user
-      <> ", name: " <> header_name
-      <> ", email: " <> header_email
-      <> ", groups: " <> header_groups <> ")"
+      "forward (user: "
+      <> header_user
+      <> ", name: "
+      <> header_name
+      <> ", email: "
+      <> header_email
+      <> ", groups: "
+      <> header_groups
+      <> ")"
   }
   wisp.log_info(
-    "Config: " <> source
-    <> " | port: " <> int.to_string(config.port)
-    <> " | db: " <> config.database_uri
-    <> " | auth: " <> auth_desc,
+    "Config: "
+    <> source
+    <> " | port: "
+    <> int.to_string(config.port)
+    <> " | db: "
+    <> config.database_uri
+    <> " | auth: "
+    <> auth_desc,
   )
   config
 }
@@ -66,7 +67,11 @@ pub fn parse(content: String) -> Config {
 
 fn config_decoder(d: Config) -> decode.Decoder(Config) {
   use port <- decode.optional_field("port", d.port, decode.int)
-  use database_uri <- decode.optional_field("database_uri", d.database_uri, decode.string)
+  use database_uri <- decode.optional_field(
+    "database_uri",
+    d.database_uri,
+    decode.string,
+  )
   use auth <- decode.field("auth", auth_decoder())
   decode.success(Config(port:, database_uri:, auth:))
 }
@@ -115,5 +120,10 @@ fn forward_decoder() -> decode.Decoder(AuthMode) {
     "x-webauth-groups",
     decode.string,
   )
-  decode.success(Forward(header_user:, header_name:, header_email:, header_groups:))
+  decode.success(Forward(
+    header_user:,
+    header_name:,
+    header_email:,
+    header_groups:,
+  ))
 }

@@ -25,12 +25,7 @@ pub type AuthMode {
 pub fn get_user(req: Request(a), auth: AuthMode) -> User {
   case auth {
     Single(default_user) ->
-      User(
-        username: default_user,
-        display_name: None,
-        email: None,
-        groups: [],
-      )
+      User(username: default_user, display_name: None, email: None, groups: [])
     Forward(header_user:, header_name:, header_email:, header_groups:) -> {
       let username = case request.get_header(req, header_user) {
         Ok(v) -> v

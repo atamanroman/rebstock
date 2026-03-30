@@ -19,4 +19,5 @@ jobs:
             echo "Tag '$tag' does not match gleam.toml version '$version'"
             exit 1
           fi
+      - run: nix develop -c just check
       - run: nix build

@@ -8,8 +8,8 @@ import wisp/wisp_mist
 import rebstock/auth
 import rebstock/config
 import rebstock/db
-import rebstock/vivino
 import rebstock/router
+import rebstock/vivino
 
 pub fn main() -> Nil {
   wisp.configure_logger()
@@ -26,7 +26,10 @@ pub fn main() -> Nil {
 
   case db.count_wines(conn) {
     0 -> vivino.import_data(conn, "vivino_data", username)
-    n -> wisp.log_info("DB already has " <> int.to_string(n) <> " wines, skipping seed")
+    n ->
+      wisp.log_info(
+        "DB already has " <> int.to_string(n) <> " wines, skipping seed",
+      )
   }
 
   let assert Ok(_) =

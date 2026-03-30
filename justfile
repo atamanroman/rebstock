@@ -13,3 +13,10 @@ test:
 
 build: css
     gleam build
+
+check:
+    gleam format --check .
+    gleam build --warnings-as-errors
+
+install-hooks:
+    lefthook install
