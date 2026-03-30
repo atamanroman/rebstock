@@ -637,7 +637,7 @@ pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response
       case group {
         [first, ..] -> [
           html.h2([attr.class("cellar-type-heading")], [
-            html.Text(first.wine.wine_type),
+            html.Text(wine_type_label(first.wine.wine_type)),
           ]),
           cellar_wine_table(group),
         ]
@@ -677,7 +677,7 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
         csv_field(cw.wine.name),
         display_vintage(cw.vintage),
         csv_field(display_country(cw.wine.country)),
-        cw.wine.wine_type,
+        db.wine_type_to_string(cw.wine.wine_type),
         int.to_string(cw.bottles),
       ]
       |> string.join(",")
@@ -968,13 +968,29 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> Node {
   )
 }
 
-fn wine_type_badge(wine_type: String) -> Node {
+fn wine_type_label(wt: db.WineType) -> String {
+  case wt {
+    db.Red -> "Red"
+    db.White -> "White"
+    db.Rose -> "Rosé"
+    db.Orange -> "Orange"
+    db.Sparkling -> "Sparkling"
+    db.Dessert -> "Dessert"
+    db.Sake -> "Sake"
+    db.Other -> "Other"
+  }
+}
+
+fn wine_type_badge(wine_type: db.WineType) -> Node {
   let #(classes, text) = case wine_type {
-    "Red Wine" -> #("bg-red-900 text-red-100 border-red-800", "Red")
-    "White Wine" -> #("bg-amber-50/60 text-amber-800 border-amber-200", "White")
-    "Rosé Wine" -> #("bg-pink-50 text-pink-700 border-pink-200", "Rosé")
-    "Sparkling" -> #("bg-stone-50 text-stone-700 border-stone-200", "Sparkling")
-    other -> #("bg-stone-50 text-stone-700 border-stone-200", other)
+    db.Red -> #("bg-red-900 text-red-100 border-red-800", "Red")
+    db.White -> #("bg-amber-50/60 text-amber-800 border-amber-200", "White")
+    db.Rose -> #("bg-pink-50 text-pink-700 border-pink-200", "Rosé")
+    db.Orange -> #("bg-orange-50 text-orange-700 border-orange-200", "Orange")
+    db.Sparkling -> #("bg-stone-50 text-stone-700 border-stone-200", "Sparkling")
+    db.Dessert -> #("bg-amber-100 text-amber-900 border-amber-300", "Dessert")
+    db.Sake -> #("bg-stone-100 text-stone-700 border-stone-300", "Sake")
+    db.Other -> #("bg-stone-50 text-stone-700 border-stone-200", "Other")
   }
   html.span(
     [attr.class("inline-block px-2 py-0.5 rounded border text-xs font-medium " <> classes)],

@@ -154,7 +154,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     country: Some("FR"),
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: None,
   )
   let wine_b = db.upsert_wine(
@@ -167,7 +167,7 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     country: Some("ES"),
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: None,
   )
   db.upsert_vintage(conn, wine_a, "2020")
@@ -240,7 +240,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     country: Some("FR"),
     style: None,
     personal_note: None,
-    wine_type: "White Wine",
+    wine_type: db.White,
     vivino_id: Some("111"),
   )
   let id2 = db.upsert_wine(
@@ -253,7 +253,7 @@ pub fn upsert_wine_deduplicates_by_name_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "White Wine",
+    wine_type: db.White,
     vivino_id: Some("222"),
   )
   // Same wine, same id
@@ -279,7 +279,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: None,
   )
   let id2 = db.upsert_wine(
@@ -292,7 +292,7 @@ pub fn upsert_wine_no_duplicate_vintage_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: None,
   )
   // Same vintage twice should not duplicate
@@ -315,7 +315,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: Some("aaa"),
   )
   let id2 = db.upsert_wine(
@@ -328,7 +328,7 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: Some("bbb"),
   )
   // Same wine despite different vivino ids
@@ -380,7 +380,7 @@ pub fn ulid_generation_test() {
     country: None,
     style: None,
     personal_note: None,
-    wine_type: "Red Wine",
+    wine_type: db.Red,
     vivino_id: None,
   )
   // ULID is 26 chars

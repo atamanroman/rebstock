@@ -9,6 +9,43 @@ import sqlight.{type Connection}
 
 import rebstock/ulid
 
+pub type WineType {
+  Red
+  White
+  Rose
+  Orange
+  Sparkling
+  Dessert
+  Sake
+  Other
+}
+
+pub fn wine_type_to_string(wt: WineType) -> String {
+  case wt {
+    Red -> "RED"
+    White -> "WHITE"
+    Rose -> "ROSE"
+    Orange -> "ORANGE"
+    Sparkling -> "SPARKLING"
+    Dessert -> "DESSERT"
+    Sake -> "SAKE"
+    Other -> "OTHER"
+  }
+}
+
+pub fn wine_type_from_string(s: String) -> WineType {
+  case string.uppercase(s) {
+    "RED" | "RED WINE" -> Red
+    "WHITE" | "WHITE WINE" -> White
+    "ROSE" | "ROSÉ" | "ROSÉ WINE" -> Rose
+    "ORANGE" -> Orange
+    "SPARKLING" -> Sparkling
+    "DESSERT" | "DESSERT WINE" -> Dessert
+    "SAKE" -> Sake
+    _ -> Other
+  }
+}
+
 pub type Wine {
   Wine(
     id: String,
@@ -21,7 +58,7 @@ pub type Wine {
     country: Option(String),
     style: Option(String),
     personal_note: Option(String),
-    wine_type: String,
+    wine_type: WineType,
     vivino_id: Option(String),
   )
 }
@@ -95,12 +132,12 @@ fn wine_decoder() -> decode.Decoder(Wine) {
   use country <- decode.field(7, decode.optional(decode.string))
   use style <- decode.field(8, decode.optional(decode.string))
   use personal_note <- decode.field(9, decode.optional(decode.string))
-  use wine_type <- decode.field(10, decode.string)
+  use wine_type_str <- decode.field(10, decode.string)
   use vivino_id <- decode.field(11, decode.optional(decode.string))
   decode.success(Wine(
     id:, created_by:, winery_id:, winery_name:, name:, vintages:,
     region:, country:, style:,
-    personal_note:, wine_type:,
+    personal_note:, wine_type: wine_type_from_string(wine_type_str),
     vivino_id:,
   ))
 }
@@ -257,14 +294,14 @@ pub fn wishlist_wines(conn: Connection, username: String) -> List(WishlistWine) 
     use country <- decode.field(7, decode.optional(decode.string))
     use style <- decode.field(8, decode.optional(decode.string))
     use personal_note <- decode.field(9, decode.optional(decode.string))
-    use wine_type <- decode.field(10, decode.string)
+    use wine_type_str <- decode.field(10, decode.string)
     use vivino_id <- decode.field(11, decode.optional(decode.string))
     use notes <- decode.field(12, decode.optional(decode.string))
     decode.success(WishlistWine(
       wine: Wine(
         id:, created_by:, winery_id:, winery_name:, name:, vintages:,
         region:, country:, style:,
-        personal_note:, wine_type:, vivino_id:,
+        personal_note:, wine_type: wine_type_from_string(wine_type_str), vivino_id:,
       ),
       notes:,
     ))
@@ -349,7 +386,7 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
   use country <- decode.field(7, decode.optional(decode.string))
   use style <- decode.field(8, decode.optional(decode.string))
   use personal_note <- decode.field(9, decode.optional(decode.string))
-  use wine_type <- decode.field(10, decode.string)
+  use wine_type_str <- decode.field(10, decode.string)
   use vivino_id <- decode.field(11, decode.optional(decode.string))
   use vintage <- decode.field(12, decode.optional(decode.string))
   use bottles <- decode.field(13, decode.int)
@@ -357,7 +394,7 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
     wine: Wine(
       id:, created_by:, winery_id:, winery_name:, name:, vintages:,
       region:, country:, style:,
-      personal_note:, wine_type:, vivino_id:,
+      personal_note:, wine_type: wine_type_from_string(wine_type_str), vivino_id:,
     ),
     vintage:,
     bottles:,
@@ -654,7 +691,7 @@ pub fn upsert_wine(
   country country: Option(String),
   style style: Option(String),
   personal_note personal_note: Option(String),
-  wine_type wine_type: String,
+  wine_type wine_type: WineType,
   vivino_id vivino_id: Option(String),
 ) -> String {
   let winery_id = upsert_winery(conn, created_by, winery, country, None)
@@ -692,7 +729,7 @@ pub fn upsert_wine(
             nullable_text(country),
             nullable_text(style),
             nullable_text(personal_note),
-            sqlight.text(wine_type),
+            sqlight.text(wine_type_to_string(wine_type)),
             nullable_text(vivino_id),
             sqlight.text(id),
           ],
@@ -717,7 +754,7 @@ pub fn upsert_wine(
             nullable_text(country),
             nullable_text(style),
             nullable_text(personal_note),
-            sqlight.text(wine_type),
+            sqlight.text(wine_type_to_string(wine_type)),
             nullable_text(vivino_id),
           ],
           expecting: decode.success(Nil),

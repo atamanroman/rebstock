@@ -59,7 +59,7 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                   country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: None,
-                  wine_type:,
+                  wine_type: db.wine_type_from_string(wine_type),
                   vivino_id: extract_vivino_id(vivino_link),
                 )
                 case db.parse_optional_float(avg_rating) {
@@ -117,7 +117,7 @@ fn import_full_wine_list(conn: Connection, path: String, created_by: String) -> 
                   country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: db.optional_non_empty(personal_note),
-                  wine_type:,
+                  wine_type: db.wine_type_from_string(wine_type),
                   vivino_id: extract_vivino_id(vivino_link),
                 )
                 case db.parse_optional_float(avg_rating) {
@@ -172,7 +172,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   country: db.country_to_iso(country),
                   style: db.optional_non_empty(style),
                   personal_note: db.optional_non_empty(personal_note),
-                  wine_type:,
+                  wine_type: db.wine_type_from_string(wine_type),
                   vivino_id: extract_vivino_id(vivino_link),
                 )
                 case db.parse_optional_float(avg_rating) {
