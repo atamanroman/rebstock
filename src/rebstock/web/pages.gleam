@@ -1105,7 +1105,46 @@ fn date_node(iso: String) -> Node {
 fn display_country(country: Option(String)) -> String {
   case country {
     None -> ""
-    Some(c) -> c
+    Some(c) -> iso_to_country(c)
+  }
+}
+
+fn iso_to_country(code: String) -> String {
+  case string.uppercase(string.trim(code)) {
+    "FR" -> "France"
+    "IT" -> "Italy"
+    "ES" -> "Spain"
+    "DE" -> "Germany"
+    "PT" -> "Portugal"
+    "AT" -> "Austria"
+    "US" -> "United States"
+    "AR" -> "Argentina"
+    "CL" -> "Chile"
+    "AU" -> "Australia"
+    "NZ" -> "New Zealand"
+    "ZA" -> "South Africa"
+    "GR" -> "Greece"
+    "HU" -> "Hungary"
+    "GE" -> "Georgia"
+    "LB" -> "Lebanon"
+    "IL" -> "Israel"
+    "HR" -> "Croatia"
+    "SI" -> "Slovenia"
+    "CH" -> "Switzerland"
+    "RO" -> "Romania"
+    "BG" -> "Bulgaria"
+    "MD" -> "Moldova"
+    "TR" -> "Turkey"
+    "UY" -> "Uruguay"
+    "BR" -> "Brazil"
+    "MX" -> "Mexico"
+    "CA" -> "Canada"
+    "GB" -> "United Kingdom"
+    "JP" -> "Japan"
+    "CN" -> "China"
+    "CZ" -> "Czech Republic"
+    "UA" -> "Ukraine"
+    other -> other
   }
 }
 
