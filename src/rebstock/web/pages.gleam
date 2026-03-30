@@ -476,9 +476,11 @@ pub fn wine_detail(conn: Connection, id: String, user: User) -> Response {
                         Error(_) -> html.Nothing
                       },
                       ..list.map(my_general, fn(r) {
-                        html.a([attr.href("/ratings/" <> r.id), attr.class("inline-flex items-center gap-1 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
+                        html.span([attr.class("inline-flex items-center gap-1")], [
                           html.span([attr.class("text-xs text-stone-400")], [html.Text("You:")]),
-                          rating_display(r.rating),
+                          html.a([attr.href("/ratings/" <> r.id), attr.class("underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors")], [
+                            rating_display(r.rating),
+                          ]),
                           case r.tasting_notes {
                             Some(_) ->
                               html.span([attr.class("text-xs text-stone-400")], [html.Text("w/ notes")])
