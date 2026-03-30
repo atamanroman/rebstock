@@ -30,6 +30,10 @@ pub fn handle_request(
     ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
     ["ratings", id, "overlay"] -> pages.rating_overlay(conn, id)
     ["ratings", id] -> pages.rating_detail(conn, id, user)
+    ["cellar", id, "overlay"] -> pages.cellar_entry_overlay(conn, id)
+    ["cellar", id] -> pages.cellar_entry_detail(conn, id, user)
+    ["wishlist", id, "overlay"] -> pages.wishlist_entry_overlay(conn, id)
+    ["wishlist", id] -> pages.wishlist_entry_detail(conn, id, user)
     _ -> wisp.not_found()
   }
 }

@@ -13,7 +13,7 @@ import wisp.{type Response}
 import rebstock/auth.{type User}
 import rebstock/db.{
   type CellarEntry, type CellarWine, type Rating, type Wine, type Winery,
-  type WishlistWine,
+  type WishlistEntry, type WishlistWine,
 }
 
 // --- Home ---
@@ -245,10 +245,13 @@ fn cellar_entry_section(
               Ok(wine) ->
                 html.a(
                   [
-                    attr.href(wine_url(wine)),
+                    attr.href("/cellar/" <> e.id),
                     attr.class(
                       "flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block",
                     ),
+                    attr.Attr("hx-get", "/cellar/" <> e.id <> "/overlay"),
+                    attr.Attr("hx-target", "#overlay"),
+                    attr.Attr("hx-swap", "outerHTML"),
                   ],
                   [
                     html.div([attr.class("min-w-0 flex-1")], [
@@ -384,48 +387,7 @@ pub fn rating_overlay(conn: Connection, id: String) -> Response {
     Ok(rating) ->
       case db.get_wine_by_id(conn, rating.wine_id) {
         Error(_) -> wisp.not_found()
-        Ok(wine) -> {
-          html.div(
-            [
-              attr.id("overlay"),
-              attr.class(
-                "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm",
-              ),
-              attr.Attr(
-                "onclick",
-                "if(event.target===this){this.innerHTML='';this.className='hidden'}",
-              ),
-              attr.Attr(
-                "onkeydown",
-                "if(event.key==='Escape'){this.innerHTML='';this.className='hidden'}",
-              ),
-            ],
-            [
-              html.div(
-                [
-                  attr.class("relative w-full max-w-lg mx-4"),
-                ],
-                [
-                  html.button(
-                    [
-                      attr.class(
-                        "absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center shadow-sm",
-                      ),
-                      attr.Attr(
-                        "onclick",
-                        "document.getElementById('overlay').innerHTML='';document.getElementById('overlay').className='hidden'",
-                      ),
-                    ],
-                    [html.Text("\u{00d7}")],
-                  ),
-                  rating_card(rating, wine),
-                ],
-              ),
-            ],
-          )
-          |> nakai.to_inline_string
-          |> wisp.html_response(200)
-        }
+        Ok(wine) -> overlay_wrapper(rating_card(rating, wine))
       }
   }
 }
@@ -479,6 +441,179 @@ fn rating_card(rating: Rating, wine: Wine) -> Node {
           ])
       },
     ]),
+  ])
+}
+
+pub fn cellar_entry_detail(conn: Connection, id: String, user: User) -> Response {
+  case db.get_cellar_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case db.get_wine_by_id(conn, entry.wine_id) {
+        Error(_) -> wisp.not_found()
+        Ok(wine) -> {
+          let title = wine.name <> " Cellar Entry \u{2014} Rebstock"
+          page(title, user, [
+            html.div([attr.class("mb-6")], [
+              html.a(
+                [
+                  attr.href(wine_url(wine)),
+                  attr.class("text-sm text-stone-500 hover:text-stone-700"),
+                ],
+                [html.Text("\u{2190} " <> wine.name)],
+              ),
+            ]),
+            cellar_entry_card(entry, wine),
+          ])
+        }
+      }
+  }
+}
+
+pub fn cellar_entry_overlay(conn: Connection, id: String) -> Response {
+  case db.get_cellar_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case db.get_wine_by_id(conn, entry.wine_id) {
+        Error(_) -> wisp.not_found()
+        Ok(wine) -> overlay_wrapper(cellar_entry_card(entry, wine))
+      }
+  }
+}
+
+fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> Node {
+  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+    html.div([attr.class("flex items-start justify-between mb-2")], [
+      html.div([], [
+        html.h1([attr.class("text-2xl font-light text-stone-800")], [
+          html.a(
+            [
+              attr.href(wine_url(wine)),
+              attr.class("hover:text-rose-800 transition-colors"),
+            ],
+            [html.Text(wine.name)],
+          ),
+        ]),
+        html.p([attr.class("text-stone-500 mt-1")], [
+          html.a(
+            [
+              attr.href(winery_url(wine.winery_id, wine.winery_name)),
+              attr.class("hover:text-stone-700 transition-colors"),
+            ],
+            [html.Text(display_winery(wine.winery_name))],
+          ),
+          html.Text(case entry.vintage {
+            None -> ""
+            Some(_) -> " \u{00b7} " <> display_vintage(entry.vintage)
+          }),
+        ]),
+      ]),
+      html.div([attr.class("flex items-center gap-2")], [
+        wine_type_badge(wine.wine_type),
+        html.span(
+          [attr.class("text-2xl font-light text-stone-800 tabular-nums")],
+          [html.Text(int.to_string(entry.quantity) <> "\u{00d7}")],
+        ),
+      ]),
+    ]),
+    html.p([attr.class("text-sm text-stone-500 mb-4")], [
+      date_node(case entry.date {
+        Some(d) -> d
+        None -> entry.created_at
+      }),
+    ]),
+    case entry.notes {
+      Some(notes) ->
+        html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+          html.p([attr.class("text-stone-700 whitespace-pre-line")], [
+            html.Text(notes),
+          ]),
+        ])
+      None -> html.Nothing
+    },
+  ])
+}
+
+pub fn wishlist_entry_detail(
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_wishlist_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case db.get_wine_by_id(conn, entry.wine_id) {
+        Error(_) -> wisp.not_found()
+        Ok(wine) -> {
+          let title = wine.name <> " Wishlist \u{2014} Rebstock"
+          page(title, user, [
+            html.div([attr.class("mb-6")], [
+              html.a(
+                [
+                  attr.href(wine_url(wine)),
+                  attr.class("text-sm text-stone-500 hover:text-stone-700"),
+                ],
+                [html.Text("\u{2190} " <> wine.name)],
+              ),
+            ]),
+            wishlist_entry_card(entry, wine),
+          ])
+        }
+      }
+  }
+}
+
+pub fn wishlist_entry_overlay(conn: Connection, id: String) -> Response {
+  case db.get_wishlist_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case db.get_wine_by_id(conn, entry.wine_id) {
+        Error(_) -> wisp.not_found()
+        Ok(wine) -> overlay_wrapper(wishlist_entry_card(entry, wine))
+      }
+  }
+}
+
+fn wishlist_entry_card(entry: WishlistEntry, wine: Wine) -> Node {
+  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+    html.div([attr.class("flex items-start justify-between mb-2")], [
+      html.div([], [
+        html.h1([attr.class("text-2xl font-light text-stone-800")], [
+          html.a(
+            [
+              attr.href(wine_url(wine)),
+              attr.class("hover:text-rose-800 transition-colors"),
+            ],
+            [html.Text(wine.name)],
+          ),
+        ]),
+        html.p([attr.class("text-stone-500 mt-1")], [
+          html.a(
+            [
+              attr.href(winery_url(wine.winery_id, wine.winery_name)),
+              attr.class("hover:text-stone-700 transition-colors"),
+            ],
+            [html.Text(display_winery(wine.winery_name))],
+          ),
+          html.Text(case entry.vintage {
+            None -> ""
+            Some(_) -> " \u{00b7} " <> display_vintage(entry.vintage)
+          }),
+        ]),
+      ]),
+      wine_type_badge(wine.wine_type),
+    ]),
+    html.p([attr.class("text-sm text-stone-500 mb-4")], [
+      date_node(entry.created_at),
+    ]),
+    case entry.notes {
+      Some(notes) ->
+        html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+          html.p([attr.class("text-stone-700 whitespace-pre-line")], [
+            html.Text(notes),
+          ]),
+        ])
+      None -> html.Nothing
+    },
   ])
 }
 
@@ -1187,8 +1322,11 @@ fn wishlist_row(ww: WishlistWine, idx: Int) -> Node {
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
         html.a(
           [
-            attr.href(wine_url(wine)),
+            attr.href("/wishlist/" <> ww.id),
             attr.class("hover:text-rose-800 transition-colors"),
+            attr.Attr("hx-get", "/wishlist/" <> ww.id <> "/overlay"),
+            attr.Attr("hx-target", "#overlay"),
+            attr.Attr("hx-swap", "outerHTML"),
           ],
           [html.Text(wine.name)],
         ),
@@ -1702,6 +1840,36 @@ fn layout(title: String, content: List(Node)) -> Node {
       ]),
     ),
   ])
+}
+
+fn overlay_wrapper(content: Node) -> Response {
+  let close =
+    "document.getElementById('overlay').innerHTML='';document.getElementById('overlay').className='hidden'"
+  html.div(
+    [
+      attr.id("overlay"),
+      attr.class(
+        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm",
+      ),
+      attr.Attr("onclick", "if(event.target===this){" <> close <> "}"),
+    ],
+    [
+      html.div([attr.class("relative w-full max-w-lg mx-4")], [
+        html.button(
+          [
+            attr.class(
+              "absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center shadow-sm",
+            ),
+            attr.Attr("onclick", close),
+          ],
+          [html.Text("\u{00d7}")],
+        ),
+        content,
+      ]),
+    ],
+  )
+  |> nakai.to_inline_string
+  |> wisp.html_response(200)
 }
 
 fn render(node: Node) -> Response {

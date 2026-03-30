@@ -333,7 +333,7 @@ pub fn wines_by_winery(
 }
 
 pub type WishlistWine {
-  WishlistWine(wine: Wine, notes: Option(String))
+  WishlistWine(id: String, wine: Wine, notes: Option(String))
 }
 
 pub fn wishlist_wines(conn: Connection, username: String) -> List(WishlistWine) {
@@ -350,8 +350,10 @@ pub fn wishlist_wines(conn: Connection, username: String) -> List(WishlistWine) 
     use personal_note <- decode.field(9, decode.optional(decode.string))
     use wine_type_str <- decode.field(10, decode.string)
     use vivino_id <- decode.field(11, decode.optional(decode.string))
-    use notes <- decode.field(12, decode.optional(decode.string))
+    use wl_id <- decode.field(12, decode.string)
+    use notes <- decode.field(13, decode.optional(decode.string))
     decode.success(WishlistWine(
+      id: wl_id,
       wine: Wine(
         id:,
         created_by:,
@@ -373,7 +375,7 @@ pub fn wishlist_wines(conn: Connection, username: String) -> List(WishlistWine) 
     sqlight.query(
       "SELECT "
         <> wine_cols
-        <> ", wl.notes "
+        <> ", wl.id, wl.notes "
         <> wine_join
         <> " JOIN wishlist wl ON wl.wine_id = w.id
        WHERE wl.username = ? ORDER BY wy.name, w.name",
@@ -401,6 +403,40 @@ pub fn is_wishlisted(
       expecting: count_decoder,
     )
   count > 0
+}
+
+pub fn get_wishlist_entry_by_id(
+  conn: Connection,
+  id: String,
+) -> Result(WishlistEntry, Nil) {
+  let decoder = {
+    use wl_id <- decode.field(0, decode.string)
+    use username <- decode.field(1, decode.string)
+    use wine_id <- decode.field(2, decode.string)
+    use vintage <- decode.field(3, decode.optional(decode.string))
+    use notes <- decode.field(4, decode.optional(decode.string))
+    use created_at <- decode.field(5, decode.string)
+    decode.success(WishlistEntry(
+      id: wl_id,
+      username:,
+      wine_id:,
+      vintage:,
+      notes:,
+      created_at:,
+    ))
+  }
+  let result =
+    sqlight.query(
+      "SELECT wl.id, wl.username, wl.wine_id, wl.vintage, wl.notes, wl.created_at
+       FROM wishlist wl WHERE wl.id = ?",
+      on: conn,
+      with: [sqlight.text(id)],
+      expecting: decoder,
+    )
+  case result {
+    Ok([entry]) -> Ok(entry)
+    _ -> Error(Nil)
+  }
 }
 
 pub fn upsert_wishlist(
@@ -571,6 +607,24 @@ pub fn cellar_bottle_count(
       expecting: count_decoder,
     )
   count
+}
+
+pub fn get_cellar_entry_by_id(
+  conn: Connection,
+  id: String,
+) -> Result(CellarEntry, Nil) {
+  let result =
+    sqlight.query(
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.created_at
+       FROM cellar c WHERE c.id = ?",
+      on: conn,
+      with: [sqlight.text(id)],
+      expecting: cellar_entry_decoder(),
+    )
+  case result {
+    Ok([entry]) -> Ok(entry)
+    _ -> Error(Nil)
+  }
 }
 
 pub fn insert_cellar_entry(
