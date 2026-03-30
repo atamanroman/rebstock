@@ -139,11 +139,12 @@
 
         version =
           let
+            env = builtins.getEnv "REBSTOCK_VERSION";
             d = self.lastModifiedDate or "19700101000000";
             date = "${builtins.substring 0 4 d}-${builtins.substring 4 2 d}-${builtins.substring 6 2 d}";
             shortRev = self.shortRev or "dirty";
           in
-          "${date}-dev-${shortRev}";
+          if env != "" then env else "${date}-dev-${shortRev}";
 
         # Fixed-output derivation to fetch hex dependencies
         deps = pkgs.stdenv.mkDerivation {
