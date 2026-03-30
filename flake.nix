@@ -137,10 +137,18 @@
             builtins.elem (nixpkgs.lib.getName pkg) [ "rebstock" "rebstock-deps" ];
         };
 
+        version =
+          let
+            d = self.lastModifiedDate or "19700101000000";
+            date = "${builtins.substring 0 4 d}-${builtins.substring 4 2 d}-${builtins.substring 6 2 d}";
+            shortRev = self.shortRev or "dirty";
+          in
+          "${date}-dev-${shortRev}";
+
         # Fixed-output derivation to fetch hex dependencies
         deps = pkgs.stdenv.mkDerivation {
           pname = "rebstock-deps";
-          version = "0.1.0";
+          inherit version;
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
             filter = path: type:
@@ -167,7 +175,7 @@
 
         rebstock = pkgs.stdenv.mkDerivation {
           pname = "rebstock";
-          version = "0.1.0";
+          inherit version;
 
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
