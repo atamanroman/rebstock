@@ -28,6 +28,7 @@ pub fn handle_request(
       pages.cellar_csv(conn, user, username)
     ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
     ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
+    ["ratings", id, "overlay"] -> pages.rating_overlay(conn, id)
     ["ratings", id] -> pages.rating_detail(conn, id, user)
     _ -> wisp.not_found()
   }
