@@ -2,7 +2,12 @@ import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
 import rebstock/auth.{type AuthMode}
-import rebstock/web/pages
+import rebstock/web/cellar
+import rebstock/web/home
+import rebstock/web/ratings
+import rebstock/web/wineries
+import rebstock/web/wines
+import rebstock/web/wishlist
 
 pub fn handle_request(
   req: Request,
@@ -15,25 +20,25 @@ pub fn handle_request(
   let user = auth.get_user(req, auth)
 
   case wisp.path_segments(req) {
-    [] -> pages.home(conn, user)
-    ["wines"] -> pages.wines(conn, user)
-    ["wines", id] | ["wines", id, _slug] -> pages.wine_detail(conn, id, user)
-    ["wineries"] -> pages.wineries(conn, user)
+    [] -> home.home(conn, user)
+    ["wines"] -> wines.wines(conn, user)
+    ["wines", id] | ["wines", id, _slug] -> wines.wine_detail(conn, id, user)
+    ["wineries"] -> wineries.wineries(conn, user)
     ["wineries", id] | ["wineries", id, _slug] ->
-      pages.winery_detail(conn, id, user)
-    ["~" <> username, "cellar"] -> pages.cellar(conn, user, username)
+      wineries.winery_detail(conn, id, user)
+    ["~" <> username, "cellar"] -> cellar.cellar(conn, user, username)
     ["~" <> username, "cellar", "print"] ->
-      pages.cellar_print(conn, user, username)
+      cellar.cellar_print(conn, user, username)
     ["~" <> username, "cellar", "export.csv"] ->
-      pages.cellar_csv(conn, user, username)
-    ["~" <> username, "wishlist"] -> pages.wishlist(conn, user, username)
-    ["~" <> username, "ratings"] -> pages.my_ratings(conn, user, username)
-    ["ratings", id, "overlay"] -> pages.rating_overlay(conn, id)
-    ["ratings", id] -> pages.rating_detail(conn, id, user)
-    ["cellar", id, "overlay"] -> pages.cellar_entry_overlay(conn, id)
-    ["cellar", id] -> pages.cellar_entry_detail(conn, id, user)
-    ["wishlist", id, "overlay"] -> pages.wishlist_entry_overlay(conn, id)
-    ["wishlist", id] -> pages.wishlist_entry_detail(conn, id, user)
+      cellar.cellar_csv(conn, user, username)
+    ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)
+    ["~" <> username, "ratings"] -> ratings.my_ratings(conn, user, username)
+    ["ratings", id, "overlay"] -> ratings.rating_overlay(conn, id)
+    ["ratings", id] -> ratings.rating_detail(conn, id, user)
+    ["cellar", id, "overlay"] -> cellar.cellar_entry_overlay(conn, id)
+    ["cellar", id] -> cellar.cellar_entry_detail(conn, id, user)
+    ["wishlist", id, "overlay"] -> wishlist.wishlist_entry_overlay(conn, id)
+    ["wishlist", id] -> wishlist.wishlist_entry_detail(conn, id, user)
     _ -> wisp.not_found()
   }
 }
