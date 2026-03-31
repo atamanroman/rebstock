@@ -991,6 +991,31 @@ pub fn insert_rating(
   Nil
 }
 
+pub fn update_rating(
+  conn: Connection,
+  id id: String,
+  vintage vintage: Option(String),
+  rating rating: Option(Float),
+  tasting_notes tasting_notes: Option(String),
+  rated_at rated_at: Option(String),
+) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "UPDATE ratings SET vintage = ?, rating = ?, tasting_notes = ?, rated_at = ?
+       WHERE id = ?",
+      on: conn,
+      with: [
+        nullable_text(vintage),
+        nullable_float(rating),
+        nullable_text(tasting_notes),
+        nullable_text(rated_at),
+        sqlight.text(id),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
 fn nullable_float(val: Option(Float)) -> sqlight.Value {
   case val {
     Some(v) -> sqlight.float(v)

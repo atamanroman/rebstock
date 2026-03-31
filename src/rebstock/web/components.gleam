@@ -233,21 +233,6 @@ pub fn rating_display(rating: Option(Float)) -> Node {
   }
 }
 
-pub fn rating_link(rating: db.Rating, children: List(Node)) -> Node {
-  html.a(
-    [
-      attr.href("/ratings/" <> rating.id),
-      attr.class(
-        "inline-flex items-center gap-2 underline decoration-2 decoration-rose-800 underline-offset-2 hover:text-rose-800 transition-colors cursor-pointer",
-      ),
-      attr.Attr("hx-get", "/ratings/" <> rating.id <> "/overlay"),
-      attr.Attr("hx-target", "#overlay"),
-      attr.Attr("hx-swap", "outerHTML"),
-    ],
-    children,
-  )
-}
-
 fn red_green_scale(rating: Float) -> String {
   let clamped = case rating <. 3.0 {
     True -> 3.0
@@ -413,7 +398,7 @@ pub fn layout(title: String, content: List(Node)) -> Node {
         attr.class("bg-stone-100 text-stone-900 min-h-screen font-sans"),
         attr.Attr(
           "hx-on::after-swap",
-          "if(event.detail.target.id==='overlay'){document.addEventListener('keydown',function h(e){if(e.key==='Escape'){var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';document.removeEventListener('keydown',h)}})}",
+          "if(event.detail.target.id==='overlay'){document.addEventListener('keydown',function h(e){if(e.key==='Escape'){var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';history.back();document.removeEventListener('keydown',h)}})}",
         ),
       ],
       list.append(content, [
@@ -431,7 +416,7 @@ pub fn render(node: Node) -> Response {
 
 pub fn overlay_wrapper(content: Node) -> Response {
   let close =
-    "document.getElementById('overlay').innerHTML='';document.getElementById('overlay').className='hidden'"
+    "document.getElementById('overlay').innerHTML='';document.getElementById('overlay').className='hidden';history.back()"
   html.div(
     [
       attr.id("overlay"),

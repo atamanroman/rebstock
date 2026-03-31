@@ -87,6 +87,48 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         date: Some("2026-01-05"),
       )
 
+      // Rate all Ciclope vintages
+      case list.find(wines, fn(w) { w.name == "Ciclope" }) {
+        Ok(ciclope) -> {
+          let vtgs = db.vintages_for_wine(conn, ciclope.id)
+          list.each(vtgs, fn(v) {
+            let #(rating, notes, date) = case v {
+              "2011" -> #(
+                Some(4.3),
+                Some("First vintage, raw and powerful. Impressive structure."),
+                "2026-01-10",
+              )
+              "2012" -> #(
+                Some(4.5),
+                Some(
+                  "Best vintage so far. Polished tannins, deep fruit, elegant.",
+                ),
+                "2026-02-14",
+              )
+              "2013" -> #(
+                Some(4.1),
+                Some(
+                  "Lighter year but still characterful. Dried herbs and cherry.",
+                ),
+                "2026-03-20",
+              )
+              _ -> #(Some(4.0), None, "2026-03-01")
+            }
+            db.insert_rating(
+              conn,
+              username: "alice",
+              wine_id: ciclope.id,
+              vintage: Some(v),
+              rating: rating,
+              tasting_notes: notes,
+              rated_at: Some(date),
+              source: "user",
+            )
+          })
+        }
+        Error(_) -> Nil
+      }
+
       // Wishlist for alice
       db.upsert_wishlist(
         conn,

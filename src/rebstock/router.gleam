@@ -14,7 +14,7 @@ pub fn handle_request(
   conn: Connection,
   auth: AuthMode,
 ) -> Response {
-  use _req <- wisp.handle_head(req)
+  use req <- wisp.handle_head(req)
   use <- wisp.serve_static(req, under: "/static", from: "priv/static")
 
   let user = auth.get_user(req, auth)
@@ -22,7 +22,13 @@ pub fn handle_request(
   case wisp.path_segments(req) {
     [] -> home.home(conn, user)
     ["wines"] -> wines.wines(conn, user)
-    ["wines", id] | ["wines", id, _slug] -> wines.wine_detail(conn, id, user)
+    ["wines", id, _, "ratings", "new"] ->
+      ratings.handle_new(req, conn, id, user)
+    ["wines", _id, _, "ratings", rid, "edit"] ->
+      ratings.handle_edit(req, conn, rid, user)
+    ["wines", _id, _, "ratings", rid] -> ratings.rating_detail(conn, rid, user)
+    ["wines", id] | ["wines", id, _slug] ->
+      wines.wine_detail(req, conn, id, user)
     ["wineries"] -> wineries.wineries(conn, user)
     ["wineries", id] | ["wineries", id, _slug] ->
       wineries.winery_detail(conn, id, user)
