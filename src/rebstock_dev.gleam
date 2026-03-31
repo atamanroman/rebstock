@@ -9,6 +9,7 @@ import rebstock/auth
 import rebstock/config
 import rebstock/db
 import rebstock/router
+import rebstock/seed
 import rebstock/vivino
 
 pub fn main() -> Nil {
@@ -25,7 +26,10 @@ pub fn main() -> Nil {
   }
 
   case db.count_wines(conn) {
-    0 -> vivino.import_data(conn, "vivino_data", username)
+    0 -> {
+      vivino.import_data(conn, "vivino_data", username)
+      seed.seed_alice(conn, username)
+    }
     n ->
       wisp.log_info(
         "DB already has " <> int.to_string(n) <> " wines, skipping seed",
