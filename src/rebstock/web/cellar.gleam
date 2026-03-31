@@ -142,7 +142,7 @@ pub fn cellar_entry_overlay(conn: Connection, id: String) -> Response {
 }
 
 fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
-  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+  c.card([
     html.div([attr.class("flex items-start justify-between mb-2")], [
       html.div([], [
         html.h1([attr.class("text-2xl font-light text-stone-800")], [
@@ -185,21 +185,10 @@ fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
 }
 
 fn cellar_wine_table(wines: List(CellarWine)) -> html.Node {
-  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
-    html.table([attr.class("w-full text-sm")], [
-      html.thead([], [
-        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
-          c.th("Winery"),
-          c.th("Wine"),
-          c.th("Vintage"),
-          c.th("Country"),
-          c.th("Type"),
-          c.th("Cellar"),
-        ]),
-      ]),
-      html.tbody([], list.index_map(wines, cellar_wine_row)),
-    ]),
-  ])
+  c.table(
+    ["Winery", "Wine", "Vintage", "Country", "Type", "Cellar"],
+    list.index_map(wines, cellar_wine_row),
+  )
 }
 
 fn cellar_wine_row(cw: CellarWine, idx: Int) -> html.Node {

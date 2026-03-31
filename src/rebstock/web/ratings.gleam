@@ -47,7 +47,7 @@ pub fn rating_overlay(conn: Connection, id: String) -> Response {
 }
 
 fn rating_card(rating: Rating, wine: Wine) -> html.Node {
-  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+  c.card([
     html.div([attr.class("flex items-start justify-between mb-2")], [
       html.div([], [
         html.h1([attr.class("text-2xl font-light text-stone-800")], [
@@ -89,24 +89,10 @@ fn rating_card(rating: Rating, wine: Wine) -> html.Node {
 }
 
 fn rating_table(ratings: List(Rating), conn: Connection) -> html.Node {
-  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
-    html.table([attr.class("w-full text-sm")], [
-      html.thead([], [
-        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
-          c.th("Winery"),
-          c.th("Wine"),
-          c.th("Vintage"),
-          c.th("Rating"),
-          c.th("Notes"),
-          c.th("Date"),
-        ]),
-      ]),
-      html.tbody(
-        [],
-        list.index_map(ratings, fn(r, i) { rating_row(r, i, conn) }),
-      ),
-    ]),
-  ])
+  c.table(
+    ["Winery", "Wine", "Vintage", "Rating", "Notes", "Date"],
+    list.index_map(ratings, fn(r, i) { rating_row(r, i, conn) }),
+  )
 }
 
 fn rating_row(rating: Rating, idx: Int, conn: Connection) -> html.Node {

@@ -26,34 +26,31 @@ pub fn wine_detail(conn: Connection, id: String, user: User) -> Response {
     Ok(wine) ->
       c.page(wine.name <> " \u{2014} Rebstock", user, [
         c.back_link("/wines", "All wines"),
-        html.div(
-          [attr.class("bg-white rounded-lg border border-stone-200 p-6")],
-          [
-            html.div([attr.class("flex items-start justify-between mb-4")], [
-              html.div([], [
-                html.h1([attr.class("text-2xl font-light text-stone-800")], [
-                  html.Text(wine.name),
-                ]),
-                html.p([attr.class("text-stone-500 mt-1")], [
-                  c.link(c.winery_url(wine.winery_id, wine.winery_name), [
-                    html.Text(c.display_winery(wine.winery_name)),
-                  ]),
-                  html.Text(case wine.vintages {
-                    None -> ""
-                    Some(_) -> " \u{00b7} " <> c.display_vintages(wine.vintages)
-                  }),
-                ]),
+        c.card([
+          html.div([attr.class("flex items-start justify-between mb-4")], [
+            html.div([], [
+              html.h1([attr.class("text-2xl font-light text-stone-800")], [
+                html.Text(wine.name),
               ]),
-              c.wine_type_badge(wine.wine_type),
+              html.p([attr.class("text-stone-500 mt-1")], [
+                c.link(c.winery_url(wine.winery_id, wine.winery_name), [
+                  html.Text(c.display_winery(wine.winery_name)),
+                ]),
+                html.Text(case wine.vintages {
+                  None -> ""
+                  Some(_) -> " \u{00b7} " <> c.display_vintages(wine.vintages)
+                }),
+              ]),
             ]),
-            c.detail_grid([
-              #("Region", c.display_optional(wine.region)),
-              #("Country", c.display_country(wine.country)),
-              #("Style", c.display_optional(wine.style)),
-            ]),
-            ..wine_detail_sections(conn, wine, user)
-          ],
-        ),
+            c.wine_type_badge(wine.wine_type),
+          ]),
+          c.detail_grid([
+            #("Region", c.display_optional(wine.region)),
+            #("Country", c.display_country(wine.country)),
+            #("Style", c.display_optional(wine.style)),
+          ]),
+          ..wine_detail_sections(conn, wine, user)
+        ]),
       ])
   }
 }
@@ -340,20 +337,10 @@ fn rating_entry(r: Rating, show_username su: Bool) -> Node {
 }
 
 pub fn wine_table(wines: List(Wine)) -> Node {
-  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
-    html.table([attr.class("w-full text-sm")], [
-      html.thead([], [
-        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
-          c.th("Winery"),
-          c.th("Wine"),
-          c.th("Vintage"),
-          c.th("Country"),
-          c.th("Type"),
-        ]),
-      ]),
-      html.tbody([], list.index_map(wines, wine_row)),
-    ]),
-  ])
+  c.table(
+    ["Winery", "Wine", "Vintage", "Country", "Type"],
+    list.index_map(wines, wine_row),
+  )
 }
 
 fn wine_row(wine: Wine, idx: Int) -> Node {

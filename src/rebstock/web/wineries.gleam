@@ -16,20 +16,9 @@ pub fn wineries(conn: Connection, user: User) -> Response {
 
   c.page("Wineries \u{2014} Rebstock", user, [
     c.page_header("Wineries", count <> " total"),
-    html.div(
-      [attr.class("overflow-x-auto rounded-lg border border-stone-200")],
-      [
-        html.table([attr.class("w-full text-sm")], [
-          html.thead([], [
-            html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
-              c.th("Winery"),
-              c.th("Country"),
-              c.th("Wines"),
-            ]),
-          ]),
-          html.tbody([], list.index_map(winery_list, winery_row)),
-        ]),
-      ],
+    c.table(
+      ["Winery", "Country", "Wines"],
+      list.index_map(winery_list, winery_row),
     ),
   ])
 }

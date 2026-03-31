@@ -51,7 +51,7 @@ pub fn wishlist_entry_overlay(conn: Connection, id: String) -> Response {
 }
 
 fn wishlist_entry_card(entry: WishlistEntry, wine: Wine) -> html.Node {
-  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+  c.card([
     html.div([attr.class("flex items-start justify-between mb-2")], [
       html.div([], [
         html.h1([attr.class("text-2xl font-light text-stone-800")], [
@@ -85,21 +85,10 @@ fn wishlist_entry_card(entry: WishlistEntry, wine: Wine) -> html.Node {
 }
 
 fn wishlist_table(wines: List(WishlistWine)) -> html.Node {
-  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
-    html.table([attr.class("w-full text-sm")], [
-      html.thead([], [
-        html.tr([attr.class("bg-stone-50 border-b border-stone-200")], [
-          c.th("Winery"),
-          c.th("Wine"),
-          c.th("Vintage"),
-          c.th("Country"),
-          c.th("Type"),
-          c.th("Notes"),
-        ]),
-      ]),
-      html.tbody([], list.index_map(wines, wishlist_row)),
-    ]),
-  ])
+  c.table(
+    ["Winery", "Wine", "Vintage", "Country", "Type", "Notes"],
+    list.index_map(wines, wishlist_row),
+  )
 }
 
 fn wishlist_row(ww: WishlistWine, idx: Int) -> html.Node {

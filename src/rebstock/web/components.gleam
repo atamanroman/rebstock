@@ -262,9 +262,32 @@ fn red_green_scale(rating: Float) -> String {
   "hsl(" <> int.to_string(hue) <> " 70% 35%)"
 }
 
+// --- Card helpers ---
+
+pub fn card(content: List(Node)) -> Node {
+  html.div(
+    [attr.class("bg-white rounded-lg border border-stone-200 p-6")],
+    content,
+  )
+}
+
 // --- Table helpers ---
 
-pub fn th(label: String) -> Node {
+pub fn table(headers: List(String), rows: List(Node)) -> Node {
+  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
+    html.table([attr.class("w-full text-sm")], [
+      html.thead([], [
+        html.tr(
+          [attr.class("bg-stone-50 border-b border-stone-200")],
+          list.map(headers, th),
+        ),
+      ]),
+      html.tbody([], rows),
+    ]),
+  ])
+}
+
+fn th(label: String) -> Node {
   html.th(
     [
       attr.class(
