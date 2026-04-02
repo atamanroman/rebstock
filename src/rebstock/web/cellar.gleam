@@ -1,12 +1,13 @@
 import gleam/bytes_tree
+import gleam/http
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import nakai/attr
 import nakai/html
 import sqlight.{type Connection}
-import wisp.{type Response}
+import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
 import rebstock/db.{type CellarEntry, type CellarWine, type Wine}
@@ -137,6 +138,532 @@ pub fn cellar_entry_overlay(conn: Connection, id: String) -> Response {
       case db.get_wine_by_id(conn, entry.wine_id) {
         Error(_) -> wisp.not_found()
         Ok(wine) -> c.overlay_wrapper(cellar_entry_card(entry, wine))
+      }
+  }
+}
+
+/// GET: show form overlay for new cellar entry. POST: create entry.
+pub fn handle_new(
+  req: Request,
+  conn: Connection,
+  wine_id: String,
+  user: User,
+) -> Response {
+  case db.get_wine(conn, user.username, wine_id) {
+    Error(_) -> wisp.not_found()
+    Ok(wine) -> {
+      let vintages = db.vintages_for_wine(conn, wine.id)
+      case req.method {
+        http.Get ->
+          case is_htmx(req) {
+            True -> c.overlay_wrapper(cellar_form(wine, vintages, None))
+            False ->
+              c.page("Add to Cellar \u{2014} Rebstock", user, [
+                c.back_link(c.wine_url(wine), wine.name),
+                cellar_form(wine, vintages, None),
+              ])
+          }
+        http.Post -> {
+          use form <- wisp.require_form(req)
+          let vintage = form_value(form, "vintage")
+          let quantity = form_int(form, "quantity")
+          let notes = form_value(form, "notes")
+          let date = form_value(form, "date")
+          db.insert_cellar_entry(
+            conn,
+            username: user.username,
+            wine_id: wine.id,
+            vintage: vintage,
+            quantity: quantity,
+            notes: notes,
+            date: date,
+          )
+          wisp.response(200)
+          |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+        }
+        _ -> wisp.method_not_allowed([http.Get, http.Post])
+      }
+    }
+  }
+}
+
+/// GET: show form overlay for editing. POST: update cellar entry.
+pub fn handle_edit(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_cellar_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case entry.username == user.username {
+        False -> wisp.response(403)
+        True ->
+          case db.get_wine_by_id(conn, entry.wine_id) {
+            Error(_) -> wisp.not_found()
+            Ok(wine) -> {
+              let vintages = db.vintages_for_wine(conn, wine.id)
+              case req.method {
+                http.Get ->
+                  case is_htmx(req) {
+                    True ->
+                      c.overlay_wrapper(cellar_form(wine, vintages, Some(entry)))
+                    False ->
+                      c.page("Edit Cellar Entry \u{2014} Rebstock", user, [
+                        c.back_link(c.wine_url(wine), wine.name),
+                        cellar_form(wine, vintages, Some(entry)),
+                      ])
+                  }
+                http.Post -> {
+                  use form <- wisp.require_form(req)
+                  let vintage = form_value(form, "vintage")
+                  let quantity = form_int(form, "quantity")
+                  let notes = form_value(form, "notes")
+                  let date = form_value(form, "date")
+                  db.update_cellar_entry(
+                    conn,
+                    id: entry.id,
+                    vintage: vintage,
+                    quantity: quantity,
+                    notes: notes,
+                    date: date,
+                  )
+                  wisp.response(200)
+                  |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                }
+                _ -> wisp.method_not_allowed([http.Get, http.Post])
+              }
+            }
+          }
+      }
+  }
+}
+
+/// GET: show drink overlay form. POST: create -1 entry.
+pub fn handle_drink(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_cellar_entry_by_id(conn, id) {
+    Error(_) -> wisp.not_found()
+    Ok(entry) ->
+      case entry.username == user.username {
+        False -> wisp.response(403)
+        True ->
+          case db.get_wine_by_id(conn, entry.wine_id) {
+            Error(_) -> wisp.not_found()
+            Ok(wine) ->
+              case req.method {
+                http.Get ->
+                  case is_htmx(req) {
+                    True -> c.overlay_wrapper(drink_form(wine, entry))
+                    False ->
+                      c.page("Drink \u{2014} Rebstock", user, [
+                        c.back_link(c.wine_url(wine), wine.name),
+                        drink_form(wine, entry),
+                      ])
+                  }
+                http.Post -> {
+                  use form <- wisp.require_form(req)
+                  let notes = form_value(form, "notes")
+                  let date = form_value(form, "date")
+                  let rate = case list.key_find(form.values, "rate") {
+                    Ok("on") -> True
+                    _ -> False
+                  }
+                  db.insert_cellar_drink(
+                    conn,
+                    parent_id: entry.id,
+                    username: user.username,
+                    wine_id: entry.wine_id,
+                    vintage: entry.vintage,
+                    notes: notes,
+                    date: date,
+                  )
+                  let redirect = case rate {
+                    True -> c.wine_url(wine) <> "/ratings/new"
+                    False -> c.wine_url(wine)
+                  }
+                  wisp.response(200)
+                  |> wisp.set_header("HX-Redirect", redirect)
+                }
+                _ -> wisp.method_not_allowed([http.Get, http.Post])
+              }
+          }
+      }
+  }
+}
+
+/// POST: delete cellar entry (cascades to drink events if parent).
+pub fn handle_delete(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case req.method {
+    http.Post ->
+      case db.get_cellar_entry_by_id(conn, id) {
+        Error(_) -> wisp.not_found()
+        Ok(entry) ->
+          case entry.username == user.username {
+            False -> wisp.response(403)
+            True ->
+              case db.get_wine_by_id(conn, entry.wine_id) {
+                Error(_) -> wisp.not_found()
+                Ok(wine) -> {
+                  db.delete_cellar_entry(conn, id)
+                  wisp.response(200)
+                  |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                }
+              }
+          }
+      }
+    _ -> wisp.method_not_allowed([http.Post])
+  }
+}
+
+fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
+  let action = c.wine_url(wine) <> "/cellar/" <> entry.id <> "/drink"
+  let subtitle =
+    wine.name
+    <> " \u{2014} "
+    <> c.display_winery(wine.winery_name)
+    <> case entry.vintage {
+      Some(_) -> " \u{00b7} " <> c.display_vintage(entry.vintage)
+      None -> ""
+    }
+  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+    html.h2([attr.class("text-xl font-light text-stone-800 mb-4")], [
+      html.Text("Drink a Bottle"),
+    ]),
+    html.p([attr.class("text-sm text-stone-500 mb-4")], [
+      html.Text(subtitle),
+    ]),
+    html.Element(
+      "form",
+      [
+        attr.Attr("method", "POST"),
+        attr.Attr("action", action),
+        attr.Attr("hx-post", action),
+        attr.class("space-y-4"),
+      ],
+      [
+        // Date
+        req_field("Date", [
+          html.Element(
+            "input",
+            [
+              attr.type_("date"),
+              attr.name("date"),
+              attr.Attr("required", "required"),
+              attr.class(
+                "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+              ),
+            ],
+            [],
+          ),
+        ]),
+        // Notes
+        form_field("Notes", [
+          html.Element(
+            "textarea",
+            [
+              attr.name("notes"),
+              attr.Attr("rows", "2"),
+              attr.Attr("placeholder", "Occasion, pairing..."),
+              attr.class(
+                "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+              ),
+            ],
+            [],
+          ),
+        ]),
+        // Rate checkbox
+        html.div([attr.class("flex items-center gap-2")], [
+          html.Element(
+            "input",
+            [
+              attr.type_("checkbox"),
+              attr.name("rate"),
+              attr.id("rate-checkbox"),
+              attr.class("accent-rose-800"),
+            ],
+            [],
+          ),
+          html.Element(
+            "label",
+            [
+              attr.Attr("for", "rate-checkbox"),
+              attr.class("text-sm text-stone-600"),
+            ],
+            [html.Text("Rate this bottle")],
+          ),
+        ]),
+        // Submit
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text("Drink")],
+        ),
+      ],
+    ),
+  ])
+}
+
+fn cellar_form(
+  wine: Wine,
+  vintages: List(String),
+  existing: Option(CellarEntry),
+) -> html.Node {
+  let wine_base = c.wine_url(wine)
+  let action = case existing {
+    Some(e) -> wine_base <> "/cellar/" <> e.id <> "/edit"
+    None -> wine_base <> "/cellar/new"
+  }
+  let title = case existing {
+    Some(_) -> "Edit Cellar Entry"
+    None -> "Add to Cellar"
+  }
+  let subtitle = wine.name <> " \u{2014} " <> c.display_winery(wine.winery_name)
+  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
+    html.h2([attr.class("text-xl font-light text-stone-800 mb-4")], [
+      html.Text(title),
+    ]),
+    html.p([attr.class("text-sm text-stone-500 mb-4")], [
+      html.Text(subtitle),
+    ]),
+    html.Element(
+      "form",
+      [
+        attr.Attr("method", "POST"),
+        attr.Attr("action", action),
+        attr.Attr("hx-post", action),
+        attr.class("space-y-4"),
+      ],
+      [
+        // Vintage
+        case vintages {
+          [] -> html.Nothing
+          _ -> {
+            let cur_vintage = case existing {
+              Some(e) ->
+                case e.vintage {
+                  Some(v) -> v
+                  None -> ""
+                }
+              None ->
+                case vintages {
+                  [first, ..] -> first
+                  [] -> ""
+                }
+            }
+            req_field("Vintage", [
+              html.Element(
+                "input",
+                [
+                  attr.type_("hidden"),
+                  attr.name("vintage"),
+                  attr.id("vintage-input"),
+                  attr.value(cur_vintage),
+                ],
+                [],
+              ),
+              html.div(
+                [attr.class("flex flex-wrap gap-2")],
+                list.map(vintages, fn(v) {
+                  let active = v == cur_vintage
+                  let active_cls =
+                    "px-3 py-1 rounded-full text-sm bg-rose-800 text-white"
+                  let idle_cls =
+                    "px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors cursor-pointer"
+                  html.Element(
+                    "button",
+                    [
+                      attr.type_("button"),
+                      attr.class(case active {
+                        True -> active_cls
+                        False -> idle_cls
+                      }),
+                      attr.Attr(
+                        "onclick",
+                        "document.getElementById('vintage-input').value='"
+                          <> v
+                          <> "';this.parentElement.querySelectorAll('button').forEach(function(b){b.className='"
+                          <> idle_cls
+                          <> "'});this.className='"
+                          <> active_cls
+                          <> "'",
+                      ),
+                    ],
+                    [html.Text(v)],
+                  )
+                }),
+              ),
+            ])
+          }
+        },
+        // Quantity
+        req_field("Quantity", [
+          html.Element(
+            "input",
+            [
+              attr.type_("number"),
+              attr.name("quantity"),
+              attr.Attr("required", "required"),
+              attr.Attr("min", "0"),
+              attr.value(case existing {
+                Some(e) -> int.to_string(e.quantity)
+                None -> "1"
+              }),
+              attr.class(
+                "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+              ),
+            ],
+            [],
+          ),
+        ]),
+        // Date
+        req_field("Date", [
+          html.Element(
+            "input",
+            [
+              attr.type_("date"),
+              attr.name("date"),
+              attr.Attr("required", "required"),
+              attr.class(
+                "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+              ),
+              ..case existing {
+                Some(e) ->
+                  case e.date {
+                    Some(d) -> [attr.value(d)]
+                    None -> []
+                  }
+                None -> []
+              }
+            ],
+            [],
+          ),
+        ]),
+        // Notes
+        form_field("Notes", [
+          html.Element(
+            "textarea",
+            [
+              attr.name("notes"),
+              attr.Attr("rows", "3"),
+              attr.Attr("placeholder", "Notes..."),
+              attr.class(
+                "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+              ),
+            ],
+            case existing {
+              Some(e) ->
+                case e.notes {
+                  Some(notes) -> [html.Text(notes)]
+                  None -> []
+                }
+              None -> []
+            },
+          ),
+        ]),
+        // Submit
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [
+            html.Text(case existing {
+              Some(_) -> "Update Entry"
+              None -> "Add to Cellar"
+            }),
+          ],
+        ),
+        // Delete (only when editing)
+        case existing {
+          Some(e) -> {
+            let delete_url = wine_base <> "/cellar/" <> e.id <> "/delete"
+            html.div([attr.class("text-center pt-2")], [
+              html.a(
+                [
+                  attr.href(delete_url),
+                  attr.class(
+                    "text-xs text-stone-400 hover:text-red-600 transition-colors cursor-pointer",
+                  ),
+                  attr.Attr("hx-post", delete_url),
+                  attr.Attr("hx-confirm", "Delete this entry?"),
+                ],
+                [html.Text("Delete this entry")],
+              ),
+            ])
+          }
+          None -> html.Nothing
+        },
+      ],
+    ),
+  ])
+}
+
+fn is_htmx(req: Request) -> Bool {
+  case list.key_find(req.headers, "hx-request") {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+fn req_field(label: String, children: List(html.Node)) -> html.Node {
+  html.div([], [
+    html.Element(
+      "label",
+      [attr.class("block text-sm font-medium text-stone-600 mb-1")],
+      [
+        html.Text(label),
+        html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")]),
+      ],
+    ),
+    ..children
+  ])
+}
+
+fn form_field(label: String, children: List(html.Node)) -> html.Node {
+  html.div([], [
+    html.Element(
+      "label",
+      [attr.class("block text-sm font-medium text-stone-600 mb-1")],
+      [html.Text(label)],
+    ),
+    ..children
+  ])
+}
+
+fn form_value(form: wisp.FormData, key: String) -> Option(String) {
+  case list.key_find(form.values, key) {
+    Ok("") -> None
+    Ok(v) -> Some(v)
+    Error(_) -> None
+  }
+}
+
+fn form_int(form: wisp.FormData, key: String) -> Int {
+  case form_value(form, key) {
+    None -> 1
+    Some(s) ->
+      case int.parse(s) {
+        Ok(n) -> n
+        Error(_) -> 1
       }
   }
 }

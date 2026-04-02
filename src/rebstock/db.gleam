@@ -86,6 +86,7 @@ pub type CellarEntry {
     quantity: Int,
     notes: Option(String),
     date: Option(String),
+    parent_id: Option(String),
     created_at: String,
   )
 }
@@ -187,7 +188,8 @@ fn cellar_entry_decoder() -> decode.Decoder(CellarEntry) {
   use quantity <- decode.field(4, decode.int)
   use notes <- decode.field(5, decode.optional(decode.string))
   use date <- decode.field(6, decode.optional(decode.string))
-  use created_at <- decode.field(7, decode.string)
+  use parent_id <- decode.field(7, decode.optional(decode.string))
+  use created_at <- decode.field(8, decode.string)
   decode.success(CellarEntry(
     id:,
     username:,
@@ -196,6 +198,7 @@ fn cellar_entry_decoder() -> decode.Decoder(CellarEntry) {
     quantity:,
     notes:,
     date:,
+    parent_id:,
     created_at:,
   ))
 }
@@ -580,7 +583,7 @@ pub fn cellar_entries_for_wine(
 ) -> List(CellarEntry) {
   let assert Ok(entries) =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.created_at
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
        FROM cellar c WHERE c.wine_id = ? ORDER BY c.created_at DESC",
       on: conn,
       with: [sqlight.text(wine_id)],
@@ -615,7 +618,7 @@ pub fn get_cellar_entry_by_id(
 ) -> Result(CellarEntry, Nil) {
   let result =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.created_at
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
        FROM cellar c WHERE c.id = ?",
       on: conn,
       with: [sqlight.text(id)],
@@ -651,6 +654,79 @@ pub fn insert_cellar_entry(
         nullable_text(notes),
         nullable_text(date),
       ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn insert_cellar_drink(
+  conn: Connection,
+  parent_id parent_id: String,
+  username username: String,
+  wine_id wine_id: String,
+  vintage vintage: Option(String),
+  notes notes: Option(String),
+  date date: Option(String),
+) -> Nil {
+  let id = ulid.generate()
+  let assert Ok(_) =
+    sqlight.query(
+      "INSERT INTO cellar (id, username, wine_id, vintage, quantity, notes, date, parent_id)
+       VALUES (?, ?, ?, ?, -1, ?, ?, ?)",
+      on: conn,
+      with: [
+        sqlight.text(id),
+        sqlight.text(username),
+        sqlight.text(wine_id),
+        nullable_text(vintage),
+        nullable_text(notes),
+        nullable_text(date),
+        sqlight.text(parent_id),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn update_cellar_entry(
+  conn: Connection,
+  id id: String,
+  vintage vintage: Option(String),
+  quantity quantity: Int,
+  notes notes: Option(String),
+  date date: Option(String),
+) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "UPDATE cellar SET vintage = ?, quantity = ?, notes = ?, date = ?
+       WHERE id = ?",
+      on: conn,
+      with: [
+        nullable_text(vintage),
+        sqlight.int(quantity),
+        nullable_text(notes),
+        nullable_text(date),
+        sqlight.text(id),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn delete_cellar_entry(conn: Connection, id: String) -> Nil {
+  // Delete children (drink events) first, then the entry itself
+  let assert Ok(_) =
+    sqlight.query(
+      "DELETE FROM cellar WHERE parent_id = ?",
+      on: conn,
+      with: [sqlight.text(id)],
+      expecting: decode.success(Nil),
+    )
+  let assert Ok(_) =
+    sqlight.query(
+      "DELETE FROM cellar WHERE id = ?",
+      on: conn,
+      with: [sqlight.text(id)],
       expecting: decode.success(Nil),
     )
   Nil
@@ -741,8 +817,8 @@ pub fn latest_cellar_entries(
 ) -> List(CellarEntry) {
   let assert Ok(entries) =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.created_at
-       FROM cellar c WHERE c.username = ? AND c.quantity > 0
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
+       FROM cellar c WHERE c.username = ?
        ORDER BY c.created_at DESC LIMIT ?",
       on: conn,
       with: [sqlight.text(username), sqlight.int(limit)],
@@ -1011,6 +1087,17 @@ pub fn update_rating(
         nullable_text(rated_at),
         sqlight.text(id),
       ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn delete_rating(conn: Connection, id: String) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "DELETE FROM ratings WHERE id = ?",
+      on: conn,
+      with: [sqlight.text(id)],
       expecting: decode.success(Nil),
     )
   Nil

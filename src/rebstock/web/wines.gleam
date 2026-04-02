@@ -2,13 +2,14 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
 import nakai/attr
 import nakai/html.{type Node}
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
-import rebstock/db.{type Rating, type Wine}
+import rebstock/db.{type CellarEntry, type Rating, type Wine}
 import rebstock/web/components as c
 
 pub fn wines(conn: Connection, user: User) -> Response {
@@ -257,10 +258,15 @@ fn wine_body(
 ) -> List(Node) {
   let #(my_focused, my_rest) = partition_by_vintage(my, selected)
   let #(others_focused, others_rest) = partition_by_vintage(others, selected)
+  let cellar_entries =
+    list.filter(db.cellar_entries_for_wine(conn, wine.id), fn(e) {
+      e.username == user.username
+    })
 
   [
     my_ratings_section(my_focused, my_rest, wine, selected),
     others_ratings_section(others_focused, others_rest, selected),
+    cellar_section(cellar_entries, wine),
     personal_note_section(wine),
     action_links_section(wine, conn, user),
   ]
@@ -382,19 +388,9 @@ fn personal_note_section(wine: Wine) -> Node {
 }
 
 fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
-  let bottles = db.cellar_bottle_count(conn, user.username, wine.id)
   let wishlisted = db.is_wishlisted(conn, user.username, wine.id)
   let links =
     [
-      case bottles > 0 {
-        True -> [
-          c.action_link(
-            "/~" <> user.username <> "/cellar",
-            "View in cellar (" <> int.to_string(bottles) <> " bottles)",
-          ),
-        ]
-        False -> []
-      },
       case wishlisted {
         True -> [
           c.action_link(
@@ -478,7 +474,7 @@ fn my_rating_card(r: Rating, wine: Wine) -> Node {
     ],
     [
       // Edit top-right
-      html.div([attr.class("absolute top-0 right-2")], [
+      html.div([attr.class("absolute top-2 right-2 flex gap-2")], [
         edit_button(r, wine),
       ]),
       html.div([attr.class("flex gap-4")], [
@@ -570,6 +566,208 @@ fn other_rating_card(r: Rating) -> Node {
         ]),
       ]),
     ],
+  )
+}
+
+// --- Cellar section ---
+
+fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
+  let net = list.fold(entries, 0, fn(acc, e) { acc + e.quantity })
+  let net_label = int.to_string(net) <> " bottles"
+  // Sort newest first by date, then created_at
+  let sorted =
+    list.sort(entries, fn(a, b) {
+      let da = option.unwrap(a.date, a.created_at)
+      let db = option.unwrap(b.date, b.created_at)
+      string.compare(db, da)
+    })
+  // Compute remaining per parent for drink button visibility
+  let parent_remaining = compute_parent_remaining(entries)
+
+  html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+    html.div([attr.class("flex items-baseline justify-between mb-3")], [
+      html.div([attr.class("flex items-baseline gap-2")], [
+        section_label("Your Cellar"),
+        html.span(
+          [
+            attr.class(case net < 0 {
+              True -> "text-xs text-red-500"
+              False -> "text-xs text-stone-400"
+            }),
+          ],
+          [html.Text(net_label)],
+        ),
+      ]),
+      add_cellar_button(wine),
+    ]),
+    case sorted {
+      [] ->
+        html.p([attr.class("text-sm text-stone-400 italic")], [
+          html.Text("No cellar entries"),
+        ])
+      _ ->
+        html.div(
+          [attr.class("space-y-2")],
+          list.map(sorted, fn(e) {
+            cellar_entry_inline(e, wine, parent_remaining)
+          }),
+        )
+    },
+  ])
+}
+
+fn compute_parent_remaining(entries: List(CellarEntry)) -> List(#(String, Int)) {
+  // For each parent entry, compute: original quantity + sum of child quantities
+  let parents = list.filter(entries, fn(e) { e.parent_id == None })
+  list.map(parents, fn(p) {
+    let children = list.filter(entries, fn(e) { e.parent_id == Some(p.id) })
+    let consumed = list.fold(children, 0, fn(acc, c) { acc + c.quantity })
+    #(p.id, p.quantity + consumed)
+  })
+}
+
+fn cellar_entry_inline(
+  entry: CellarEntry,
+  wine: Wine,
+  parent_remaining: List(#(String, Int)),
+) -> Node {
+  let is_drink = option.is_some(entry.parent_id)
+  let qty_text = case is_drink {
+    True -> "\u{2212}" <> int.to_string(int.absolute_value(entry.quantity))
+    False -> int.to_string(entry.quantity) <> "\u{00d7}"
+  }
+  let qty_class = case is_drink {
+    True -> "text-2xl font-light text-stone-400 tabular-nums"
+    False -> "text-3xl font-light text-stone-800 tabular-nums"
+  }
+
+  html.div(
+    [
+      attr.class(
+        "bg-stone-50/50 rounded-lg border border-stone-100 p-2 relative",
+      ),
+    ],
+    [
+      // Action links top-right
+      html.div(
+        [attr.class("absolute top-2 right-2 flex gap-2")],
+        case is_drink {
+          False -> {
+            let remaining = case list.key_find(parent_remaining, entry.id) {
+              Ok(r) -> r
+              Error(_) -> entry.quantity
+            }
+            list.flatten([
+              case remaining > 0 {
+                True -> [drink_button(entry, wine)]
+                False -> []
+              },
+              [
+                cellar_action_link(
+                  c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
+                  "Edit",
+                ),
+              ],
+            ])
+          }
+          True -> [
+            cellar_action_link(
+              c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
+              "Edit",
+            ),
+          ]
+        },
+      ),
+      html.div([attr.class("flex gap-4")], [
+        // Left: quantity, vintage, date
+        html.div(
+          [attr.class("shrink-0 flex flex-col items-center justify-center")],
+          [
+            html.p([attr.class("text-xs text-stone-400")], [
+              html.Text(case entry.vintage {
+                Some(_) -> c.display_vintage(entry.vintage)
+                None -> ""
+              }),
+            ]),
+            html.div([attr.class(qty_class)], [html.Text(qty_text)]),
+            html.p([attr.class("text-xs text-stone-400")], [
+              c.date_node(case entry.date {
+                Some(d) -> d
+                None -> entry.created_at
+              }),
+            ]),
+          ],
+        ),
+        // Divider
+        html.div([attr.class("w-px bg-stone-200 self-stretch")], []),
+        // Right: notes
+        html.div([attr.class("flex-1 min-w-0")], [
+          case entry.notes {
+            Some(notes) ->
+              html.p([attr.class("text-stone-700 whitespace-pre-line")], [
+                html.Text(notes),
+              ])
+            None ->
+              html.p([attr.class("text-stone-400 italic text-sm")], [
+                html.Text(case is_drink {
+                  True -> "Drank a bottle"
+                  False -> "No notes"
+                }),
+              ])
+          },
+        ]),
+      ]),
+    ],
+  )
+}
+
+fn add_cellar_button(wine: Wine) -> Node {
+  let url = c.wine_url(wine) <> "/cellar/new"
+  html.a(
+    [
+      attr.href(url),
+      attr.class(
+        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+      ),
+      attr.Attr("hx-get", url),
+      attr.Attr("hx-push-url", url),
+      attr.Attr("hx-target", "#overlay"),
+      attr.Attr("hx-swap", "outerHTML"),
+    ],
+    [html.Text("Add to cellar")],
+  )
+}
+
+fn drink_button(entry: CellarEntry, wine: Wine) -> Node {
+  let url = c.wine_url(wine) <> "/cellar/" <> entry.id <> "/drink"
+  html.a(
+    [
+      attr.href(url),
+      attr.class(
+        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+      ),
+      attr.Attr("hx-get", url),
+      attr.Attr("hx-push-url", url),
+      attr.Attr("hx-target", "#overlay"),
+      attr.Attr("hx-swap", "outerHTML"),
+    ],
+    [html.Text("Drink")],
+  )
+}
+
+fn cellar_action_link(url: String, label: String) -> Node {
+  html.a(
+    [
+      attr.href(url),
+      attr.class(
+        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+      ),
+      attr.Attr("hx-get", url),
+      attr.Attr("hx-push-url", url),
+      attr.Attr("hx-target", "#overlay"),
+      attr.Attr("hx-swap", "outerHTML"),
+    ],
+    [html.Text(label)],
   )
 }
 

@@ -156,6 +156,35 @@ pub fn handle_edit(
   }
 }
 
+/// POST: delete rating.
+pub fn handle_delete(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case req.method {
+    http.Post ->
+      case db.get_rating_by_id(conn, id) {
+        Error(_) -> wisp.not_found()
+        Ok(rating) ->
+          case rating.username == user.username {
+            False -> wisp.response(403)
+            True ->
+              case db.get_wine_by_id(conn, rating.wine_id) {
+                Error(_) -> wisp.not_found()
+                Ok(wine) -> {
+                  db.delete_rating(conn, id)
+                  wisp.response(200)
+                  |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                }
+              }
+          }
+      }
+    _ -> wisp.method_not_allowed([http.Post])
+  }
+}
+
 fn rating_form(
   wine: Wine,
   vintages: List(String),
@@ -360,6 +389,26 @@ fn rating_form(
             }),
           ],
         ),
+        // Delete (only when editing)
+        case existing {
+          Some(r) -> {
+            let delete_url = wine_base <> "/ratings/" <> r.id <> "/delete"
+            html.div([attr.class("text-center pt-2")], [
+              html.a(
+                [
+                  attr.href(delete_url),
+                  attr.class(
+                    "text-xs text-stone-400 hover:text-red-600 transition-colors cursor-pointer",
+                  ),
+                  attr.Attr("hx-post", delete_url),
+                  attr.Attr("hx-confirm", "Delete this rating?"),
+                ],
+                [html.Text("Delete this rating")],
+              ),
+            ])
+          }
+          None -> html.Nothing
+        },
       ],
     ),
   ])

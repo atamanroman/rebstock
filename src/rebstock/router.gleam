@@ -26,7 +26,16 @@ pub fn handle_request(
       ratings.handle_new(req, conn, id, user)
     ["wines", _id, _, "ratings", rid, "edit"] ->
       ratings.handle_edit(req, conn, rid, user)
+    ["wines", _id, _, "ratings", rid, "delete"] ->
+      ratings.handle_delete(req, conn, rid, user)
     ["wines", _id, _, "ratings", rid] -> ratings.rating_detail(conn, rid, user)
+    ["wines", id, _, "cellar", "new"] -> cellar.handle_new(req, conn, id, user)
+    ["wines", _id, _, "cellar", eid, "edit"] ->
+      cellar.handle_edit(req, conn, eid, user)
+    ["wines", _id, _, "cellar", eid, "drink"] ->
+      cellar.handle_drink(req, conn, eid, user)
+    ["wines", _id, _, "cellar", eid, "delete"] ->
+      cellar.handle_delete(req, conn, eid, user)
     ["wines", id] | ["wines", id, _slug] ->
       wines.wine_detail(req, conn, id, user)
     ["wineries"] -> wineries.wineries(conn, user)
