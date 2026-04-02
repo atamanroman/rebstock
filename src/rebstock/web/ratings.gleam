@@ -67,11 +67,11 @@ pub fn handle_new(
       case req.method {
         http.Get ->
           case is_htmx(req) {
-            True -> c.overlay_wrapper(rating_form(wine, vintages, None))
+            True -> c.overlay_wrapper(rating_form(wine, vintages, None, None))
             False ->
               c.page("Rate " <> wine.name <> " \u{2014} Rebstock", user, [
                 c.back_link(c.wine_url(wine), wine.name),
-                rating_form(wine, vintages, None),
+                rating_form(wine, vintages, None, None),
               ])
           }
         http.Post -> {
@@ -124,11 +124,12 @@ pub fn handle_edit(
                         wine,
                         vintages,
                         Some(rating),
+                        None,
                       ))
                     False ->
                       c.page("Edit Rating \u{2014} Rebstock", user, [
                         c.back_link(c.wine_url(wine), wine.name),
-                        rating_form(wine, vintages, Some(rating)),
+                        rating_form(wine, vintages, Some(rating), None),
                       ])
                   }
                 http.Post -> {
@@ -185,10 +186,20 @@ pub fn handle_delete(
   }
 }
 
+pub fn new_rating_overlay(
+  wine: Wine,
+  conn: Connection,
+  default_date: Option(String),
+) -> Response {
+  let vintages = db.vintages_for_wine(conn, wine.id)
+  c.overlay_wrapper(rating_form(wine, vintages, None, default_date))
+}
+
 fn rating_form(
   wine: Wine,
   vintages: List(String),
   existing: Option(Rating),
+  default_date: Option(String),
 ) -> html.Node {
   let wine_base = c.wine_url(wine)
   let action = case existing {
@@ -335,6 +346,7 @@ fn rating_form(
             [
               attr.type_("date"),
               attr.name("rated_at"),
+              attr.id("rating-date"),
               attr.Attr("required", "required"),
               attr.class(
                 "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
@@ -345,11 +357,28 @@ fn rating_form(
                     Some(d) -> [attr.value(d)]
                     None -> []
                   }
-                None -> []
+                None ->
+                  case default_date {
+                    Some(d) -> [attr.value(d)]
+                    None -> []
+                  }
               }
             ],
             [],
           ),
+          case existing {
+            Some(_) -> html.Nothing
+            None ->
+              case default_date {
+                Some(_) -> html.Nothing
+                None ->
+                  html.Element("script", [], [
+                    html.Text(
+                      "document.getElementById('rating-date').valueAsDate=new Date()",
+                    ),
+                  ])
+              }
+          },
         ]),
         // Tasting notes
         form_field("Tasting Notes", [

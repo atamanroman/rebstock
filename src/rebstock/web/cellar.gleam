@@ -12,6 +12,7 @@ import wisp.{type Request, type Response}
 import rebstock/auth.{type User}
 import rebstock/db.{type CellarEntry, type CellarWine, type Wine}
 import rebstock/web/components as c
+import rebstock/web/ratings
 
 pub fn cellar(conn: Connection, user: User, username: String) -> Response {
   let wines = db.cellar_wines(conn, username)
@@ -283,12 +284,18 @@ pub fn handle_drink(
                     notes: notes,
                     date: date,
                   )
-                  let redirect = case rate {
-                    True -> c.wine_url(wine) <> "/ratings/new"
-                    False -> c.wine_url(wine)
+                  case rate {
+                    True -> {
+                      let rating_url = c.wine_url(wine) <> "/ratings/new"
+                      ratings.new_rating_overlay(wine, conn, date)
+                      |> wisp.set_header("HX-Push-Url", rating_url)
+                      |> wisp.set_header("HX-Retarget", "#overlay")
+                      |> wisp.set_header("HX-Reswap", "outerHTML")
+                    }
+                    False ->
+                      wisp.response(200)
+                      |> wisp.set_header("HX-Redirect", c.wine_url(wine))
                   }
-                  wisp.response(200)
-                  |> wisp.set_header("HX-Redirect", redirect)
                 }
                 _ -> wisp.method_not_allowed([http.Get, http.Post])
               }
@@ -352,13 +359,14 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
         attr.class("space-y-4"),
       ],
       [
-        // Date
+        // Date (defaults to today)
         req_field("Date", [
           html.Element(
             "input",
             [
               attr.type_("date"),
               attr.name("date"),
+              attr.id("drink-date"),
               attr.Attr("required", "required"),
               attr.class(
                 "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
@@ -366,6 +374,11 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
             ],
             [],
           ),
+          html.Element("script", [], [
+            html.Text(
+              "document.getElementById('drink-date').valueAsDate=new Date()",
+            ),
+          ]),
         ]),
         // Notes
         form_field("Notes", [
@@ -538,6 +551,7 @@ fn cellar_form(
             [
               attr.type_("date"),
               attr.name("date"),
+              attr.id("cellar-date"),
               attr.Attr("required", "required"),
               attr.class(
                 "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
@@ -553,6 +567,15 @@ fn cellar_form(
             ],
             [],
           ),
+          case existing {
+            Some(_) -> html.Nothing
+            None ->
+              html.Element("script", [], [
+                html.Text(
+                  "document.getElementById('cellar-date').valueAsDate=new Date()",
+                ),
+              ])
+          },
         ]),
         // Notes
         form_field("Notes", [

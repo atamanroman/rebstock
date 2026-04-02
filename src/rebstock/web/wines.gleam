@@ -59,8 +59,17 @@ pub fn wine_detail(
       c.page(wine.name <> " \u{2014} Rebstock", user, [
         c.back_link("/wines", "All wines"),
         c.card([
-          wine_header(wine, vintage_opts, selected, vivino, my, others),
-          ..wine_body(wine, selected, my, others, conn, user)
+          wine_header(wine),
+          ..wine_body(
+            wine,
+            vintage_opts,
+            selected,
+            vivino,
+            my,
+            others,
+            conn,
+            user,
+          )
         ]),
       ])
     }
@@ -69,18 +78,7 @@ pub fn wine_detail(
 
 // --- Header ---
 
-fn wine_header(
-  wine: Wine,
-  vintage_opts: List(String),
-  selected: Option(String),
-  vivino: List(Rating),
-  my: List(Rating),
-  others: List(Rating),
-) -> Node {
-  let fv = filter_by_vintage(vivino, selected)
-  let fm = filter_by_vintage(my, selected)
-  let fo = filter_by_vintage(others, selected)
-
+fn wine_header(wine: Wine) -> Node {
   html.div([], [
     html.div([attr.class("flex gap-6")], [
       // Bottle image placeholder
@@ -118,8 +116,6 @@ fn wine_header(
         ]),
       ]),
     ]),
-    vintage_pills(wine, vintage_opts, selected),
-    stat_boxes(fv, fm, fo),
   ])
 }
 
@@ -250,12 +246,17 @@ fn vintage_matches(r: Rating, v: String) -> Bool {
 
 fn wine_body(
   wine: Wine,
+  vintage_opts: List(String),
   selected: Option(String),
+  vivino: List(Rating),
   my: List(Rating),
   others: List(Rating),
   conn: Connection,
   user: User,
 ) -> List(Node) {
+  let fv = filter_by_vintage(vivino, selected)
+  let fm = filter_by_vintage(my, selected)
+  let fo = filter_by_vintage(others, selected)
   let #(my_focused, my_rest) = partition_by_vintage(my, selected)
   let #(others_focused, others_rest) = partition_by_vintage(others, selected)
   let cellar_entries =
@@ -264,8 +265,15 @@ fn wine_body(
     })
 
   [
-    my_ratings_section(my_focused, my_rest, wine, selected),
-    others_ratings_section(others_focused, others_rest, selected),
+    html.div([attr.class("mt-8")], [
+      section_label("Ratings"),
+      vintage_pills(wine, vintage_opts, selected),
+      html.div([attr.class("pl-4 ml-1 border-l-2 border-stone-200")], [
+        stat_boxes(fv, fm, fo),
+        my_ratings_section(my_focused, my_rest, wine, selected),
+        others_ratings_section(others_focused, others_rest, selected),
+      ]),
+    ]),
     cellar_section(cellar_entries, wine),
     personal_note_section(wine),
     action_links_section(wine, conn, user),
@@ -284,7 +292,7 @@ fn my_ratings_section(
     [], _ ->
       html.div([attr.class("mt-6")], [
         html.div([attr.class("flex items-baseline justify-between mb-3")], [
-          section_label("Your Ratings"),
+          section_label("You"),
           rate_button(wine, "Add rating"),
         ]),
         html.p([attr.class("text-sm text-stone-400 italic")], [
@@ -307,7 +315,7 @@ fn my_ratings_section(
       }
       html.div([attr.class("mt-6")], [
         html.div([attr.class("flex items-baseline justify-between mb-3")], [
-          section_label("Your Ratings"),
+          section_label("You"),
           rate_button(wine, "Add rating"),
         ]),
         my_rating_card(first, wine),
@@ -333,8 +341,8 @@ fn others_ratings_section(
         [] -> html.Nothing
         _ -> expandable_ratings(rest, label, other_rating_card)
       }
-      html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
-        section_label("Other Ratings"),
+      html.div([attr.class("mt-8")], [
+        section_label("Others"),
         html.div(
           [attr.class("space-y-3")],
           list.map(focused, other_rating_card),
@@ -380,7 +388,7 @@ fn personal_note_section(wine: Wine) -> Node {
   case wine.personal_note {
     None -> html.Nothing
     Some(note) ->
-      html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+      html.div([attr.class("mt-8")], [
         section_label("Personal Note"),
         html.p([attr.class("text-stone-700")], [html.Text(note)]),
       ])
@@ -416,7 +424,7 @@ fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
     _ ->
       html.div(
         [
-          attr.class("mt-6 pt-6 border-t border-stone-100 flex flex-col gap-2"),
+          attr.class("mt-8 flex flex-col gap-2"),
         ],
         links,
       )
@@ -460,9 +468,14 @@ fn edit_button(rating: Rating, wine: Wine) -> Node {
 }
 
 fn section_label(text: String) -> Node {
-  html.h3([attr.class("text-xs uppercase tracking-wider text-stone-400 mb-3")], [
-    html.Text(text),
-  ])
+  html.h3(
+    [
+      attr.class(
+        "text-sm font-medium uppercase tracking-wider text-stone-400 mb-3",
+      ),
+    ],
+    [html.Text(text)],
+  )
 }
 
 fn my_rating_card(r: Rating, wine: Wine) -> Node {
@@ -584,10 +597,10 @@ fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
   // Compute remaining per parent for drink button visibility
   let parent_remaining = compute_parent_remaining(entries)
 
-  html.div([attr.class("mt-6 pt-6 border-t border-stone-100")], [
+  html.div([attr.class("mt-8")], [
     html.div([attr.class("flex items-baseline justify-between mb-3")], [
       html.div([attr.class("flex items-baseline gap-2")], [
-        section_label("Your Cellar"),
+        section_label("Cellar"),
         html.span(
           [
             attr.class(case net < 0 {
