@@ -12,49 +12,70 @@ import rebstock/db.{type CellarEntry, type CellarWine, type Rating}
 import rebstock/web/components as c
 
 pub fn home(conn: Connection, user: User) -> Response {
-  let u = user.username
-  let wine_count = db.count_wines(conn)
-  let all_cellar = db.cellar_wines(conn, u)
+  profile(conn, user, user.username)
+}
+
+pub fn profile(conn: Connection, user: User, username: String) -> Response {
+  let is_self = username == user.username
+  let all_cellar = db.cellar_wines(conn, username)
   let cellar_count = list.fold(all_cellar, 0, fn(acc, cw) { acc + cw.bottles })
 
-  let top_cellar = db.top_cellar(conn, u, 10)
-  let top_rated = db.top_ratings_by_user(conn, u, 10)
-  let latest_rated = db.latest_ratings(conn, u, 10)
-  let latest_cellar = db.latest_cellar_entries(conn, u, 10)
+  let top_cellar = db.top_cellar(conn, username, 10)
+  let top_rated = db.top_ratings_by_user(conn, username, 10)
+  let latest_rated = db.latest_ratings(conn, username, 10)
+  let latest_cellar = db.latest_cellar_entries(conn, username, 10)
 
-  c.page("Rebstock", user, [
+  let title = case is_self {
+    True -> "Rebstock"
+    False -> username
+  }
+  let heading = case is_self {
+    True -> html.Nothing
+    False ->
+      html.h1([attr.class("text-2xl font-semibold text-stone-800 mb-6")], [
+        html.Text(username <> "'s Activity"),
+      ])
+  }
+
+  c.page(title, user, [
+    heading,
     html.div([attr.class("grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10")], [
-      c.stat_card("Known Wines", int.to_string(wine_count), "/wines"),
+      c.stat_card("Known Wines", int.to_string(db.count_wines(conn)), "/wines"),
       c.stat_card(
         "Known Wineries",
-        int.to_string(list.length(db.list_wineries(conn, u))),
+        int.to_string(list.length(db.list_wineries(conn, username))),
         "/wineries",
       ),
       c.stat_card(
         "In Cellar",
         int.to_string(cellar_count) <> " bottles",
-        "/~" <> u <> "/cellar",
+        "/~" <> username <> "/cellar",
       ),
     ]),
     html.div([attr.class("grid grid-cols-1 lg:grid-cols-2 gap-8")], [
       cellar_entry_section(
         "Recently Added to Cellar",
-        "/~" <> u <> "/cellar",
+        "/~" <> username <> "/cellar",
         latest_cellar,
         conn,
       ),
       cellar_wine_section(
-        "Top Cellar Wines",
-        "/~" <> u <> "/cellar",
+        "Cellar Highlights",
+        "/~" <> username <> "/cellar",
         top_cellar,
       ),
       rating_section(
         "Recently Rated",
-        "/~" <> u <> "/ratings",
+        "/~" <> username <> "/ratings",
         latest_rated,
         conn,
       ),
-      rating_section("Your Top Rated", "/~" <> u <> "/ratings", top_rated, conn),
+      rating_section(
+        "Top Rated",
+        "/~" <> username <> "/ratings",
+        top_rated,
+        conn,
+      ),
     ]),
   ])
 }

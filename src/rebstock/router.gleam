@@ -41,6 +41,7 @@ pub fn handle_request(
     ["wineries"] -> wineries.wineries(conn, user)
     ["wineries", id] | ["wineries", id, _slug] ->
       wineries.winery_detail(conn, id, user)
+    ["~" <> username] -> home.profile(conn, user, username)
     ["~" <> username, "cellar"] -> cellar.cellar(conn, user, username)
     ["~" <> username, "cellar", "print"] ->
       cellar.cellar_print(conn, user, username)
