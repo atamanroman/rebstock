@@ -225,16 +225,6 @@ fn filter_by_vintage(
   }
 }
 
-fn partition_by_vintage(
-  ratings: List(Rating),
-  selected: Option(String),
-) -> #(List(Rating), List(Rating)) {
-  case selected {
-    None -> #(ratings, [])
-    Some(v) -> list.partition(ratings, fn(r) { vintage_matches(r, v) })
-  }
-}
-
 fn vintage_matches(r: Rating, v: String) -> Bool {
   case v {
     "NV" -> r.vintage == None
@@ -257,8 +247,6 @@ fn wine_body(
   let fv = filter_by_vintage(vivino, selected)
   let fm = filter_by_vintage(my, selected)
   let fo = filter_by_vintage(others, selected)
-  let #(my_focused, my_rest) = partition_by_vintage(my, selected)
-  let #(others_focused, others_rest) = partition_by_vintage(others, selected)
   let cellar_entries =
     list.filter(db.cellar_entries_for_wine(conn, wine.id), fn(e) {
       e.username == user.username
@@ -270,8 +258,8 @@ fn wine_body(
       vintage_pills(wine, vintage_opts, selected),
       html.div([attr.class("pl-4 ml-1 border-l-2 border-stone-200")], [
         stat_boxes(fv, fm, fo),
-        my_ratings_section(my_focused, my_rest, wine, selected),
-        others_ratings_section(others_focused, others_rest, selected),
+        my_ratings_section(fm, wine),
+        others_ratings_section(fo),
       ]),
     ]),
     cellar_section(cellar_entries, wine),
@@ -280,108 +268,38 @@ fn wine_body(
   ]
 }
 
-fn my_ratings_section(
-  focused: List(Rating),
-  rest: List(Rating),
-  wine: Wine,
-  selected: Option(String),
-) -> Node {
-  case focused, rest {
-    [], [] ->
-      html.div([attr.class("mt-6")], [rate_button(wine, "Rate this wine")])
-    [], _ ->
-      html.div([attr.class("mt-6")], [
-        html.div([attr.class("flex items-baseline justify-between mb-3")], [
-          section_label("You"),
-          rate_button(wine, "Add rating"),
-        ]),
-        html.p([attr.class("text-sm text-stone-400 italic")], [
-          html.Text("No ratings for this vintage"),
-        ]),
-        expandable_ratings(rest, "other vintage", fn(r) {
-          my_rating_card(r, wine)
-        }),
-      ])
-    [first, ..more], _ -> {
-      let rest_all = list.append(more, rest)
-      let label = case selected {
-        Some(_) -> "other vintage"
-        None -> "older"
-      }
-      let expandable = case rest_all {
-        [] -> html.Nothing
-        _ ->
-          expandable_ratings(rest_all, label, fn(r) { my_rating_card(r, wine) })
-      }
-      html.div([attr.class("mt-6")], [
-        html.div([attr.class("flex items-baseline justify-between mb-3")], [
-          section_label("You"),
-          rate_button(wine, "Add rating"),
-        ]),
-        my_rating_card(first, wine),
-        expandable,
-      ])
-    }
-  }
+fn my_ratings_section(ratings: List(Rating), wine: Wine) -> Node {
+  html.div([attr.class("mt-6")], [
+    html.div([attr.class("flex items-baseline justify-between mb-3")], [
+      section_label("You"),
+      rate_button(wine, case ratings {
+        [] -> "Rate this wine"
+        _ -> "Add rating"
+      }),
+    ]),
+    case ratings {
+      [] -> html.Nothing
+      _ ->
+        html.div(
+          [attr.class("space-y-2")],
+          list.map(ratings, fn(r) { my_rating_card(r, wine) }),
+        )
+    },
+  ])
 }
 
-fn others_ratings_section(
-  focused: List(Rating),
-  rest: List(Rating),
-  selected: Option(String),
-) -> Node {
-  case focused, rest {
-    [], [] -> html.Nothing
-    _, _ -> {
-      let label = case selected {
-        Some(_) -> "other vintage"
-        None -> "more"
-      }
-      let expandable = case rest {
-        [] -> html.Nothing
-        _ -> expandable_ratings(rest, label, other_rating_card)
-      }
+fn others_ratings_section(ratings: List(Rating)) -> Node {
+  case ratings {
+    [] -> html.Nothing
+    _ ->
       html.div([attr.class("mt-8")], [
         section_label("Others"),
         html.div(
-          [attr.class("space-y-3")],
-          list.map(focused, other_rating_card),
+          [attr.class("space-y-2")],
+          list.map(ratings, other_rating_card),
         ),
-        expandable,
       ])
-    }
   }
-}
-
-fn expandable_ratings(
-  ratings: List(Rating),
-  kind: String,
-  render_fn: fn(Rating) -> Node,
-) -> Node {
-  let n = list.length(ratings)
-  html.Element("details", [attr.class("mt-3")], [
-    html.Element(
-      "summary",
-      [
-        attr.class(
-          "text-xs text-stone-400 cursor-pointer hover:text-rose-800 transition-colors",
-        ),
-      ],
-      [
-        html.Text(
-          int.to_string(n)
-          <> " "
-          <> kind
-          <> " rating"
-          <> case n {
-            1 -> ""
-            _ -> "s"
-          },
-        ),
-      ],
-    ),
-    html.div([attr.class("mt-2 space-y-2")], list.map(ratings, render_fn)),
-  ])
 }
 
 fn personal_note_section(wine: Wine) -> Node {
