@@ -398,7 +398,11 @@ pub fn layout(title: String, content: List(Node)) -> Node {
         attr.class("bg-stone-100 text-stone-900 min-h-screen font-sans"),
         attr.Attr(
           "hx-on::after-swap",
-          "if(event.detail.target.id==='overlay'){document.addEventListener('keydown',function h(e){if(e.key==='Escape'){var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';history.back();document.removeEventListener('keydown',h)}})}",
+          "if(event.detail.target.id==='overlay'){document.addEventListener('keydown',function h(e){if(e.key==='Escape'){var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';if(o.dataset.pushed){history.back();delete o.dataset.pushed}document.removeEventListener('keydown',h)}})}",
+        ),
+        attr.Attr(
+          "hx-on::pushed-into-history",
+          "var o=document.getElementById('overlay');if(o)o.dataset.pushed='1'",
         ),
       ],
       list.append(content, [
@@ -416,7 +420,7 @@ pub fn render(node: Node) -> Response {
 
 pub fn overlay_wrapper(content: Node) -> Response {
   let close =
-    "document.getElementById('overlay').innerHTML='';document.getElementById('overlay').className='hidden';history.back()"
+    "var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';if(o.dataset.pushed){history.back();delete o.dataset.pushed}"
   html.div(
     [
       attr.id("overlay"),

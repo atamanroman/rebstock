@@ -656,8 +656,9 @@ fn cellar_entry_inline(
 
   html.div(
     [
+      attr.id("cellar-" <> entry.id),
       attr.class(
-        "bg-stone-50/50 rounded-lg border border-stone-100 p-2 relative",
+        "bg-stone-50/50 rounded-lg border border-stone-100 p-2 relative target-highlight",
       ),
     ],
     [

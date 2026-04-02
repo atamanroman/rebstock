@@ -745,8 +745,7 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> html.Node {
   let wine = cw.wine
   html.tr(
     [
-      attr.id("wine-" <> wine.id <> "-" <> option.unwrap(cw.vintage, "")),
-      attr.class(c.clickable_row_class(idx) <> " target-highlight"),
+      attr.class(c.clickable_row_class(idx)),
       attr.Attr("onclick", "window.location='" <> c.wine_url(wine) <> "'"),
     ],
     [

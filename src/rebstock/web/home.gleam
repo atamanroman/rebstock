@@ -211,13 +211,14 @@ fn cellar_entry_section(
               Ok(wine) ->
                 html.a(
                   [
-                    attr.href("/cellar/" <> e.id),
+                    attr.href(
+                      c.wine_url(wine)
+                      <> "#cellar-"
+                      <> option.unwrap(e.parent_id, e.id),
+                    ),
                     attr.class(
                       "flex items-center justify-between px-4 py-3 hover:bg-amber-50/50 transition-colors block",
                     ),
-                    attr.Attr("hx-get", "/cellar/" <> e.id <> "/overlay"),
-                    attr.Attr("hx-target", "#overlay"),
-                    attr.Attr("hx-swap", "outerHTML"),
                   ],
                   [
                     html.div([attr.class("min-w-0 flex-1")], [
