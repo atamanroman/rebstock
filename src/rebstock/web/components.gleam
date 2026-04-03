@@ -418,6 +418,91 @@ pub fn render(node: Node) -> Response {
   |> wisp.html_response(200)
 }
 
+pub fn not_found(user: User) -> Response {
+  layout("Not Found", [
+    site_header(user),
+    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12 text-center pt-24")], [
+      html.Element(
+        "svg",
+        [
+          attr.class("mx-auto mb-6 text-stone-300"),
+          attr.Attr("width", "120"),
+          attr.Attr("height", "120"),
+          attr.Attr("viewBox", "0 0 120 120"),
+          attr.Attr("fill", "none"),
+          attr.Attr("stroke", "currentColor"),
+          attr.Attr("stroke-width", "2"),
+          attr.Attr("stroke-linecap", "round"),
+          attr.Attr("stroke-linejoin", "round"),
+        ],
+        [
+          // Wine glass bowl (empty)
+          html.Element(
+            "path",
+            [
+              attr.Attr(
+                "d",
+                "M38 20 C38 20 35 50 42 62 C46 68 54 72 60 72 C66 72 74 68 78 62 C85 50 82 20 82 20",
+              ),
+            ],
+            [],
+          ),
+          // Rim
+          html.Element(
+            "line",
+            [
+              attr.Attr("x1", "34"),
+              attr.Attr("y1", "20"),
+              attr.Attr("x2", "86"),
+              attr.Attr("y2", "20"),
+            ],
+            [],
+          ),
+          // Stem
+          html.Element(
+            "line",
+            [
+              attr.Attr("x1", "60"),
+              attr.Attr("y1", "72"),
+              attr.Attr("x2", "60"),
+              attr.Attr("y2", "95"),
+            ],
+            [],
+          ),
+          // Base
+          html.Element(
+            "line",
+            [
+              attr.Attr("x1", "44"),
+              attr.Attr("y1", "95"),
+              attr.Attr("x2", "76"),
+              attr.Attr("y2", "95"),
+            ],
+            [],
+          ),
+        ],
+      ),
+      html.h1([attr.class("text-3xl font-semibold text-stone-800 mb-2")], [
+        html.Text("This glass is empty"),
+      ]),
+      html.p([attr.class("text-stone-500 mb-8")], [
+        html.Text("The page you're looking for has been uncorked and consumed."),
+      ]),
+      html.a(
+        [
+          attr.href("/"),
+          attr.class(
+            "inline-block px-5 py-2.5 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+          ),
+        ],
+        [html.Text("Back to your wines")],
+      ),
+    ]),
+  ])
+  |> nakai.to_string
+  |> wisp.html_response(404)
+}
+
 pub fn overlay_wrapper(content: Node) -> Response {
   let close =
     "var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';if(o.dataset.pushed){history.back();delete o.dataset.pushed}"

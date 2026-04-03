@@ -119,10 +119,10 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
 
 pub fn cellar_entry_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(entry) ->
       case db.get_wine_by_id(conn, entry.wine_id) {
-        Error(_) -> wisp.not_found()
+        Error(_) -> c.not_found(user)
         Ok(wine) ->
           c.page(wine.name <> " Cellar Entry \u{2014} Rebstock", user, [
             c.back_link(c.wine_url(wine), wine.name),
@@ -151,7 +151,7 @@ pub fn handle_new(
   user: User,
 ) -> Response {
   case db.get_wine(conn, user.username, wine_id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(wine) -> {
       let vintages = db.vintages_for_wine(conn, wine.id)
       case req.method {
@@ -196,13 +196,13 @@ pub fn handle_edit(
   user: User,
 ) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(entry) ->
       case entry.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, entry.wine_id) {
-            Error(_) -> wisp.not_found()
+            Error(_) -> c.not_found(user)
             Ok(wine) -> {
               let vintages = db.vintages_for_wine(conn, wine.id)
               case req.method {
@@ -249,13 +249,13 @@ pub fn handle_drink(
   user: User,
 ) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(entry) ->
       case entry.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, entry.wine_id) {
-            Error(_) -> wisp.not_found()
+            Error(_) -> c.not_found(user)
             Ok(wine) ->
               case req.method {
                 http.Get ->
@@ -314,13 +314,13 @@ pub fn handle_delete(
   case req.method {
     http.Post ->
       case db.get_cellar_entry_by_id(conn, id) {
-        Error(_) -> wisp.not_found()
+        Error(_) -> c.not_found(user)
         Ok(entry) ->
           case entry.username == user.username {
             False -> wisp.response(403)
             True ->
               case db.get_wine_by_id(conn, entry.wine_id) {
-                Error(_) -> wisp.not_found()
+                Error(_) -> c.not_found(user)
                 Ok(wine) -> {
                   db.delete_cellar_entry(conn, id)
                   wisp.response(200)

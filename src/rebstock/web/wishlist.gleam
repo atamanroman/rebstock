@@ -26,10 +26,10 @@ pub fn wishlist_entry_detail(
   user: User,
 ) -> Response {
   case db.get_wishlist_entry_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(entry) ->
       case db.get_wine_by_id(conn, entry.wine_id) {
-        Error(_) -> wisp.not_found()
+        Error(_) -> c.not_found(user)
         Ok(wine) ->
           c.page(wine.name <> " Wishlist \u{2014} Rebstock", user, [
             c.back_link(c.wine_url(wine), wine.name),

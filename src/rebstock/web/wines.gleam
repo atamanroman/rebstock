@@ -35,7 +35,7 @@ pub fn wine_detail(
   }
 
   case db.get_wine(conn, user.username, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(wine) -> {
       let all_ratings = db.ratings_for_wine(conn, wine.id)
       let vintages = db.vintages_for_wine(conn, wine.id)

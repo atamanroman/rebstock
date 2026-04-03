@@ -3,6 +3,7 @@ import wisp.{type Request, type Response}
 
 import rebstock/auth.{type AuthMode}
 import rebstock/web/cellar
+import rebstock/web/components as c
 import rebstock/web/home
 import rebstock/web/ratings
 import rebstock/web/wineries
@@ -55,6 +56,6 @@ pub fn handle_request(
     ["cellar", id] -> cellar.cellar_entry_detail(conn, id, user)
     ["wishlist", id, "overlay"] -> wishlist.wishlist_entry_overlay(conn, id)
     ["wishlist", id] -> wishlist.wishlist_entry_detail(conn, id, user)
-    _ -> wisp.not_found()
+    _ -> c.not_found(user)
   }
 }

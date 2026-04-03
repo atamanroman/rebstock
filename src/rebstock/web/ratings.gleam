@@ -29,10 +29,10 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
 
 pub fn rating_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_rating_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(rating) ->
       case db.get_wine_by_id(conn, rating.wine_id) {
-        Error(_) -> wisp.not_found()
+        Error(_) -> c.not_found(user)
         Ok(wine) ->
           c.page(wine.name <> " Rating \u{2014} Rebstock", user, [
             c.back_link(c.wine_url(wine), wine.name),
@@ -61,7 +61,7 @@ pub fn handle_new(
   user: User,
 ) -> Response {
   case db.get_wine(conn, user.username, wine_id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(wine) -> {
       let vintages = db.vintages_for_wine(conn, wine.id)
       case req.method {
@@ -107,13 +107,13 @@ pub fn handle_edit(
   user: User,
 ) -> Response {
   case db.get_rating_by_id(conn, id) {
-    Error(_) -> wisp.not_found()
+    Error(_) -> c.not_found(user)
     Ok(rating) ->
       case rating.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, rating.wine_id) {
-            Error(_) -> wisp.not_found()
+            Error(_) -> c.not_found(user)
             Ok(wine) -> {
               let vintages = db.vintages_for_wine(conn, wine.id)
               case req.method {
@@ -167,13 +167,13 @@ pub fn handle_delete(
   case req.method {
     http.Post ->
       case db.get_rating_by_id(conn, id) {
-        Error(_) -> wisp.not_found()
+        Error(_) -> c.not_found(user)
         Ok(rating) ->
           case rating.username == user.username {
             False -> wisp.response(403)
             True ->
               case db.get_wine_by_id(conn, rating.wine_id) {
-                Error(_) -> wisp.not_found()
+                Error(_) -> c.not_found(user)
                 Ok(wine) -> {
                   db.delete_rating(conn, id)
                   wisp.response(200)
