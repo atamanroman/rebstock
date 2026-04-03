@@ -17,8 +17,10 @@
           options.services.rebstock = {
             enable = lib.mkEnableOption "Rebstock wine inventory manager";
 
-            package = lib.mkPackageOption pkgs "rebstock" {
+            package = lib.mkOption {
+              type = lib.types.package;
               default = self.packages.${pkgs.system}.default;
+              description = "The rebstock package to use.";
             };
 
             port = lib.mkOption {
@@ -139,10 +141,10 @@
 
         gleamVersion =
           let
-            toml = builtins.readFile ./gleam.toml;
-            matched = builtins.match ''(.|\n)*\nversion = "([^"]+)"\n(.|\n)*'' toml;
+            toml = builtins.replaceStrings ["\n"] [" "] (builtins.readFile ./gleam.toml);
+            matched = builtins.match ''.*version = "([^"]+)".*'' toml;
           in
-          builtins.elemAt matched 1;
+          builtins.elemAt matched 0;
 
         version = "${gleamVersion}-${self.shortRev or "dirty"}";
 
@@ -161,7 +163,7 @@
 
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
-          outputHash = pkgs.lib.fakeHash;
+          outputHash = "sha256-CvXEd6r7ZrZQx3DrchdLVmG0Gi7YEMiyMy4DDijlrYM=";
 
           buildPhase = ''
             export HOME=$TMPDIR
@@ -201,8 +203,8 @@
           nativeBuildInputs = [
             pkgs.gleam
             pkgs.erlang
-            pkgs.rebar3
-            pkgs.tailwindcss
+            (pkgs.rebar3WithPlugins { plugins = [ pkgs.beamPackages.pc ]; })
+            pkgs.tailwindcss_4
             pkgs.makeWrapper
           ];
 
