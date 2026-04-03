@@ -24,7 +24,7 @@ fn parse_args_loop(args: List(String)) -> String {
   case args {
     ["--config", path, ..] -> path
     [_, ..rest] -> parse_args_loop(rest)
-    [] -> "config.json"
+    [] -> "config.example.json"
   }
 }
 

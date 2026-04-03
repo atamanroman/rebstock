@@ -233,7 +233,7 @@ pub fn rating_display(rating: Option(Float)) -> Node {
   }
 }
 
-fn red_green_scale(rating: Float) -> String {
+pub fn red_green_scale(rating: Float) -> String {
   let clamped = case rating <. 3.0 {
     True -> 3.0
     False ->
@@ -367,7 +367,20 @@ pub fn detail_grid(items: List(#(String, String))) -> Node {
 
 pub fn page(title: String, user: User, content: List(Node)) -> Response {
   layout(title, [
-    site_header(user),
+    site_header(user, None),
+    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
+  ])
+  |> render
+}
+
+pub fn page_with_subtitle(
+  title: String,
+  user: User,
+  subtitle: String,
+  content: List(Node),
+) -> Response {
+  layout(title, [
+    site_header(user, Some(subtitle)),
     html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
   ])
   |> render
@@ -420,7 +433,7 @@ pub fn render(node: Node) -> Response {
 
 pub fn not_found(user: User) -> Response {
   layout("Not Found", [
-    site_header(user),
+    site_header(user, None),
     html.div([attr.class("max-w-6xl mx-auto px-4 pb-12 text-center pt-24")], [
       html.Element(
         "svg",
@@ -533,7 +546,7 @@ pub fn overlay_wrapper(content: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-fn site_header(user: User) -> Node {
+fn site_header(user: User, subtitle: Option(String)) -> Node {
   html.header(
     [
       attr.class(
@@ -550,14 +563,23 @@ fn site_header(user: User) -> Node {
         [
           html.a([attr.href("/"), attr.class("flex items-center gap-3 group")], [
             html.UnsafeInlineHtml(logo_svg()),
-            html.span(
-              [
-                attr.class(
-                  "text-xl font-light tracking-tight text-stone-800 group-hover:text-rose-800 transition-colors",
-                ),
-              ],
-              [html.Text("Rebstock")],
-            ),
+            html.div([], [
+              html.span(
+                [
+                  attr.class(
+                    "text-xl font-light tracking-tight text-stone-800 group-hover:text-rose-800 transition-colors",
+                  ),
+                ],
+                [html.Text("Rebstock")],
+              ),
+              case subtitle {
+                None -> html.Nothing
+                Some(s) ->
+                  html.div([attr.class("text-xs text-stone-400 -mt-0.5")], [
+                    html.Text(s),
+                  ])
+              },
+            ]),
           ]),
           html.div([attr.class("flex items-center gap-6")], [
             html.nav([attr.class("flex gap-6 text-sm")], [

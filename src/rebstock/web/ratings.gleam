@@ -17,7 +17,7 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
   let ratings = db.ratings_by_user(conn, username)
   let count = int.to_string(list.length(ratings))
   let title = case username == user.username {
-    True -> "My Ratings"
+    True -> "Your Ratings"
     False -> username <> "'s Ratings"
   }
 

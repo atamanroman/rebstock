@@ -843,17 +843,84 @@ pub fn vivino_rating(conn: Connection, wine_id: String) -> Option(Float) {
 }
 
 pub fn count_wines(conn: Connection) -> Int {
+  count_query(conn, "SELECT COUNT(*) FROM wines", [])
+}
+
+pub fn count_wineries(conn: Connection) -> Int {
+  count_query(conn, "SELECT COUNT(DISTINCT id) FROM wineries", [])
+}
+
+pub fn count_users(conn: Connection) -> Int {
+  count_query(conn, "SELECT COUNT(*) FROM users", [])
+}
+
+/// Number of distinct wines the user has rated
+pub fn count_rated_wines(conn: Connection, username: String) -> Int {
+  count_query(
+    conn,
+    "SELECT COUNT(DISTINCT wine_id) FROM ratings WHERE username = ? AND source = 'user'",
+    [sqlight.text(username)],
+  )
+}
+
+/// Number of distinct wineries the user has tasted from (via ratings)
+pub fn count_rated_wineries(conn: Connection, username: String) -> Int {
+  count_query(
+    conn,
+    "SELECT COUNT(DISTINCT w.winery_id) FROM ratings r JOIN wines w ON w.id = r.wine_id WHERE r.username = ? AND r.source = 'user'",
+    [sqlight.text(username)],
+  )
+}
+
+/// Number of distinct wines in cellar (with bottles > 0)
+pub fn count_cellar_wines(conn: Connection, username: String) -> Int {
+  count_query(
+    conn,
+    "SELECT COUNT(*) FROM (SELECT wine_id FROM cellar WHERE username = ? GROUP BY wine_id HAVING SUM(quantity) > 0)",
+    [sqlight.text(username)],
+  )
+}
+
+/// Number of distinct wineries in cellar
+pub fn count_cellar_wineries(conn: Connection, username: String) -> Int {
+  count_query(
+    conn,
+    "SELECT COUNT(*) FROM (SELECT DISTINCT w.winery_id FROM cellar c JOIN wines w ON w.id = c.wine_id WHERE c.username = ? GROUP BY c.wine_id HAVING SUM(c.quantity) > 0)",
+    [sqlight.text(username)],
+  )
+}
+
+/// Rating distribution: count of ratings per integer bucket (1-5)
+pub fn rating_distribution(
+  conn: Connection,
+  username: String,
+) -> List(#(Int, Int)) {
+  let decoder = {
+    use bucket <- decode.field(0, decode.int)
+    use count <- decode.field(1, decode.int)
+    decode.success(#(bucket, count))
+  }
+  let assert Ok(rows) =
+    sqlight.query(
+      "SELECT CAST(rating AS INTEGER) AS bucket, COUNT(*) FROM ratings WHERE username = ? AND source = 'user' AND rating IS NOT NULL GROUP BY bucket ORDER BY bucket",
+      on: conn,
+      with: [sqlight.text(username)],
+      expecting: decoder,
+    )
+  rows
+}
+
+fn count_query(
+  conn: Connection,
+  sql: String,
+  params: List(sqlight.Value),
+) -> Int {
   let count_decoder = {
     use count <- decode.field(0, decode.int)
     decode.success(count)
   }
   let assert Ok([count]) =
-    sqlight.query(
-      "SELECT COUNT(*) FROM wines",
-      on: conn,
-      with: [],
-      expecting: count_decoder,
-    )
+    sqlight.query(sql, on: conn, with: params, expecting: count_decoder)
   count
 }
 
