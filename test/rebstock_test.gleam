@@ -422,6 +422,56 @@ pub fn country_to_iso_test() {
   Nil
 }
 
+pub fn import_page_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let response =
+    simulate.request(http.Get, "/~test/import")
+    |> router.handle_request(conn, test_auth)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "Import Vivino Data")
+  Nil
+}
+
+pub fn import_page_forbidden_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let response =
+    simulate.request(http.Get, "/~other/import")
+    |> router.handle_request(conn, test_auth)
+  let assert 403 = response.status
+  Nil
+}
+
+pub fn import_from_zip_test() {
+  use conn <- with_empty_db
+  let wine_list_csv =
+    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Scan Date,Scan Location,User Rating,User Review,Personal Note,Wine Type,Drinking Window,Vivino Link\nTest Winery,Test Riesling,2021,Mosel,Germany,,4.2,,,3.5,,Great wine,White,,https://www.vivino.com/wines/12345\n"
+  let cellar_csv =
+    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Rating Count,Wine Type,Vivino Link,Cellar Count\nTest Winery,Test Riesling,2021,Mosel,Germany,,4.2,100,White,https://www.vivino.com/wines/12345,3\n"
+  let zip_bytes =
+    create_test_zip([
+      #("full_wine_list.csv", wine_list_csv),
+      #("cellar.csv", cellar_csv),
+    ])
+  let assert Ok(result) = vivino.import_from_zip(conn, zip_bytes, "test")
+  let assert True = result.wines_created > 0
+  let assert True = result.cellar_created > 0
+  let assert 1 = db.count_wines(conn)
+  Nil
+}
+
+pub fn import_from_zip_missing_wine_list_test() {
+  use conn <- with_empty_db
+  let cellar_csv =
+    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Rating Count,Wine Type,Vivino Link,Cellar Count\n"
+  let zip_bytes = create_test_zip([#("cellar.csv", cellar_csv)])
+  let assert Error("Zip must contain full_wine_list.csv") =
+    vivino.import_from_zip(conn, zip_bytes, "test")
+  Nil
+}
+
 pub fn ulid_generation_test() {
   use conn <- with_empty_db
   db.ensure_user(conn, "alice")
@@ -443,3 +493,6 @@ pub fn ulid_generation_test() {
   let assert 26 = string.length(id1)
   Nil
 }
+
+@external(erlang, "rebstock_test_ffi", "create_zip")
+fn create_test_zip(files: List(#(String, String))) -> BitArray
