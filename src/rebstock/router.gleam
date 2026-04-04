@@ -59,6 +59,6 @@ pub fn handle_request(
     ["cellar", id] -> cellar.cellar_entry_detail(conn, id, user)
     ["wishlist", id, "overlay"] -> wishlist.wishlist_entry_overlay(conn, id)
     ["wishlist", id] -> wishlist.wishlist_entry_detail(conn, id, user)
-    _ -> c.not_found(user)
+    _ -> c.not_found(user, conn)
   }
 }

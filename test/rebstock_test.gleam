@@ -494,5 +494,42 @@ pub fn ulid_generation_test() {
   Nil
 }
 
+pub fn home_empty_shows_import_cta_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let response =
+    simulate.request(http.Get, "/")
+    |> router.handle_request(conn, test_auth)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "Import Vivino Data")
+  let assert True = string.contains(body, "/~test/import")
+  Nil
+}
+
+pub fn home_with_data_shows_stats_test() {
+  use conn <- with_seeded_db
+  let response =
+    simulate.request(http.Get, "/")
+    |> router.handle_request(conn, test_auth)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "Your Stats")
+  let assert False = string.contains(body, "Welcome to Rebstock")
+  Nil
+}
+
+pub fn nav_contains_username_dropdown_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let response =
+    simulate.request(http.Get, "/")
+    |> router.handle_request(conn, test_auth)
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "~test")
+  let assert True = string.contains(body, "/~test/import")
+  Nil
+}
+
 @external(erlang, "rebstock_test_ffi", "create_zip")
 fn create_test_zip(files: List(#(String, String))) -> BitArray

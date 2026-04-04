@@ -21,7 +21,7 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
     False -> username <> "'s Ratings"
   }
 
-  c.page(title <> " \u{2014} Rebstock", user, [
+  c.page(title <> " \u{2014} Rebstock", user, conn, [
     c.page_header(title, count <> " ratings"),
     rating_table(ratings, conn),
   ])
@@ -29,12 +29,12 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
 
 pub fn rating_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_rating_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(rating) ->
       case db.get_wine_by_id(conn, rating.wine_id) {
-        Error(_) -> c.not_found(user)
+        Error(_) -> c.not_found(user, conn)
         Ok(wine) ->
-          c.page(wine.name <> " Rating \u{2014} Rebstock", user, [
+          c.page(wine.name <> " Rating \u{2014} Rebstock", user, conn, [
             c.back_link(c.wine_url(wine), wine.name),
             rating_card(rating, wine),
           ])
@@ -61,7 +61,7 @@ pub fn handle_new(
   user: User,
 ) -> Response {
   case db.get_wine(conn, user.username, wine_id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(wine) -> {
       let vintages = db.vintages_for_wine(conn, wine.id)
       case req.method {
@@ -69,7 +69,7 @@ pub fn handle_new(
           case is_htmx(req) {
             True -> c.overlay_wrapper(rating_form(wine, vintages, None, None))
             False ->
-              c.page("Rate " <> wine.name <> " \u{2014} Rebstock", user, [
+              c.page("Rate " <> wine.name <> " \u{2014} Rebstock", user, conn, [
                 c.back_link(c.wine_url(wine), wine.name),
                 rating_form(wine, vintages, None, None),
               ])
@@ -107,13 +107,13 @@ pub fn handle_edit(
   user: User,
 ) -> Response {
   case db.get_rating_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(rating) ->
       case rating.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, rating.wine_id) {
-            Error(_) -> c.not_found(user)
+            Error(_) -> c.not_found(user, conn)
             Ok(wine) -> {
               let vintages = db.vintages_for_wine(conn, wine.id)
               case req.method {
@@ -127,7 +127,7 @@ pub fn handle_edit(
                         None,
                       ))
                     False ->
-                      c.page("Edit Rating \u{2014} Rebstock", user, [
+                      c.page("Edit Rating \u{2014} Rebstock", user, conn, [
                         c.back_link(c.wine_url(wine), wine.name),
                         rating_form(wine, vintages, Some(rating), None),
                       ])
@@ -167,13 +167,13 @@ pub fn handle_delete(
   case req.method {
     http.Post ->
       case db.get_rating_by_id(conn, id) {
-        Error(_) -> c.not_found(user)
+        Error(_) -> c.not_found(user, conn)
         Ok(rating) ->
           case rating.username == user.username {
             False -> wisp.response(403)
             True ->
               case db.get_wine_by_id(conn, rating.wine_id) {
-                Error(_) -> c.not_found(user)
+                Error(_) -> c.not_found(user, conn)
                 Ok(wine) -> {
                   db.delete_rating(conn, id)
                   wisp.response(200)

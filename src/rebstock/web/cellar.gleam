@@ -18,7 +18,7 @@ pub fn cellar(conn: Connection, user: User, username: String) -> Response {
   let wines = db.cellar_wines(conn, username)
   let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
 
-  c.page("Cellar \u{2014} Rebstock", user, [
+  c.page("Cellar \u{2014} Rebstock", user, conn, [
     html.div([attr.class("flex items-end justify-between mb-6")], [
       html.div([], [
         html.h1(
@@ -76,7 +76,7 @@ pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response
     html.div([attr.class("cellar-print-page")], [
       html.div([attr.class("print-header")], [
         html.div([attr.class("flex items-center gap-3")], [
-          html.UnsafeInlineHtml(logo_svg()),
+          html.span([attr.class("text-2xl")], [html.Text("\u{1f347}")]),
           html.span([attr.class("text-xl font-light tracking-tight")], [
             html.Text("Rebstock"),
           ]),
@@ -119,12 +119,12 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
 
 pub fn cellar_entry_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(entry) ->
       case db.get_wine_by_id(conn, entry.wine_id) {
-        Error(_) -> c.not_found(user)
+        Error(_) -> c.not_found(user, conn)
         Ok(wine) ->
-          c.page(wine.name <> " Cellar Entry \u{2014} Rebstock", user, [
+          c.page(wine.name <> " Cellar Entry \u{2014} Rebstock", user, conn, [
             c.back_link(c.wine_url(wine), wine.name),
             cellar_entry_card(entry, wine),
           ])
@@ -151,7 +151,7 @@ pub fn handle_new(
   user: User,
 ) -> Response {
   case db.get_wine(conn, user.username, wine_id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(wine) -> {
       let vintages = db.vintages_for_wine(conn, wine.id)
       case req.method {
@@ -159,7 +159,7 @@ pub fn handle_new(
           case is_htmx(req) {
             True -> c.overlay_wrapper(cellar_form(wine, vintages, None))
             False ->
-              c.page("Add to Cellar \u{2014} Rebstock", user, [
+              c.page("Add to Cellar \u{2014} Rebstock", user, conn, [
                 c.back_link(c.wine_url(wine), wine.name),
                 cellar_form(wine, vintages, None),
               ])
@@ -196,13 +196,13 @@ pub fn handle_edit(
   user: User,
 ) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(entry) ->
       case entry.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, entry.wine_id) {
-            Error(_) -> c.not_found(user)
+            Error(_) -> c.not_found(user, conn)
             Ok(wine) -> {
               let vintages = db.vintages_for_wine(conn, wine.id)
               case req.method {
@@ -211,7 +211,7 @@ pub fn handle_edit(
                     True ->
                       c.overlay_wrapper(cellar_form(wine, vintages, Some(entry)))
                     False ->
-                      c.page("Edit Cellar Entry \u{2014} Rebstock", user, [
+                      c.page("Edit Cellar Entry \u{2014} Rebstock", user, conn, [
                         c.back_link(c.wine_url(wine), wine.name),
                         cellar_form(wine, vintages, Some(entry)),
                       ])
@@ -249,20 +249,20 @@ pub fn handle_drink(
   user: User,
 ) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(entry) ->
       case entry.username == user.username {
         False -> wisp.response(403)
         True ->
           case db.get_wine_by_id(conn, entry.wine_id) {
-            Error(_) -> c.not_found(user)
+            Error(_) -> c.not_found(user, conn)
             Ok(wine) ->
               case req.method {
                 http.Get ->
                   case is_htmx(req) {
                     True -> c.overlay_wrapper(drink_form(wine, entry))
                     False ->
-                      c.page("Drink \u{2014} Rebstock", user, [
+                      c.page("Drink \u{2014} Rebstock", user, conn, [
                         c.back_link(c.wine_url(wine), wine.name),
                         drink_form(wine, entry),
                       ])
@@ -314,13 +314,13 @@ pub fn handle_delete(
   case req.method {
     http.Post ->
       case db.get_cellar_entry_by_id(conn, id) {
-        Error(_) -> c.not_found(user)
+        Error(_) -> c.not_found(user, conn)
         Ok(entry) ->
           case entry.username == user.username {
             False -> wisp.response(403)
             True ->
               case db.get_wine_by_id(conn, entry.wine_id) {
-                Error(_) -> c.not_found(user)
+                Error(_) -> c.not_found(user, conn)
                 Ok(wine) -> {
                   db.delete_cellar_entry(conn, id)
                   wisp.response(200)
@@ -776,18 +776,4 @@ fn csv_field(value: String) -> String {
     True -> "\"" <> string.replace(value, each: "\"", with: "\"\"") <> "\""
     False -> value
   }
-}
-
-fn logo_svg() -> String {
-  "<svg width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">
-    <circle cx=\"10\" cy=\"8\" r=\"4\" fill=\"#78180e\" opacity=\"0.8\"/>
-    <circle cx=\"18\" cy=\"6\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.65\"/>
-    <circle cx=\"14\" cy=\"13\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.75\"/>
-    <circle cx=\"22\" cy=\"11\" r=\"3\" fill=\"#78180e\" opacity=\"0.5\"/>
-    <path d=\"M14 18 C14 18 13 24 16 28\" stroke=\"#78716c\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>
-    <path d=\"M16 28 C16 28 12 29 10 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
-    <path d=\"M16 28 C16 28 20 29 22 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
-    <path d=\"M14 20 C11 19 8 20 7 18\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
-    <path d=\"M15 22 C18 21 20 22 22 20\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
-  </svg>"
 }

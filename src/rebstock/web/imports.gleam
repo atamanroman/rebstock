@@ -22,7 +22,7 @@ pub fn import_page(
     False -> wisp.response(403)
     True ->
       case req.method {
-        http.Get -> render_upload_page(user, None, None)
+        http.Get -> render_upload_page(conn, user, None, None)
         http.Post -> handle_upload(req, conn, user)
         _ -> wisp.method_not_allowed([http.Get, http.Post])
       }
@@ -32,15 +32,20 @@ pub fn import_page(
 fn handle_upload(req: Request, conn: Connection, user: User) -> Response {
   use form <- wisp.require_form(req)
   case list.key_find(form.files, "zipfile") {
-    Error(_) -> render_upload_page(user, Some("No file uploaded"), None)
+    Error(_) -> render_upload_page(conn, user, Some("No file uploaded"), None)
     Ok(uploaded) -> {
       case simplifile.read_bits(uploaded.path) {
         Error(_) ->
-          render_upload_page(user, Some("Failed to read uploaded file"), None)
+          render_upload_page(
+            conn,
+            user,
+            Some("Failed to read uploaded file"),
+            None,
+          )
         Ok(zip_bytes) ->
           case vivino.import_from_zip(conn, zip_bytes, user.username) {
-            Error(msg) -> render_upload_page(user, Some(msg), None)
-            Ok(result) -> render_upload_page(user, None, Some(result))
+            Error(msg) -> render_upload_page(conn, user, Some(msg), None)
+            Ok(result) -> render_upload_page(conn, user, None, Some(result))
           }
       }
     }
@@ -48,6 +53,7 @@ fn handle_upload(req: Request, conn: Connection, user: User) -> Response {
 }
 
 fn render_upload_page(
+  conn: Connection,
   user: User,
   error: Option(String),
   result: Option(ImportResult),
@@ -93,7 +99,7 @@ fn render_upload_page(
     ]
   }
 
-  c.page("Import — Rebstock", user, content)
+  c.page("Import — Rebstock", user, conn, content)
 }
 
 fn upload_form() -> html.Node {
@@ -153,7 +159,7 @@ fn upload_form() -> html.Node {
           ],
         ),
       ]),
-      html.Element("script", [], [html.Text(drop_zone_js())]),
+      html.Element("script", [], [html.UnsafeInlineHtml(drop_zone_js())]),
     ],
   )
 }

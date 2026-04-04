@@ -14,7 +14,7 @@ pub fn wishlist(conn: Connection, user: User, username: String) -> Response {
   let wines = db.wishlist_wines(conn, username)
   let count = int.to_string(list.length(wines))
 
-  c.page("Wishlist \u{2014} Rebstock", user, [
+  c.page("Wishlist \u{2014} Rebstock", user, conn, [
     c.page_header("Wishlist", count <> " wines"),
     wishlist_table(wines),
   ])
@@ -26,12 +26,12 @@ pub fn wishlist_entry_detail(
   user: User,
 ) -> Response {
   case db.get_wishlist_entry_by_id(conn, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(entry) ->
       case db.get_wine_by_id(conn, entry.wine_id) {
-        Error(_) -> c.not_found(user)
+        Error(_) -> c.not_found(user, conn)
         Ok(wine) ->
-          c.page(wine.name <> " Wishlist \u{2014} Rebstock", user, [
+          c.page(wine.name <> " Wishlist \u{2014} Rebstock", user, conn, [
             c.back_link(c.wine_url(wine), wine.name),
             wishlist_entry_card(entry, wine),
           ])

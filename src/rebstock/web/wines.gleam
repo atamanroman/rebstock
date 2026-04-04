@@ -16,7 +16,7 @@ pub fn wines(conn: Connection, user: User) -> Response {
   let wines = db.list_wines(conn, user.username)
   let count = int.to_string(list.length(wines))
 
-  c.page("All Wines \u{2014} Rebstock", user, [
+  c.page("All Wines \u{2014} Rebstock", user, conn, [
     c.page_header("All Wines", count <> " total"),
     wine_table(wines),
   ])
@@ -35,7 +35,7 @@ pub fn wine_detail(
   }
 
   case db.get_wine(conn, user.username, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(wine) -> {
       let all_ratings = db.ratings_for_wine(conn, wine.id)
       let vintages = db.vintages_for_wine(conn, wine.id)
@@ -56,7 +56,7 @@ pub fn wine_detail(
         False -> vintages
       }
 
-      c.page(wine.name <> " \u{2014} Rebstock", user, [
+      c.page(wine.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wines", "All wines"),
         c.card([
           wine_header(wine),

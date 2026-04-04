@@ -97,6 +97,23 @@ html {
   scroll-margin-top: calc(33vh - 1rem);
 }
 
+/* User menu dropdown — pure CSS via details/summary */
+details.user-menu > summary {
+  list-style: none;
+}
+
+details.user-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.user-menu > summary::after {
+  content: ' \25BE';
+}
+
+details.user-menu[open] > summary::after {
+  content: ' \25B4';
+}
+
 @media print {
   /* Reset page */
   html, body {

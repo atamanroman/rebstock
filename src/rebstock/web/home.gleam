@@ -12,9 +12,41 @@ import rebstock/db.{type CellarEntry, type CellarWine, type Rating}
 import rebstock/web/components as c
 
 pub fn home(conn: Connection, user: User) -> Response {
-  c.page_with_subtitle("Rebstock", user, global_stats(conn), [
-    user_section(conn, user.username, True),
-    activity_grid(conn, user.username),
+  case db.count_wines(conn) {
+    0 ->
+      c.page("Rebstock", user, conn, [
+        welcome_empty_state(user.username),
+      ])
+    _ ->
+      c.page("Rebstock", user, conn, [
+        user_section(conn, user.username, True),
+        activity_grid(conn, user.username),
+      ])
+  }
+}
+
+fn welcome_empty_state(username: String) -> Node {
+  html.div([attr.class("text-center pt-16 pb-24")], [
+    html.div([attr.class("text-6xl mb-6")], [html.Text("\u{1f347}")]),
+    html.h1(
+      [attr.class("text-3xl font-light text-stone-800 tracking-tight mb-3")],
+      [html.Text("Welcome to Rebstock")],
+    ),
+    html.p([attr.class("text-stone-500 mb-8")], [
+      html.Text("Import your Vivino data to get started"),
+    ]),
+    html.a(
+      [
+        attr.href("/~" <> username <> "/import"),
+        attr.class(
+          "inline-block px-6 py-3 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors font-medium",
+        ),
+      ],
+      [html.Text("Import Vivino Data")],
+    ),
+    html.p([attr.class("text-sm text-stone-400 mt-6")], [
+      html.Text("You can also add wines manually later"),
+    ]),
   ])
 }
 
@@ -24,25 +56,10 @@ pub fn profile(conn: Connection, user: User, username: String) -> Response {
     False -> username
   }
 
-  c.page(title, user, [
+  c.page(title, user, conn, [
     user_section(conn, username, False),
     activity_grid(conn, username),
   ])
-}
-
-fn global_stats(conn: Connection) -> String {
-  let wines = int.to_string(db.count_wines(conn))
-  let wineries = int.to_string(db.count_wineries(conn))
-  let num_users = db.count_users(conn)
-
-  wines
-  <> " wines from "
-  <> wineries
-  <> " wineries"
-  <> case num_users > 1 {
-    True -> ", " <> int.to_string(num_users) <> " users"
-    False -> ""
-  }
 }
 
 fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {

@@ -6,6 +6,7 @@ import gleam/string
 import nakai
 import nakai/attr
 import nakai/html.{type Node}
+import sqlight
 import wisp.{type Response}
 
 import rebstock/auth.{type User}
@@ -365,22 +366,14 @@ pub fn detail_grid(items: List(#(String, String))) -> Node {
 
 // --- Layout ---
 
-pub fn page(title: String, user: User, content: List(Node)) -> Response {
-  layout(title, [
-    site_header(user, None),
-    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
-  ])
-  |> render
-}
-
-pub fn page_with_subtitle(
+pub fn page(
   title: String,
   user: User,
-  subtitle: String,
+  conn: sqlight.Connection,
   content: List(Node),
 ) -> Response {
   layout(title, [
-    site_header(user, Some(subtitle)),
+    site_header(user, conn),
     html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
   ])
   |> render
@@ -401,8 +394,9 @@ pub fn layout(title: String, content: List(Node)) -> Node {
       ]),
       html.link([
         attr.rel("icon"),
-        attr.type_("image/svg+xml"),
-        attr.href(favicon_data_uri()),
+        attr.href(
+          "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍇</text></svg>",
+        ),
       ]),
       html.Element("script", [attr.src("/static/js/htmx.min.js")], []),
     ]),
@@ -431,9 +425,9 @@ pub fn render(node: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-pub fn not_found(user: User) -> Response {
+pub fn not_found(user: User, conn: sqlight.Connection) -> Response {
   layout("Not Found", [
-    site_header(user, None),
+    site_header(user, conn),
     html.div([attr.class("max-w-6xl mx-auto px-4 pb-12 text-center pt-24")], [
       html.Element(
         "svg",
@@ -546,7 +540,25 @@ pub fn overlay_wrapper(content: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-fn site_header(user: User, subtitle: Option(String)) -> Node {
+fn site_header(user: User, conn: sqlight.Connection) -> Node {
+  let subtitle = case db.count_wines(conn) {
+    0 -> None
+    _ -> {
+      let wines = int.to_string(db.count_wines(conn))
+      let wineries = int.to_string(db.count_wineries(conn))
+      let num_users = db.count_users(conn)
+      Some(
+        wines
+        <> " wines from "
+        <> wineries
+        <> " wineries"
+        <> case num_users > 1 {
+          True -> ", " <> int.to_string(num_users) <> " users"
+          False -> ""
+        },
+      )
+    }
+  }
   html.header(
     [
       attr.class(
@@ -561,8 +573,8 @@ fn site_header(user: User, subtitle: Option(String)) -> Node {
           ),
         ],
         [
-          html.a([attr.href("/"), attr.class("flex items-center gap-3 group")], [
-            html.UnsafeInlineHtml(logo_svg()),
+          html.a([attr.href("/"), attr.class("flex items-center gap-2 group")], [
+            html.span([attr.class("text-2xl")], [html.Text("\u{1f347}")]),
             html.div([], [
               html.span(
                 [
@@ -581,39 +593,50 @@ fn site_header(user: User, subtitle: Option(String)) -> Node {
               },
             ]),
           ]),
-          html.div([attr.class("flex items-center gap-6")], [
-            html.nav([attr.class("flex gap-6 text-sm")], [
-              nav_link("All Wines", "/wines"),
-              nav_link("All Wineries", "/wineries"),
-              html.span([attr.class("text-stone-300")], [html.Text("//")]),
-              html.span([attr.class("text-sm text-stone-400")], [
-                html.Text("~" <> user.username <> ":"),
-              ]),
-              nav_link("Cellar", "/~" <> user.username <> "/cellar"),
-              nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
-              nav_link("Ratings", "/~" <> user.username <> "/ratings"),
+          html.nav([attr.class("flex items-center gap-4 text-sm")], [
+            nav_link("Wines", "/wines"),
+            nav_link("Wineries", "/wineries"),
+            html.span([attr.class("text-stone-300")], [
+              html.Text("\u{2502}"),
+            ]),
+            nav_link("Cellar", "/~" <> user.username <> "/cellar"),
+            nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
+            nav_link("Ratings", "/~" <> user.username <> "/ratings"),
+            html.span([attr.class("text-stone-300")], [
+              html.Text("\u{2502}"),
+            ]),
+            html.Element("details", [attr.class("relative user-menu")], [
+              html.Element(
+                "summary",
+                [
+                  attr.class(
+                    "cursor-pointer text-stone-500 hover:text-rose-800 transition-colors list-none",
+                  ),
+                ],
+                [html.Text("~" <> user.username)],
+              ),
+              html.div(
+                [
+                  attr.class(
+                    "absolute right-0 top-8 bg-white border border-stone-200 rounded-lg shadow-lg py-1 min-w-[140px] z-20",
+                  ),
+                ],
+                [
+                  html.a(
+                    [
+                      attr.href("/~" <> user.username <> "/import"),
+                      attr.class(
+                        "block px-4 py-2 text-sm text-stone-600 hover:bg-amber-50 hover:text-stone-800 transition-colors",
+                      ),
+                    ],
+                    [html.Text("Import")],
+                  ),
+                ],
+              ),
             ]),
           ]),
         ],
       ),
     ],
   )
-}
-
-fn logo_svg() -> String {
-  "<svg width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">
-    <circle cx=\"10\" cy=\"8\" r=\"4\" fill=\"#78180e\" opacity=\"0.8\"/>
-    <circle cx=\"18\" cy=\"6\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.65\"/>
-    <circle cx=\"14\" cy=\"13\" r=\"3.5\" fill=\"#78180e\" opacity=\"0.75\"/>
-    <circle cx=\"22\" cy=\"11\" r=\"3\" fill=\"#78180e\" opacity=\"0.5\"/>
-    <path d=\"M14 18 C14 18 13 24 16 28\" stroke=\"#78716c\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>
-    <path d=\"M16 28 C16 28 12 29 10 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
-    <path d=\"M16 28 C16 28 20 29 22 28\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.5\"/>
-    <path d=\"M14 20 C11 19 8 20 7 18\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
-    <path d=\"M15 22 C18 21 20 22 22 20\" stroke=\"#78716c\" stroke-width=\"1\" stroke-linecap=\"round\" opacity=\"0.4\"/>
-  </svg>"
-}
-
-fn favicon_data_uri() -> String {
-  "data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='8' r='4' fill='%2378180e' opacity='0.8'/%3E%3Ccircle cx='18' cy='6' r='3.5' fill='%2378180e' opacity='0.65'/%3E%3Ccircle cx='14' cy='13' r='3.5' fill='%2378180e' opacity='0.75'/%3E%3Ccircle cx='22' cy='11' r='3' fill='%2378180e' opacity='0.5'/%3E%3Cpath d='M14 18 C14 18 13 24 16 28' stroke='%2378716c' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M16 28 C16 28 12 29 10 28' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3Cpath d='M16 28 C16 28 20 29 22 28' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.5'/%3E%3Cpath d='M14 20 C11 19 8 20 7 18' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.4'/%3E%3Cpath d='M15 22 C18 21 20 22 22 20' stroke='%2378716c' stroke-width='1' stroke-linecap='round' opacity='0.4'/%3E%3C/svg%3E"
 }

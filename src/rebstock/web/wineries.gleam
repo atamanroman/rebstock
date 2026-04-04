@@ -14,7 +14,7 @@ pub fn wineries(conn: Connection, user: User) -> Response {
   let winery_list = db.list_wineries(conn, user.username)
   let count = int.to_string(list.length(winery_list))
 
-  c.page("Wineries \u{2014} Rebstock", user, [
+  c.page("Wineries \u{2014} Rebstock", user, conn, [
     c.page_header("Wineries", count <> " total"),
     c.table(
       ["Winery", "Country", "Wines"],
@@ -25,11 +25,11 @@ pub fn wineries(conn: Connection, user: User) -> Response {
 
 pub fn winery_detail(conn: Connection, id: String, user: User) -> Response {
   case db.get_winery(conn, user.username, id) {
-    Error(_) -> c.not_found(user)
+    Error(_) -> c.not_found(user, conn)
     Ok(winery) -> {
       let winery_wines = db.wines_by_winery(conn, user.username, id)
       let display = c.display_winery(winery.name)
-      c.page(display <> " \u{2014} Rebstock", user, [
+      c.page(display <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wineries", "All wineries"),
         c.page_header(display, int.to_string(winery.wine_count) <> " wines"),
         wines.wine_table(winery_wines),
