@@ -1,3 +1,5 @@
+import gleam/bit_array
+import gleam/dynamic
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -353,4 +355,66 @@ pub fn import_wishlisted(
       })
     _ -> empty_result()
   }
+}
+
+@external(erlang, "zip_ffi", "unzip_memory")
+fn unzip_memory(
+  archive: BitArray,
+) -> Result(List(#(String, BitArray)), dynamic.Dynamic)
+
+pub fn import_from_zip(
+  conn: Connection,
+  zip_bytes: BitArray,
+  created_by: String,
+) -> Result(ImportResult, String) {
+  db.ensure_user(conn, created_by)
+  case unzip_memory(zip_bytes) {
+    Error(_) -> Error("Invalid zip file")
+    Ok(entries) -> {
+      let files =
+        list.filter_map(entries, fn(entry) {
+          let #(name, data) = entry
+          let filename = case string.split(name, "/") |> list.last {
+            Ok(f) -> f
+            Error(_) -> name
+          }
+          case bit_array.to_string(data) {
+            Ok(content) -> Ok(#(filename, content))
+            Error(_) -> Error(Nil)
+          }
+        })
+      case find_file(files, "full_wine_list.csv") {
+        Error(_) -> Error("Zip must contain full_wine_list.csv")
+        Ok(wine_list_csv) -> {
+          let result = import_full_wine_list(conn, wine_list_csv, created_by)
+          let result = case find_file(files, "cellar.csv") {
+            Ok(cellar_csv) ->
+              merge_results(result, import_cellar(conn, cellar_csv, created_by))
+            Error(_) -> result
+          }
+          let result = case find_file(files, "wishlisted.csv") {
+            Ok(wishlist_csv) ->
+              merge_results(
+                result,
+                import_wishlisted(conn, wishlist_csv, created_by),
+              )
+            Error(_) -> result
+          }
+          Ok(result)
+        }
+      }
+    }
+  }
+}
+
+fn find_file(
+  files: List(#(String, String)),
+  name: String,
+) -> Result(String, Nil) {
+  list.find_map(files, fn(entry) {
+    case entry.0 == name {
+      True -> Ok(entry.1)
+      False -> Error(Nil)
+    }
+  })
 }
