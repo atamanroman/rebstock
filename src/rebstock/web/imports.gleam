@@ -55,9 +55,12 @@ fn render_upload_page(
   let content = case error, result {
     Some(err), _ -> [
       c.back_link("/~" <> user.username, user.username),
-      html.h1([attr.class("text-2xl font-bold text-stone-800 mb-6")], [
-        html.Text("Import Vivino Data"),
-      ]),
+      html.h1(
+        [attr.class("text-3xl font-light text-stone-800 tracking-tight mb-6")],
+        [
+          html.Text("Import Vivino Data"),
+        ],
+      ),
       html.div(
         [
           attr.class(
@@ -70,16 +73,22 @@ fn render_upload_page(
     ]
     _, Some(r) -> [
       c.back_link("/~" <> user.username, user.username),
-      html.h1([attr.class("text-2xl font-bold text-stone-800 mb-6")], [
-        html.Text("Import Vivino Data"),
-      ]),
+      html.h1(
+        [attr.class("text-3xl font-light text-stone-800 tracking-tight mb-6")],
+        [
+          html.Text("Import Vivino Data"),
+        ],
+      ),
       result_card(r, user.username),
     ]
     _, _ -> [
       c.back_link("/~" <> user.username, user.username),
-      html.h1([attr.class("text-2xl font-bold text-stone-800 mb-6")], [
-        html.Text("Import Vivino Data"),
-      ]),
+      html.h1(
+        [attr.class("text-3xl font-light text-stone-800 tracking-tight mb-6")],
+        [
+          html.Text("Import Vivino Data"),
+        ],
+      ),
       upload_form(),
     ]
   }
@@ -91,8 +100,8 @@ fn upload_form() -> html.Node {
   html.Element(
     "form",
     [
-      attr.method("POST"),
-      attr.enctype("multipart/form-data"),
+      attr.Attr("method", "POST"),
+      attr.Attr("enctype", "multipart/form-data"),
       attr.id("upload-form"),
     ],
     [
