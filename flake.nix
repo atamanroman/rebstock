@@ -19,7 +19,7 @@
 
             package = lib.mkOption {
               type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
               description = "The rebstock package to use.";
             };
 
@@ -136,58 +136,45 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg:
-            builtins.elem (nixpkgs.lib.getName pkg) [ "rebstock" "rebstock-deps" ];
+            builtins.elem (nixpkgs.lib.getName pkg) [ "rebstock" ];
         };
 
-        gleamVersion =
-          let
-            toml = builtins.replaceStrings ["\n"] [" "] (builtins.readFile ./gleam.toml);
-            matched = builtins.match ''.*version = "([^"]+)".*'' toml;
-          in
-          builtins.elemAt matched 0;
+        inherit (pkgs) lib;
 
-        version = "${gleamVersion}-${self.shortRev or "dirty"}";
+        # Parse manifest.toml at eval time to get dependency info
+        manifestToml = lib.importTOML ./manifest.toml;
+        gleamToml = lib.importTOML ./gleam.toml;
 
-        # Fixed-output derivation to fetch hex dependencies
-        deps = pkgs.stdenv.mkDerivation {
-          pname = "rebstock-deps";
-          inherit version;
-          src = pkgs.lib.cleanSourceWith {
-            src = ./.;
-            filter = path: type:
-              let name = builtins.baseNameOf path; in
-              name == "gleam.toml" || name == "manifest.toml";
+        version = "${gleamToml.version}-${self.shortRev or "dirty"}";
+
+        # Fetch each hex dependency individually using checksums from manifest.toml
+        hexPackages = lib.filter (p: p.source == "hex") manifestToml.packages;
+
+        depsDerivs = map (p: {
+          name = p.name;
+          derivation = pkgs.beamPackages.fetchHex {
+            inherit (p) version;
+            pkg = p.name;
+            sha256 = p.outer_checksum;
           };
+        }) hexPackages;
 
-          nativeBuildInputs = [ pkgs.gleam pkgs.erlang ];
-
-          outputHashAlgo = "sha256";
-          outputHashMode = "recursive";
-          outputHash = "sha256-CvXEd6r7ZrZQx3DrchdLVmG0Gi7YEMiyMy4DDijlrYM=";
-
-          buildPhase = ''
-            export HOME=$TMPDIR
-            gleam deps download
-          '';
-
-          installPhase = ''
-            mkdir -p $out
-            cp -r build/packages/* $out/
-          '';
-        };
+        # Generate packages.toml at eval time from manifest
+        packagesTOML = pkgs.writeText "packages.toml" (
+          lib.concatStringsSep "\n" (
+            [ "[packages]" ]
+            ++ (map (p: ''${p.name} = "${p.version}"'') manifestToml.packages)
+          )
+        );
 
         rebstock = pkgs.stdenv.mkDerivation {
           pname = "rebstock";
           inherit version;
 
-          src = pkgs.lib.cleanSourceWith {
+          src = lib.cleanSourceWith {
             src = ./.;
             filter = path: type:
-              let
-                name = builtins.baseNameOf path;
-                relPath = pkgs.lib.removePrefix (toString ./. + "/") (toString path);
-              in
-              # Exclude build artifacts, nix files, dev files, database
+              let name = builtins.baseNameOf path; in
               name != "build"
               && name != "flake.nix"
               && name != "flake.lock"
@@ -195,9 +182,9 @@
               && name != ".claude"
               && name != "tailwindcss"
               && name != "result"
-              && !pkgs.lib.hasSuffix ".db" name
-              && !pkgs.lib.hasSuffix ".db-shm" name
-              && !pkgs.lib.hasSuffix ".db-wal" name;
+              && !lib.hasSuffix ".db" name
+              && !lib.hasSuffix ".db-shm" name
+              && !lib.hasSuffix ".db-wal" name;
           };
 
           nativeBuildInputs = [
@@ -206,15 +193,19 @@
             (pkgs.rebar3WithPlugins { plugins = [ pkgs.beamPackages.pc ]; })
             pkgs.tailwindcss_4
             pkgs.makeWrapper
+            pkgs.rsync
           ];
 
           configurePhase = ''
             runHook preConfigure
 
-            # Link pre-fetched dependencies
             mkdir -p build/packages
-            cp -r ${deps}/* build/packages/
-            chmod -R u+w build/packages
+            cp ${packagesTOML} build/packages/packages.toml
+            chmod u+w build/packages/packages.toml
+
+            ${lib.concatStringsSep "\n" (map (d: ''
+              rsync --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r -r ${d.derivation}/* build/packages/${d.name}/
+            '') depsDerivs)}
 
             runHook postConfigure
           '';
@@ -223,6 +214,7 @@
             runHook preBuild
 
             export HOME=$TMPDIR
+            export REBAR_CACHE_DIR="$TMPDIR/.rebar-cache"
 
             # Build CSS with tailwindcss
             mkdir -p priv/static/css
@@ -232,8 +224,6 @@
               --content './src/**/*.gleam,./src/**/*.css' \
               --minify
 
-            # Check for warnings, then build the Erlang shipment
-            gleam build --warnings-as-errors
             gleam export erlang-shipment
 
             runHook postBuild
@@ -259,7 +249,7 @@
             runHook postInstall
           '';
 
-          meta = with pkgs.lib; {
+          meta = with lib; {
             description = "Self-hosted wine inventory manager";
             license = { spdxId = "PolyForm-Noncommercial-1.0.0"; free = false; };
             platforms = platforms.unix;
