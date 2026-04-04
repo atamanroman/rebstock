@@ -5,6 +5,7 @@ import rebstock/auth.{type AuthMode}
 import rebstock/web/cellar
 import rebstock/web/components as c
 import rebstock/web/home
+import rebstock/web/imports
 import rebstock/web/ratings
 import rebstock/web/wineries
 import rebstock/web/wines
@@ -49,6 +50,8 @@ pub fn handle_request(
     ["~" <> username, "cellar", "export.csv"] ->
       cellar.cellar_csv(conn, user, username)
     ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)
+    ["~" <> username, "import"] ->
+      imports.import_page(req, conn, user, username)
     ["~" <> username, "ratings"] -> ratings.my_ratings(conn, user, username)
     ["ratings", id, "overlay"] -> ratings.rating_overlay(conn, id)
     ["ratings", id] -> ratings.rating_detail(conn, id, user)
