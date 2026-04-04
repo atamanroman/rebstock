@@ -9,15 +9,52 @@ import sqlight.{type Connection}
 import rebstock/db
 import wisp
 
+pub type ImportResult {
+  ImportResult(
+    wineries_created: Int,
+    wineries_updated: Int,
+    wines_created: Int,
+    wines_updated: Int,
+    cellar_created: Int,
+    wishlist_created: Int,
+  )
+}
+
+pub fn empty_result() -> ImportResult {
+  ImportResult(
+    wineries_created: 0,
+    wineries_updated: 0,
+    wines_created: 0,
+    wines_updated: 0,
+    cellar_created: 0,
+    wishlist_created: 0,
+  )
+}
+
+pub fn merge_results(a: ImportResult, b: ImportResult) -> ImportResult {
+  ImportResult(
+    wineries_created: a.wineries_created + b.wineries_created,
+    wineries_updated: a.wineries_updated + b.wineries_updated,
+    wines_created: a.wines_created + b.wines_created,
+    wines_updated: a.wines_updated + b.wines_updated,
+    cellar_created: a.cellar_created + b.cellar_created,
+    wishlist_created: a.wishlist_created + b.wishlist_created,
+  )
+}
+
 pub fn import_data(
   conn: Connection,
   data_dir: String,
   created_by: String,
 ) -> Nil {
   db.ensure_user(conn, created_by)
-  import_cellar(conn, data_dir <> "/cellar.csv", created_by)
-  import_full_wine_list(conn, data_dir <> "/full_wine_list.csv", created_by)
-  import_wishlisted(conn, data_dir <> "/wishlisted.csv", created_by)
+  let assert Ok(cellar_csv) = simplifile.read(data_dir <> "/cellar.csv")
+  let assert Ok(wine_list_csv) =
+    simplifile.read(data_dir <> "/full_wine_list.csv")
+  let assert Ok(wishlist_csv) = simplifile.read(data_dir <> "/wishlisted.csv")
+  import_cellar(conn, cellar_csv, created_by)
+  import_full_wine_list(conn, wine_list_csv, created_by)
+  import_wishlisted(conn, wishlist_csv, created_by)
   let count = db.count_wines(conn)
   wisp.log_info(
     "Imported " <> int.to_string(count) <> " wines for " <> created_by,
@@ -43,12 +80,15 @@ fn extract_vivino_id(url: String) -> Option(String) {
   }
 }
 
-fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
-  let assert Ok(content) = simplifile.read(path)
+pub fn import_cellar(
+  conn: Connection,
+  content: String,
+  created_by: String,
+) -> ImportResult {
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
     [_header, ..data] ->
-      list.each(data, fn(row) {
+      list.fold(data, empty_result(), fn(acc, row) {
         case row {
           [
             winery,
@@ -64,7 +104,7 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
             cellar_count,
           ] ->
             case is_blank(name) {
-              True -> Nil
+              True -> acc
               False -> {
                 let vintage = db.parse_vintage(vintage_str)
                 let wine_id =
@@ -81,6 +121,8 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                     wine_type: db.wine_type_from_string(wine_type),
                     vivino_id: extract_vivino_id(vivino_link),
                   )
+                let acc =
+                  ImportResult(..acc, wines_created: acc.wines_created + 1)
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
                     db.insert_rating(
@@ -111,28 +153,28 @@ fn import_cellar(conn: Connection, path: String, created_by: String) -> Nil {
                       notes: None,
                       date: None,
                     )
+                    ImportResult(..acc, cellar_created: acc.cellar_created + 1)
                   }
-                  False -> Nil
+                  False -> acc
                 }
               }
             }
-          _ -> Nil
+          _ -> acc
         }
       })
-    _ -> Nil
+    _ -> empty_result()
   }
 }
 
-fn import_full_wine_list(
+pub fn import_full_wine_list(
   conn: Connection,
-  path: String,
+  content: String,
   created_by: String,
-) -> Nil {
-  let assert Ok(content) = simplifile.read(path)
+) -> ImportResult {
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
     [_header, ..data] ->
-      list.each(data, fn(row) {
+      list.fold(data, empty_result(), fn(acc, row) {
         case row {
           [
             winery,
@@ -153,7 +195,7 @@ fn import_full_wine_list(
             ..
           ] ->
             case is_blank(name) {
-              True -> Nil
+              True -> acc
               False -> {
                 let vintage = db.parse_vintage(vintage_str)
                 let wine_id =
@@ -170,6 +212,8 @@ fn import_full_wine_list(
                     wine_type: db.wine_type_from_string(wine_type),
                     vivino_id: extract_vivino_id(vivino_link),
                   )
+                let acc =
+                  ImportResult(..acc, wines_created: acc.wines_created + 1)
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
                     db.insert_rating(
@@ -200,21 +244,25 @@ fn import_full_wine_list(
                       source: "user",
                     )
                 }
+                acc
               }
             }
-          _ -> Nil
+          _ -> acc
         }
       })
-    _ -> Nil
+    _ -> empty_result()
   }
 }
 
-fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil {
-  let assert Ok(content) = simplifile.read(path)
+pub fn import_wishlisted(
+  conn: Connection,
+  content: String,
+  created_by: String,
+) -> ImportResult {
   let assert Ok(rows) = gsv.to_lists(content, ",")
   case rows {
     [_header, ..data] ->
-      list.each(data, fn(row) {
+      list.fold(data, empty_result(), fn(acc, row) {
         case row {
           [
             winery,
@@ -236,7 +284,7 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
             ..
           ] ->
             case is_blank(name) {
-              True -> Nil
+              True -> acc
               False -> {
                 let vintage = db.parse_vintage(vintage_str)
                 let wine_id =
@@ -253,6 +301,8 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                     wine_type: db.wine_type_from_string(wine_type),
                     vivino_id: extract_vivino_id(vivino_link),
                   )
+                let acc =
+                  ImportResult(..acc, wines_created: acc.wines_created + 1)
                 case db.parse_optional_float(avg_rating) {
                   Some(r) ->
                     db.insert_rating(
@@ -274,6 +324,11 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                   vintage:,
                   notes: None,
                 )
+                let acc =
+                  ImportResult(
+                    ..acc,
+                    wishlist_created: acc.wishlist_created + 1,
+                  )
                 let rating = db.parse_optional_float(user_rating)
                 let tasting_notes = db.optional_non_empty(user_review)
                 case rating, tasting_notes {
@@ -290,11 +345,12 @@ fn import_wishlisted(conn: Connection, path: String, created_by: String) -> Nil 
                       source: "user",
                     )
                 }
+                acc
               }
             }
-          _ -> Nil
+          _ -> acc
         }
       })
-    _ -> Nil
+    _ -> empty_result()
   }
 }
