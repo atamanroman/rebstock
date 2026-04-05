@@ -3,6 +3,11 @@
   "title": "Rebstock Configuration",
   "type": "object",
   "properties": {
+    "host": {
+      "type": "string",
+      "default": "127.0.0.1",
+      "description": "IP to bind to (0.0.0.0 for all interfaces)"
+    },
     "port": {
       "type": "integer",
       "default": 3000,

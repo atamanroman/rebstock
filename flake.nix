@@ -23,6 +23,12 @@
               description = "The rebstock package to use.";
             };
 
+            host = lib.mkOption {
+              type = lib.types.str;
+              default = "127.0.0.1";
+              description = "IP to bind to (0.0.0.0 for all interfaces).";
+            };
+
             port = lib.mkOption {
               type = lib.types.port;
               default = 3000;
@@ -97,6 +103,7 @@
                     configJson =
                       if cfg.configFile != null then cfg.configFile
                       else pkgs.writeText "rebstock-config.json" (builtins.toJSON ({
+                        host = cfg.host;
                         port = cfg.port;
                         database_uri = "file:${cfg.dataDir}/rebstock.db";
                         auth =

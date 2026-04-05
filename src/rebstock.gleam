@@ -20,6 +20,7 @@ pub fn main() -> Nil {
     wisp_mist.handler(router.handle_request(_, conn, cfg.auth), "secret")
     |> mist.new
     |> mist.port(cfg.port)
+    |> mist.bind(cfg.host)
     |> mist.start
 
   process.sleep_forever()

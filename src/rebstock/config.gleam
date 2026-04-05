@@ -9,11 +9,16 @@ import rebstock/auth.{type AuthMode, Forward, Single}
 import wisp
 
 pub type Config {
-  Config(port: Int, database_uri: String, auth: AuthMode)
+  Config(host: String, port: Int, database_uri: String, auth: AuthMode)
 }
 
 pub fn default() -> Config {
-  Config(port: 3000, database_uri: "file:rebstock.db", auth: Single("admin"))
+  Config(
+    host: "127.0.0.1",
+    port: 3000,
+    database_uri: "file:rebstock.db",
+    auth: Single("admin"),
+  )
 }
 
 pub fn parse_args() -> String {
@@ -49,6 +54,8 @@ pub fn load(path: String) -> Config {
   wisp.log_info(
     "Config: "
     <> source
+    <> " | host: "
+    <> config.host
     <> " | port: "
     <> int.to_string(config.port)
     <> " | db: "
@@ -66,6 +73,7 @@ pub fn parse(content: String) -> Config {
 }
 
 fn config_decoder(d: Config) -> decode.Decoder(Config) {
+  use host <- decode.optional_field("host", d.host, decode.string)
   use port <- decode.optional_field("port", d.port, decode.int)
   use database_uri <- decode.optional_field(
     "database_uri",
@@ -73,7 +81,7 @@ fn config_decoder(d: Config) -> decode.Decoder(Config) {
     decode.string,
   )
   use auth <- decode.field("auth", auth_decoder())
-  decode.success(Config(port:, database_uri:, auth:))
+  decode.success(Config(host:, port:, database_uri:, auth:))
 }
 
 fn auth_decoder() -> decode.Decoder(AuthMode) {
