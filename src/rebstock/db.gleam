@@ -121,7 +121,7 @@ pub fn migrate(conn: Connection) -> Nil {
 
 // Columns: wines fields + winery name from JOIN + vintages subquery
 const wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
-        (SELECT GROUP_CONCAT(v.year) FROM wine_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
+        (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
         w.region, w.country, w.style,
         w.personal_note, w.wine_type,
         w.vivino_id"
@@ -475,7 +475,7 @@ pub type CellarWine {
 }
 
 const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
-        (SELECT GROUP_CONCAT(v.year) FROM wine_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
+        (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
         w.region, w.country, w.style,
         w.personal_note, w.wine_type,
         w.vivino_id, c.vintage, COALESCE(SUM(c.quantity), 0) AS bottles"
@@ -927,7 +927,7 @@ fn count_query(
 pub fn upsert_vintage(conn: Connection, wine_id: String, year: String) -> Nil {
   let assert Ok(_) =
     sqlight.query(
-      "INSERT OR IGNORE INTO wine_vintages (wine_id, year) VALUES (?, ?)",
+      "INSERT OR IGNORE INTO wines_vintages (wine_id, year) VALUES (?, ?)",
       on: conn,
       with: [sqlight.text(wine_id), sqlight.text(year)],
       expecting: decode.success(Nil),
@@ -942,7 +942,7 @@ pub fn vintages_for_wine(conn: Connection, wine_id: String) -> List(String) {
   }
   let assert Ok(vintages) =
     sqlight.query(
-      "SELECT year FROM wine_vintages WHERE wine_id = ? ORDER BY year",
+      "SELECT year FROM wines_vintages WHERE wine_id = ? ORDER BY year",
       on: conn,
       with: [sqlight.text(wine_id)],
       expecting: decoder,
