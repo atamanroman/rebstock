@@ -8,3 +8,6 @@ erl_crash.dump
 config.json
 /rebstock.db-shm
 /rebstock.db-wal
+/.claude
+/.superpowers/brainstorm
+/.worktrees
