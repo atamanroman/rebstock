@@ -1,4 +1,5 @@
 import gleam/dynamic/decode
+import gleam/erlang/application
 import gleam/float
 import gleam/int
 import gleam/option.{type Option, None, Some}
@@ -115,7 +116,8 @@ pub type Winery {
 pub fn migrate(conn: Connection) -> Nil {
   let assert Ok(Nil) = sqlight.exec("PRAGMA journal_mode=WAL", conn)
   let assert Ok(Nil) = sqlight.exec("PRAGMA foreign_keys=ON", conn)
-  let assert Ok(Nil) = migrant.migrate(conn, "priv/migrations")
+  let assert Ok(priv) = application.priv_directory("rebstock")
+  let assert Ok(Nil) = migrant.migrate(conn, priv <> "/migrations")
   Nil
 }
 

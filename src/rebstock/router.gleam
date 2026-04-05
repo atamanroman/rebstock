@@ -1,6 +1,7 @@
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
+import gleam/erlang/application
 import rebstock/auth.{type AuthMode}
 import rebstock/web/cellar
 import rebstock/web/components as c
@@ -17,7 +18,8 @@ pub fn handle_request(
   auth: AuthMode,
 ) -> Response {
   use req <- wisp.handle_head(req)
-  use <- wisp.serve_static(req, under: "/static", from: "priv/static")
+  let assert Ok(priv) = application.priv_directory("rebstock")
+  use <- wisp.serve_static(req, under: "/static", from: priv <> "/static")
 
   let user = auth.get_user(req, auth)
 
