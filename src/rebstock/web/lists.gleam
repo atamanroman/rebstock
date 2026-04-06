@@ -385,7 +385,7 @@ fn render_list_detail(
               True -> html.Nothing
               False -> bottles_toggle_form(wl, username)
             },
-            share_toggle_form(wl, username),
+            share_control(wl, username, full_share_url),
             html.a(
               [
                 attr.href("/~" <> username <> "/lists/" <> wl.id <> "/print"),
@@ -412,21 +412,6 @@ fn render_list_detail(
           ])
       },
     ]),
-    case wl.public {
-      False -> html.Nothing
-      True ->
-        html.p([attr.class("mb-4 text-sm text-stone-500")], [
-          html.Text("Share link: "),
-          html.a(
-            [
-              attr.href(full_share_url),
-              attr.Attr("target", "_blank"),
-              attr.class("text-rose-800 hover:underline break-all"),
-            ],
-            [html.Text(full_share_url)],
-          ),
-        ])
-    },
     list_wines_table(wines, username, wl, is_owner, wl.show_bottles),
   ])
 }
@@ -448,33 +433,77 @@ pub fn print_view(
   }
 }
 
-fn share_toggle_form(wl: WineList, username: String) -> html.Node {
+fn share_control(
+  wl: WineList,
+  username: String,
+  full_share_url: String,
+) -> html.Node {
   let #(label, public_val) = case wl.public {
     True -> #("Unshare", "0")
     False -> #("Share", "1")
   }
-  html.Element(
-    "form",
+  let btn = "px-3 py-1.5 text-sm transition-colors"
+  html.div(
     [
-      attr.method("post"),
-      attr.Attr("action", "/~" <> username <> "/lists/" <> wl.id <> "/public"),
+      attr.class(
+        "inline-flex border border-stone-300 rounded-md overflow-hidden",
+      ),
     ],
     [
       html.Element(
-        "input",
-        [attr.type_("hidden"), attr.name("public"), attr.value(public_val)],
-        [],
-      ),
-      html.Element(
-        "button",
+        "form",
         [
-          attr.type_("submit"),
-          attr.class(
-            "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+          attr.method("post"),
+          attr.Attr(
+            "action",
+            "/~" <> username <> "/lists/" <> wl.id <> "/public",
+          ),
+          attr.class("flex"),
+        ],
+        [
+          html.Element(
+            "input",
+            [
+              attr.type_("hidden"),
+              attr.name("public"),
+              attr.value(public_val),
+            ],
+            [],
+          ),
+          html.Element(
+            "button",
+            [
+              attr.type_("submit"),
+              attr.class(btn <> " text-stone-600 hover:bg-stone-50"),
+            ],
+            [html.Text(label)],
           ),
         ],
-        [html.Text(label)],
       ),
+      case wl.public {
+        True ->
+          html.a(
+            [
+              attr.href(full_share_url),
+              attr.Attr("target", "_blank"),
+              attr.class(
+                btn
+                <> " border-l border-stone-300 text-stone-600 hover:bg-stone-50",
+              ),
+            ],
+            [html.Text("\u{1f517}")],
+          )
+        False ->
+          html.span(
+            [
+              attr.class(
+                btn
+                <> " border-l border-stone-300 opacity-25 cursor-not-allowed",
+              ),
+            ],
+            [html.Text("\u{1f517}")],
+          )
+      },
     ],
   )
 }
