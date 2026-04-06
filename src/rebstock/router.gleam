@@ -14,6 +14,7 @@ import rebstock/web/shared
 import rebstock/web/wineries
 import rebstock/web/wines
 import rebstock/web/wishlist
+import gleam/erlang/application
 
 pub fn handle_request(
   req: Request,
@@ -21,7 +22,8 @@ pub fn handle_request(
   auth: AuthMode,
 ) -> Response {
   use req <- wisp.handle_head(req)
-  use <- wisp.serve_static(req, under: "/static", from: "priv/static")
+  let assert Ok(priv) = application.priv_directory("rebstock")
+  use <- wisp.serve_static(req, under: "/static", from: priv <> "/static")
 
   // Public routes (no auth required)
   case wisp.path_segments(req) {
