@@ -219,12 +219,13 @@ fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     rated_at: None,
     source: "user",
   )
-  db.upsert_wishlist(
+  let alice_wl = db.get_user_wishlist(conn, "alice")
+  db.add_wine_to_list(
     conn,
-    username: "alice",
-    wine_id: wine_b,
-    vintage: Some("2018"),
-    notes: Some("Want to try"),
+    alice_wl.id,
+    wine_b,
+    Some("2018"),
+    Some("Want to try"),
   )
   #(wine_a, wine_b)
 }
@@ -256,12 +257,14 @@ pub fn ratings_isolation_test() {
 pub fn wishlist_isolation_test() {
   use conn <- with_empty_db
   let #(_wine_a, wine_b) = seed_two_users(conn)
-  let alice_wishlist = db.wishlist_wines(conn, "alice")
-  let bob_wishlist = db.wishlist_wines(conn, "bob")
+  let alice_wl = db.get_user_wishlist(conn, "alice")
+  let bob_wl = db.get_user_wishlist(conn, "bob")
+  let alice_wishlist = db.list_wines_for_list(conn, alice_wl.id)
+  let bob_wishlist = db.list_wines_for_list(conn, bob_wl.id)
   let assert 1 = list.length(alice_wishlist)
   let assert 0 = list.length(bob_wishlist)
-  let assert True = db.is_wishlisted(conn, "alice", wine_b)
-  let assert False = db.is_wishlisted(conn, "bob", wine_b)
+  let assert True = db.is_wine_in_list(conn, alice_wl.id, wine_b)
+  let assert False = db.is_wine_in_list(conn, bob_wl.id, wine_b)
   Nil
 }
 
@@ -528,6 +531,104 @@ pub fn nav_contains_username_dropdown_test() {
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "~test")
   let assert True = string.contains(body, "/~test/import")
+  Nil
+}
+
+pub fn create_list_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id =
+    db.create_list(conn, "test", "My Favourites", Some("Top picks"), False)
+  let assert Ok(wine_list) = db.get_list(conn, id)
+  let assert "My Favourites" = wine_list.name
+  let assert Some("Top picks") = wine_list.description
+  let assert "my-favourites" = wine_list.slug
+  let assert db.CustomList = wine_list.list_type
+  let assert False = wine_list.public
+  Nil
+}
+
+pub fn system_lists_auto_created_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  db.ensure_system_lists(conn, "test")
+  let lists = db.lists_for_user(conn, "test")
+  let assert 3 = list.length(lists)
+  let assert Ok(_) = db.get_list_by_slug(conn, "test", "cellar")
+  let assert Ok(_) = db.get_list_by_slug(conn, "test", "rated")
+  let assert Ok(_) = db.get_list_by_slug(conn, "test", "wishlist")
+  Nil
+}
+
+pub fn add_wine_to_list_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let list_id = db.create_list(conn, "test", "Test List", None, False)
+  let wine_id =
+    db.upsert_wine(
+      conn,
+      created_by: "test",
+      winery: "Test Winery",
+      name: "Test Wine",
+      vintage: None,
+      region: None,
+      country: None,
+      style: None,
+      personal_note: None,
+      wine_type: db.Red,
+      vivino_id: None,
+    )
+  db.add_wine_to_list(conn, list_id, wine_id, None, None)
+  let wines = db.list_wines_for_list(conn, list_id)
+  let assert 1 = list.length(wines)
+  let assert True = db.is_wine_in_list(conn, list_id, wine_id)
+  Nil
+}
+
+pub fn set_list_public_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id = db.create_list(conn, "test", "Public List", None, False)
+  let assert Ok(wine_list) = db.get_list(conn, id)
+  let assert False = wine_list.public
+  db.set_list_public(conn, id, True)
+  let assert Ok(updated) = db.get_list(conn, id)
+  let assert True = updated.public
+  Nil
+}
+
+pub fn shared_view_returns_200_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id = db.create_list(conn, "test", "Shared List", None, False)
+  db.set_list_public(conn, id, True)
+  let assert Ok(wine_list) = db.get_list(conn, id)
+  let response =
+    simulate.request(http.Get, "/shared/" <> id <> "/" <> wine_list.slug)
+    |> router.handle_request(conn, test_auth)
+  let assert 200 = response.status
+  Nil
+}
+
+pub fn shared_view_private_returns_404_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id = db.create_list(conn, "test", "Private List", None, False)
+  let assert Ok(wine_list) = db.get_list(conn, id)
+  let response =
+    simulate.request(http.Get, "/shared/" <> id <> "/" <> wine_list.slug)
+    |> router.handle_request(conn, test_auth)
+  let assert 404 = response.status
+  Nil
+}
+
+pub fn lists_page_returns_200_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let response =
+    simulate.request(http.Get, "/~test/lists")
+    |> router.handle_request(conn, test_auth)
+  let assert 200 = response.status
   Nil
 }
 

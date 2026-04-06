@@ -602,6 +602,7 @@ fn site_header(user: User, conn: sqlight.Connection) -> Node {
             nav_link("Cellar", "/~" <> user.username <> "/cellar"),
             nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
             nav_link("Ratings", "/~" <> user.username <> "/ratings"),
+            nav_link("Lists", "/~" <> user.username <> "/lists"),
             html.span([attr.class("text-stone-300")], [
               html.Text("\u{2502}"),
             ]),

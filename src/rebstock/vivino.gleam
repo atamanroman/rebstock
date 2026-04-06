@@ -319,13 +319,8 @@ pub fn import_wishlisted(
                     )
                   None -> Nil
                 }
-                db.upsert_wishlist(
-                  conn,
-                  username: created_by,
-                  wine_id:,
-                  vintage:,
-                  notes: None,
-                )
+                let wishlist = db.get_user_wishlist(conn, created_by)
+                db.add_wine_to_list(conn, wishlist.id, wine_id, vintage, None)
                 let acc =
                   ImportResult(
                     ..acc,

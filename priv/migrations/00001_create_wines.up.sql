@@ -31,17 +31,6 @@ CREATE TABLE wines_vintages (
   PRIMARY KEY (wine_id, year)
 );
 
-CREATE TABLE wishlist (
-  id TEXT PRIMARY KEY,
-  username TEXT NOT NULL REFERENCES users(username),
-  wine_id TEXT NOT NULL REFERENCES wines(id),
-  vintage TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(username, wine_id, vintage),
-  FOREIGN KEY (wine_id, vintage) REFERENCES wines_vintages(wine_id, year)
-);
-
 CREATE TABLE cellar (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL REFERENCES users(username),
@@ -67,3 +56,33 @@ CREATE TABLE ratings (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (wine_id, vintage) REFERENCES wines_vintages(wine_id, year)
 );
+
+CREATE TABLE lists (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL REFERENCES users(username),
+  name TEXT NOT NULL,
+  description TEXT,
+  slug TEXT NOT NULL,
+  list_type TEXT NOT NULL DEFAULT 'custom',
+  public INTEGER NOT NULL DEFAULT 0,
+  show_bottles INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(username, slug)
+);
+
+CREATE TABLE lists_wines (
+  list_id TEXT NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+  wine_id TEXT NOT NULL REFERENCES wines(id),
+  vintage TEXT NOT NULL DEFAULT '',
+  sort_rank INTEGER NOT NULL DEFAULT 0,
+  notes TEXT,
+  added_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (list_id, wine_id, vintage)
+);
+
+CREATE TRIGGER lists_wines_type_check
+BEFORE INSERT ON lists_wines
+BEGIN
+  SELECT RAISE(ABORT, 'Cannot add wines to virtual lists')
+  WHERE (SELECT list_type FROM lists WHERE id = NEW.list_id) IN ('cellar', 'rated');
+END;

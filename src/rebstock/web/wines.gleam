@@ -9,7 +9,7 @@ import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
-import rebstock/db.{type CellarEntry, type Rating, type Wine}
+import rebstock/db.{type CellarEntry, type Rating, type Wine, type WineList}
 import rebstock/web/components as c
 
 pub fn wines(conn: Connection, user: User) -> Response {
@@ -39,6 +39,11 @@ pub fn wine_detail(
     Ok(wine) -> {
       let all_ratings = db.ratings_for_wine(conn, wine.id)
       let vintages = db.vintages_for_wine(conn, wine.id)
+      let user_lists =
+        db.lists_for_user(conn, user.username)
+        |> list.filter(fn(l) {
+          l.list_type == db.WishlistList || l.list_type == db.CustomList
+        })
 
       let my =
         list.filter(all_ratings, fn(r) {
@@ -60,6 +65,7 @@ pub fn wine_detail(
         c.back_link("/wines", "All wines"),
         c.card([
           wine_header(wine),
+          add_to_list_section(wine, user_lists, user.username),
           ..wine_body(
             wine,
             vintage_opts,
@@ -117,6 +123,67 @@ fn wine_header(wine: Wine) -> Node {
       ]),
     ]),
   ])
+}
+
+fn add_to_list_section(
+  wine: Wine,
+  lists: List(WineList),
+  username: String,
+) -> Node {
+  case lists {
+    [] -> html.Nothing
+    _ ->
+      html.Element("details", [attr.class("relative mt-4")], [
+        html.Element(
+          "summary",
+          [
+            attr.class(
+              "cursor-pointer text-sm text-stone-500 hover:text-rose-800 transition-colors list-none",
+            ),
+          ],
+          [html.Text("Add to list...")],
+        ),
+        html.div(
+          [
+            attr.class(
+              "absolute left-0 top-8 bg-white border border-stone-200 rounded-lg shadow-lg py-1 min-w-[180px] z-20",
+            ),
+          ],
+          list.map(lists, fn(l) {
+            html.form(
+              [
+                attr.Attr("method", "POST"),
+                attr.Attr(
+                  "action",
+                  "/~" <> username <> "/lists/" <> l.id <> "/wines",
+                ),
+              ],
+              [
+                html.Element(
+                  "input",
+                  [
+                    attr.type_("hidden"),
+                    attr.name("wine_id"),
+                    attr.value(wine.id),
+                  ],
+                  [],
+                ),
+                html.Element(
+                  "button",
+                  [
+                    attr.type_("submit"),
+                    attr.class(
+                      "block w-full text-left px-4 py-2 text-sm text-stone-600 hover:bg-amber-50 hover:text-stone-800 transition-colors",
+                    ),
+                  ],
+                  [html.Text(l.name)],
+                ),
+              ],
+            )
+          }),
+        ),
+      ])
+  }
 }
 
 fn vintage_pills(
@@ -314,7 +381,8 @@ fn personal_note_section(wine: Wine) -> Node {
 }
 
 fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
-  let wishlisted = db.is_wishlisted(conn, user.username, wine.id)
+  let wishlist = db.get_user_wishlist(conn, user.username)
+  let wishlisted = db.is_wine_in_list(conn, wishlist.id, wine.id)
   let links =
     [
       case wishlisted {

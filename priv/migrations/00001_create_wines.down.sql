@@ -1,6 +1,8 @@
+DROP TRIGGER IF EXISTS lists_wines_type_check;
+DROP TABLE IF EXISTS lists_wines;
+DROP TABLE IF EXISTS lists;
 DROP TABLE IF EXISTS ratings;
 DROP TABLE IF EXISTS cellar;
-DROP TABLE IF EXISTS wishlist;
 DROP TABLE IF EXISTS wines_vintages;
 DROP TABLE IF EXISTS wines;
 DROP TABLE IF EXISTS wineries;

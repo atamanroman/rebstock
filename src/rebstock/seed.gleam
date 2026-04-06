@@ -130,20 +130,15 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
       }
 
       // Wishlist for alice
-      db.upsert_wishlist(
+      let alice_wishlist = db.get_user_wishlist(conn, "alice")
+      db.add_wine_to_list(
         conn,
-        username: "alice",
-        wine_id: w4.id,
-        vintage: None,
-        notes: Some("Recommended by a friend"),
+        alice_wishlist.id,
+        w4.id,
+        None,
+        Some("Recommended by a friend"),
       )
-      db.upsert_wishlist(
-        conn,
-        username: "alice",
-        wine_id: w5.id,
-        vintage: w5.vintages,
-        notes: None,
-      )
+      db.add_wine_to_list(conn, alice_wishlist.id, w5.id, w5.vintages, None)
     }
     _ -> {
       // Not enough wines to seed, add a few ratings on whatever exists

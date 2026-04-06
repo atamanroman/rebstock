@@ -1,0 +1,25 @@
+:root {
+  /* Wine type colors — section headers in shared view, badges in app */
+  --wine-red: #78180e;
+  --wine-white: #92400e;
+  --wine-rose: #be185d;
+  --wine-orange: #c2410c;
+  --wine-sparkling: #57534e;
+  --wine-dessert: #92400e;
+  --wine-sake: #57534e;
+  --wine-other: #57534e;
+
+  /* Core palette */
+  --stone-50: #fafaf9;
+  --stone-100: #f5f5f4;
+  --stone-200: #e7e5e4;
+  --stone-300: #d6d3d1;
+  --stone-400: #a8a29e;
+  --stone-500: #78716c;
+  --stone-600: #57534e;
+  --stone-700: #44403c;
+  --stone-800: #292524;
+  --stone-900: #1c1917;
+  --rose-800: #9f1239;
+  --rose-900: #881337;
+}
