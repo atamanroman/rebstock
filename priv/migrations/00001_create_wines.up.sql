@@ -8,7 +8,7 @@ CREATE TABLE wineries (
   name TEXT NOT NULL,
   country TEXT,
   vivino_id TEXT,
-  UNIQUE(created_by, name)
+  UNIQUE(name)
 );
 
 CREATE TABLE wines (

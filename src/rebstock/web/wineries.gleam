@@ -1,9 +1,10 @@
 import gleam/int
 import gleam/list
+import gleam/option.{None, Some}
 import nakai/attr
 import nakai/html.{type Node}
 import sqlight.{type Connection}
-import wisp.{type Response}
+import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
 import rebstock/db.{type Winery}
@@ -11,11 +12,22 @@ import rebstock/web/components as c
 import rebstock/web/wines
 
 pub fn wineries(conn: Connection, user: User) -> Response {
-  let winery_list = db.list_wineries(conn, user.username)
+  let winery_list = db.list_wineries(conn)
   let count = int.to_string(list.length(winery_list))
 
   c.page("Wineries \u{2014} Rebstock", user, conn, [
-    c.page_header("Wineries", count <> " total"),
+    html.div([attr.class("flex items-end justify-between mb-6")], [
+      c.page_header("Wineries", count <> " total"),
+      html.a(
+        [
+          attr.href("/wineries/new"),
+          attr.class(
+            "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+          ),
+        ],
+        [html.Text("Add Winery")],
+      ),
+    ]),
     c.table(
       ["Winery", "Country", "Wines"],
       list.index_map(winery_list, winery_row),
@@ -24,18 +36,183 @@ pub fn wineries(conn: Connection, user: User) -> Response {
 }
 
 pub fn winery_detail(conn: Connection, id: String, user: User) -> Response {
-  case db.get_winery(conn, user.username, id) {
+  case db.get_winery(conn, id) {
     Error(_) -> c.not_found(user, conn)
     Ok(winery) -> {
       let winery_wines = db.wines_by_winery(conn, user.username, id)
       let display = c.display_winery(winery.name)
       c.page(display <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wineries", "All wineries"),
-        c.page_header(display, int.to_string(winery.wine_count) <> " wines"),
+        html.div([attr.class("flex items-end justify-between mb-6")], [
+          c.page_header(display, int.to_string(winery.wine_count) <> " wines"),
+          html.div([attr.class("flex items-center gap-2")], [
+            html.a(
+              [
+                attr.href("/wines/new?winery=" <> winery.name),
+                attr.class(
+                  "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+                ),
+              ],
+              [html.Text("Add Wine")],
+            ),
+            html.a(
+              [
+                attr.href("/wineries/" <> winery.id <> "/edit"),
+                attr.class(
+                  "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                ),
+              ],
+              [html.Text("Edit")],
+            ),
+          ]),
+        ]),
         wines.wine_table(winery_wines),
       ])
     }
   }
+}
+
+pub fn new_winery_form(conn: Connection, user: User) -> Response {
+  c.page("Add Winery \u{2014} Rebstock", user, conn, [
+    c.back_link("/wineries", "Wineries"),
+    html.div([attr.class("max-w-lg")], [
+      html.h1([attr.class("text-3xl font-light text-stone-800 mb-6")], [
+        html.Text("Add Winery"),
+      ]),
+      winery_form(None, "/wineries", "Add Winery"),
+    ]),
+  ])
+}
+
+pub fn create_winery(req: Request, conn: Connection, user: User) -> Response {
+  use form <- wisp.require_form(req)
+  case list.key_find(form.values, "name") {
+    Error(_) | Ok("") -> wisp.redirect("/wineries/new")
+    Ok(name) -> {
+      let country = case list.key_find(form.values, "country") {
+        Ok(c) if c != "" -> Some(c)
+        _ -> None
+      }
+      let id = db.upsert_winery(conn, user.username, name, country, None)
+      wisp.redirect("/wineries/" <> id)
+    }
+  }
+}
+
+pub fn edit_winery_form(conn: Connection, id: String, user: User) -> Response {
+  case db.get_winery(conn, id) {
+    Error(_) -> c.not_found(user, conn)
+    Ok(winery) -> {
+      c.page("Edit " <> winery.name <> " \u{2014} Rebstock", user, conn, [
+        c.back_link("/wineries/" <> id, winery.name),
+        html.div([attr.class("max-w-lg")], [
+          html.h1([attr.class("text-3xl font-light text-stone-800 mb-6")], [
+            html.Text("Edit Winery"),
+          ]),
+          winery_form(Some(winery), "/wineries/" <> id <> "/edit", "Update"),
+        ]),
+      ])
+    }
+  }
+}
+
+pub fn handle_edit_winery(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_winery(conn, id) {
+    Error(_) -> c.not_found(user, conn)
+    Ok(_) -> {
+      use form <- wisp.require_form(req)
+      case list.key_find(form.values, "name") {
+        Error(_) | Ok("") -> wisp.redirect("/wineries/" <> id <> "/edit")
+        Ok(name) -> {
+          let country = case list.key_find(form.values, "country") {
+            Ok(c) if c != "" -> Some(c)
+            _ -> None
+          }
+          db.update_winery(conn, id, name, country)
+          wisp.redirect("/wineries/" <> id)
+        }
+      }
+    }
+  }
+}
+
+fn winery_form(
+  existing: option.Option(Winery),
+  action: String,
+  submit_label: String,
+) -> Node {
+  let name_val = case existing {
+    Some(w) -> w.name
+    None -> ""
+  }
+  let country_val = case existing {
+    Some(w) -> w.country
+    None -> None
+  }
+  html.Element(
+    "form",
+    [
+      attr.method("post"),
+      attr.Attr("action", action),
+      attr.class("space-y-4"),
+    ],
+    [
+      form_field("Name", True, [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("name"),
+            attr.Attr("required", ""),
+            attr.Attr("autofocus", ""),
+            attr.value(name_val),
+            attr.class(input_class),
+          ],
+          [],
+        ),
+      ]),
+      form_field("Country", False, [
+        c.country_input("country", country_val, input_class),
+      ]),
+      html.div([attr.class("flex gap-3")], [
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text(submit_label)],
+        ),
+      ]),
+    ],
+  )
+}
+
+const input_class = "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
+
+fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
+  html.div([], [
+    html.Element(
+      "label",
+      [attr.class("block text-sm font-medium text-stone-700 mb-1")],
+      [
+        html.Text(label),
+        case required {
+          False -> html.Nothing
+          True ->
+            html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")])
+        },
+      ],
+    ),
+    ..children
+  ])
 }
 
 fn winery_row(winery: Winery, idx: Int) -> Node {

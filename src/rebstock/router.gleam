@@ -2,6 +2,7 @@ import gleam/http
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
+import gleam/erlang/application
 import rebstock/auth.{type AuthMode}
 import rebstock/db
 import rebstock/web/cellar
@@ -14,7 +15,6 @@ import rebstock/web/shared
 import rebstock/web/wineries
 import rebstock/web/wines
 import rebstock/web/wishlist
-import gleam/erlang/application
 
 pub fn handle_request(
   req: Request,
@@ -35,7 +35,17 @@ pub fn handle_request(
 
       case wisp.path_segments(req) {
         [] -> home.home(conn, user)
-        ["wines"] -> wines.wines(conn, user)
+        ["wines"] ->
+          case req.method {
+            http.Post -> wines.create_wine(req, conn, user)
+            _ -> wines.wines(conn, user)
+          }
+        ["wines", "new"] -> wines.new_wine_form(req, conn, user)
+        ["wines", id, _, "edit"] ->
+          case req.method {
+            http.Post -> wines.handle_edit_wine(req, conn, id, user)
+            _ -> wines.edit_wine_form(conn, id, user)
+          }
         ["wines", id, _, "ratings", "new"] ->
           ratings.handle_new(req, conn, id, user)
         ["wines", _id, _, "ratings", rid, "edit"] ->
@@ -54,7 +64,17 @@ pub fn handle_request(
           cellar.handle_delete(req, conn, eid, user)
         ["wines", id] | ["wines", id, _slug] ->
           wines.wine_detail(req, conn, id, user)
-        ["wineries"] -> wineries.wineries(conn, user)
+        ["wineries"] ->
+          case req.method {
+            http.Post -> wineries.create_winery(req, conn, user)
+            _ -> wineries.wineries(conn, user)
+          }
+        ["wineries", "new"] -> wineries.new_winery_form(conn, user)
+        ["wineries", id, "edit"] ->
+          case req.method {
+            http.Post -> wineries.handle_edit_winery(req, conn, id, user)
+            _ -> wineries.edit_winery_form(conn, id, user)
+          }
         ["wineries", id] | ["wineries", id, _slug] ->
           wineries.winery_detail(conn, id, user)
         ["~" <> username] -> home.profile(conn, user, username)

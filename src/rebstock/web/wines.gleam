@@ -17,7 +17,18 @@ pub fn wines(conn: Connection, user: User) -> Response {
   let count = int.to_string(list.length(wines))
 
   c.page("All Wines \u{2014} Rebstock", user, conn, [
-    c.page_header("All Wines", count <> " total"),
+    html.div([attr.class("flex items-end justify-between mb-6")], [
+      c.page_header("All Wines", count <> " total"),
+      html.a(
+        [
+          attr.href("/wines/new"),
+          attr.class(
+            "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+          ),
+        ],
+        [html.Text("Add Wine")],
+      ),
+    ]),
     wine_table(wines),
   ])
 }
@@ -64,7 +75,7 @@ pub fn wine_detail(
       c.page(wine.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wines", "All wines"),
         c.card([
-          wine_header(wine),
+          wine_header(wine, user),
           add_to_list_section(wine, user_lists, user.username),
           ..wine_body(
             wine,
@@ -84,7 +95,7 @@ pub fn wine_detail(
 
 // --- Header ---
 
-fn wine_header(wine: Wine) -> Node {
+fn wine_header(wine: Wine, user: User) -> Node {
   html.div([], [
     html.div([attr.class("flex gap-6")], [
       // Bottle image placeholder
@@ -108,7 +119,22 @@ fn wine_header(wine: Wine) -> Node {
           html.h1([attr.class("text-2xl font-light text-stone-800")], [
             html.Text(wine.name),
           ]),
-          c.wine_type_badge(wine.wine_type),
+          html.div([attr.class("flex items-center gap-2")], [
+            c.wine_type_badge(wine.wine_type),
+            case wine.created_by == user.username {
+              False -> html.Nothing
+              True ->
+                html.a(
+                  [
+                    attr.href(c.wine_url(wine) <> "/edit"),
+                    attr.class(
+                      "text-xs text-stone-400 hover:text-rose-800 transition-colors",
+                    ),
+                  ],
+                  [html.Text("Edit")],
+                )
+            },
+          ]),
         ]),
         html.p([attr.class("text-stone-500")], [
           c.link(c.winery_url(wine.winery_id, wine.winery_name), [
@@ -797,5 +823,340 @@ fn wine_row(wine: Wine, idx: Int) -> Node {
       html.Text(c.display_country(wine.country)),
     ]),
     html.td([attr.class("px-4 py-3")], [c.wine_type_badge(wine.wine_type)]),
+  ])
+}
+
+// --- Wine create/edit ---
+
+const input_class = "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
+
+const wine_types = [
+  db.Red,
+  db.White,
+  db.Rose,
+  db.Orange,
+  db.Sparkling,
+  db.Dessert,
+  db.Sake,
+  db.Other,
+]
+
+pub fn new_wine_form(req: Request, conn: Connection, user: User) -> Response {
+  let winery_prefill = case list.key_find(wisp.get_query(req), "winery") {
+    Ok(w) -> w
+    _ -> ""
+  }
+  let winery_names = db.all_winery_names(conn)
+  c.page("Add Wine \u{2014} Rebstock", user, conn, [
+    c.back_link("/wines", "All wines"),
+    html.div([attr.class("max-w-lg")], [
+      html.h1([attr.class("text-3xl font-light text-stone-800 mb-6")], [
+        html.Text("Add Wine"),
+      ]),
+      wine_form(None, winery_prefill, winery_names, "/wines", "Add Wine"),
+    ]),
+  ])
+}
+
+pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
+  use form <- wisp.require_form(req)
+  let name = form_val(form, "name")
+  let winery = form_val(form, "winery")
+  case name, winery {
+    "", _ | _, "" -> wisp.redirect("/wines/new")
+    _, _ -> {
+      let wine_type =
+        db.wine_type_from_string(string.uppercase(form_val(form, "wine_type")))
+      let id =
+        db.upsert_wine(
+          conn,
+          created_by: user.username,
+          winery: winery,
+          name: name,
+          vintage: opt_val(form, "vintage"),
+          region: opt_val(form, "region"),
+          country: country_val(form),
+          style: opt_val(form, "style"),
+          personal_note: opt_val(form, "personal_note"),
+          wine_type: wine_type,
+          vivino_id: None,
+        )
+      wisp.redirect("/wines/" <> id)
+    }
+  }
+}
+
+pub fn edit_wine_form(conn: Connection, id: String, user: User) -> Response {
+  case db.get_wine(conn, user.username, id) {
+    Error(_) -> c.not_found(user, conn)
+    Ok(wine) -> {
+      let winery_names = db.all_winery_names(conn)
+      c.page("Edit " <> wine.name <> " \u{2014} Rebstock", user, conn, [
+        c.back_link(c.wine_url(wine), wine.name),
+        html.div([attr.class("max-w-lg")], [
+          html.h1([attr.class("text-3xl font-light text-stone-800 mb-6")], [
+            html.Text("Edit Wine"),
+          ]),
+          wine_form(
+            Some(wine),
+            wine.winery_name,
+            winery_names,
+            c.wine_url(wine) <> "/edit",
+            "Update",
+          ),
+        ]),
+      ])
+    }
+  }
+}
+
+pub fn handle_edit_wine(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_wine(conn, user.username, id) {
+    Error(_) -> c.not_found(user, conn)
+    Ok(wine) -> {
+      case wine.created_by == user.username {
+        False -> wisp.response(403)
+        True -> {
+          use form <- wisp.require_form(req)
+          let name = form_val(form, "name")
+          let winery = form_val(form, "winery")
+          case name, winery {
+            "", _ | _, "" -> wisp.redirect(c.wine_url(wine) <> "/edit")
+            _, _ -> {
+              let wine_type =
+                db.wine_type_from_string(
+                  string.uppercase(form_val(form, "wine_type")),
+                )
+              db.update_wine(
+                conn,
+                id,
+                name,
+                winery,
+                user.username,
+                opt_val(form, "region"),
+                country_val(form),
+                opt_val(form, "style"),
+                opt_val(form, "personal_note"),
+                wine_type,
+              )
+              wisp.redirect("/wines/" <> id)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn form_val(form: wisp.FormData, key: String) -> String {
+  case list.key_find(form.values, key) {
+    Ok(v) -> string.trim(v)
+    _ -> ""
+  }
+}
+
+fn opt_val(form: wisp.FormData, key: String) -> Option(String) {
+  case form_val(form, key) {
+    "" -> None
+    v -> Some(v)
+  }
+}
+
+fn country_val(form: wisp.FormData) -> Option(String) {
+  case form_val(form, "country") {
+    "" -> None
+    v -> Some(v)
+  }
+}
+
+fn wine_form(
+  existing: Option(Wine),
+  winery_prefill: String,
+  winery_names: List(String),
+  action: String,
+  submit_label: String,
+) -> Node {
+  let v = fn(f: fn(Wine) -> String) -> String {
+    case existing {
+      Some(w) -> f(w)
+      None -> ""
+    }
+  }
+  let ov = fn(f: fn(Wine) -> Option(String)) -> String {
+    case existing {
+      Some(w) ->
+        case f(w) {
+          Some(s) -> s
+          None -> ""
+        }
+      None -> ""
+    }
+  }
+  let cur_type = case existing {
+    Some(w) -> db.wine_type_to_string(w.wine_type)
+    None -> "RED"
+  }
+
+  html.Element(
+    "form",
+    [
+      attr.method("post"),
+      attr.Attr("action", action),
+      attr.class("space-y-4"),
+    ],
+    [
+      form_field("Name", True, [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("name"),
+            attr.Attr("required", ""),
+            attr.Attr("autofocus", ""),
+            attr.value(v(fn(w) { w.name })),
+            attr.class(input_class),
+          ],
+          [],
+        ),
+      ]),
+      form_field("Winery", True, [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("winery"),
+            attr.Attr("required", ""),
+            attr.Attr("list", "winery-list"),
+            attr.value(winery_prefill),
+            attr.class(input_class),
+          ],
+          [],
+        ),
+        html.Element(
+          "datalist",
+          [attr.id("winery-list")],
+          list.map(winery_names, fn(name) {
+            html.Element("option", [attr.value(name)], [])
+          }),
+        ),
+      ]),
+      html.div([attr.class("grid grid-cols-2 gap-4")], [
+        form_field("Region", False, [
+          html.Element(
+            "input",
+            [
+              attr.type_("text"),
+              attr.name("region"),
+              attr.value(ov(fn(w) { w.region })),
+              attr.class(input_class),
+            ],
+            [],
+          ),
+        ]),
+        form_field("Country", False, [
+          c.country_input(
+            "country",
+            case existing {
+              Some(w) -> w.country
+              None -> None
+            },
+            input_class,
+          ),
+        ]),
+      ]),
+      html.div([attr.class("grid grid-cols-2 gap-4")], [
+        form_field("Style", False, [
+          html.Element(
+            "input",
+            [
+              attr.type_("text"),
+              attr.name("style"),
+              attr.value(ov(fn(w) { w.style })),
+              attr.class(input_class),
+            ],
+            [],
+          ),
+        ]),
+        form_field("Vintage", False, [
+          html.Element(
+            "input",
+            [
+              attr.type_("text"),
+              attr.name("vintage"),
+              attr.Attr("placeholder", "e.g. 2020"),
+              attr.class(input_class),
+            ],
+            [],
+          ),
+        ]),
+      ]),
+      form_field("Type", True, [
+        html.Element(
+          "select",
+          [attr.name("wine_type"), attr.class(input_class)],
+          list.map(wine_types, fn(wt) {
+            let val = db.wine_type_to_string(wt)
+            let label = db.wine_type_label(wt)
+            html.Element(
+              "option",
+              list.flatten([
+                [attr.value(val)],
+                case val == cur_type {
+                  True -> [attr.Attr("selected", "")]
+                  False -> []
+                },
+              ]),
+              [html.Text(label)],
+            )
+          }),
+        ),
+      ]),
+      form_field("Personal Note", False, [
+        html.Element(
+          "textarea",
+          [
+            attr.name("personal_note"),
+            attr.Attr("rows", "3"),
+            attr.class(input_class <> " resize-none"),
+          ],
+          [html.Text(ov(fn(w) { w.personal_note }))],
+        ),
+      ]),
+      html.div([attr.class("flex gap-3")], [
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text(submit_label)],
+        ),
+      ]),
+    ],
+  )
+}
+
+fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
+  html.div([], [
+    html.Element(
+      "label",
+      [attr.class("block text-sm font-medium text-stone-700 mb-1")],
+      [
+        html.Text(label),
+        case required {
+          False -> html.Nothing
+          True ->
+            html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")])
+        },
+      ],
+    ),
+    ..children
   ])
 }

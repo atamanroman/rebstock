@@ -672,7 +672,7 @@ pub fn get_wine(
   }
 }
 
-pub fn list_wineries(conn: Connection, created_by: String) -> List(Winery) {
+pub fn list_wineries(conn: Connection) -> List(Winery) {
   let decoder = {
     use id <- decode.field(0, decode.string)
     use name <- decode.field(1, decode.string)
@@ -685,20 +685,15 @@ pub fn list_wineries(conn: Connection, created_by: String) -> List(Winery) {
     sqlight.query(
       "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
        FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
-       WHERE wy.created_by = ?
        GROUP BY wy.id ORDER BY wy.name",
       on: conn,
-      with: [sqlight.text(created_by)],
+      with: [],
       expecting: decoder,
     )
   wineries
 }
 
-pub fn get_winery(
-  conn: Connection,
-  created_by: String,
-  id: String,
-) -> Result(Winery, Nil) {
+pub fn get_winery(conn: Connection, id: String) -> Result(Winery, Nil) {
   let decoder = {
     use id <- decode.field(0, decode.string)
     use name <- decode.field(1, decode.string)
@@ -711,10 +706,10 @@ pub fn get_winery(
     sqlight.query(
       "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
        FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
-       WHERE wy.created_by = ? AND wy.id = ?
+       WHERE wy.id = ?
        GROUP BY wy.id",
       on: conn,
-      with: [sqlight.text(created_by), sqlight.text(id)],
+      with: [sqlight.text(id)],
       expecting: decoder,
     )
   case result {
@@ -1233,7 +1228,71 @@ pub fn vintages_for_wine(conn: Connection, wine_id: String) -> List(String) {
   vintages
 }
 
-fn upsert_winery(
+pub fn all_winery_names(conn: Connection) -> List(String) {
+  let decoder = {
+    use name <- decode.field(0, decode.string)
+    decode.success(name)
+  }
+  let assert Ok(names) =
+    sqlight.query(
+      "SELECT name FROM wineries ORDER BY name",
+      on: conn,
+      with: [],
+      expecting: decoder,
+    )
+  names
+}
+
+pub fn update_winery(
+  conn: Connection,
+  id: String,
+  name: String,
+  country: Option(String),
+) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "UPDATE wineries SET name = ?, country = ? WHERE id = ?",
+      on: conn,
+      with: [sqlight.text(name), nullable_text(country), sqlight.text(id)],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn update_wine(
+  conn: Connection,
+  id: String,
+  name: String,
+  winery: String,
+  created_by: String,
+  region: Option(String),
+  country: Option(String),
+  style: Option(String),
+  personal_note: Option(String),
+  wine_type: WineType,
+) -> Nil {
+  let winery_id = upsert_winery(conn, created_by, winery, country, None)
+  let assert Ok(_) =
+    sqlight.query(
+      "UPDATE wines SET name = ?, winery_id = ?, region = ?, country = ?,
+       style = ?, personal_note = ?, wine_type = ? WHERE id = ?",
+      on: conn,
+      with: [
+        sqlight.text(name),
+        sqlight.text(winery_id),
+        nullable_text(region),
+        nullable_text(country),
+        nullable_text(style),
+        nullable_text(personal_note),
+        sqlight.text(wine_type_to_string(wine_type)),
+        sqlight.text(id),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
+pub fn upsert_winery(
   conn: Connection,
   created_by: String,
   name: String,
@@ -1244,12 +1303,12 @@ fn upsert_winery(
     use id <- decode.field(0, decode.string)
     decode.success(id)
   }
-  // Check if winery exists
+  // Check if winery exists (global, not per-user)
   let result =
     sqlight.query(
-      "SELECT id FROM wineries WHERE created_by = ? AND name = ?",
+      "SELECT id FROM wineries WHERE name = ?",
       on: conn,
-      with: [sqlight.text(created_by), sqlight.text(name)],
+      with: [sqlight.text(name)],
       expecting: id_decoder,
     )
   case result {
@@ -1572,6 +1631,6 @@ pub fn country_to_iso(name: String) -> Option(String) {
     "china" -> Some("CN")
     "czech republic" | "czechia" -> Some("CZ")
     "ukraine" -> Some("UA")
-    other -> Some(string.uppercase(other))
+    _ -> None
   }
 }
