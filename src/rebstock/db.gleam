@@ -56,6 +56,17 @@ pub fn wine_type_to_string(wt: WineType) -> String {
   }
 }
 
+pub const all_wine_types = [
+  Red,
+  White,
+  Rose,
+  Orange,
+  Sparkling,
+  Dessert,
+  Sake,
+  Other,
+]
+
 pub fn wine_type_from_string(s: String) -> WineType {
   case string.uppercase(s) {
     "RED" | "RED WINE" -> Red

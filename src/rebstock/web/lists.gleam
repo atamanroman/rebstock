@@ -1,5 +1,4 @@
 import gleam/http
-import gleam/http/request
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -12,26 +11,6 @@ import rebstock/auth.{type User}
 import rebstock/db.{type WineList}
 import rebstock/web/components as c
 import rebstock/web/shared
-
-fn base_url(req: Request) -> String {
-  let scheme = case request.get_header(req, "x-forwarded-proto") {
-    Ok(s) -> s
-    _ ->
-      case req.scheme {
-        http.Https -> "https"
-        http.Http -> "http"
-      }
-  }
-  let host = case request.get_header(req, "x-forwarded-host") {
-    Ok(h) -> h
-    _ ->
-      case request.get_header(req, "host") {
-        Ok(h) -> h
-        _ -> "localhost"
-      }
-  }
-  scheme <> "://" <> host
-}
 
 type ListViewWine {
   ListViewWine(
@@ -358,7 +337,7 @@ fn render_list_detail(
   let is_custom = wl.list_type == db.CustomList
   let count = int.to_string(list.length(wines))
   let share_path = "/shared/" <> wl.id <> "/" <> wl.slug
-  let full_share_url = base_url(req) <> share_path
+  let full_share_url = c.base_url(req) <> share_path
 
   c.page(wl.name <> " \u{2014} Rebstock", user, conn, [
     c.back_link("/~" <> username <> "/lists", "Lists"),
@@ -383,9 +362,9 @@ fn render_list_detail(
           html.div([attr.class("flex items-center gap-2")], [
             case is_custom {
               True -> html.Nothing
-              False -> bottles_toggle_form(wl, username)
+              False -> bottles_toggle_form(wl, username, None)
             },
-            share_control(wl, username, full_share_url),
+            share_control(wl, username, full_share_url, None),
             html.a(
               [
                 attr.href("/~" <> username <> "/lists/" <> wl.id <> "/print"),
@@ -433,10 +412,11 @@ pub fn print_view(
   }
 }
 
-fn share_control(
+pub fn share_control(
   wl: WineList,
   username: String,
   full_share_url: String,
+  redirect: Option(String),
 ) -> html.Node {
   let #(label, public_val) = case wl.public {
     True -> #("Unshare", "0")
@@ -470,6 +450,7 @@ fn share_control(
             ],
             [],
           ),
+          redirect_field(redirect),
           html.Element(
             "button",
             [
@@ -508,7 +489,11 @@ fn share_control(
   )
 }
 
-fn bottles_toggle_form(wl: WineList, username: String) -> html.Node {
+pub fn bottles_toggle_form(
+  wl: WineList,
+  username: String,
+  redirect: Option(String),
+) -> html.Node {
   let #(label, val) = case wl.show_bottles {
     True -> #("Hide stock", "0")
     False -> #("Show stock", "1")
@@ -528,6 +513,7 @@ fn bottles_toggle_form(wl: WineList, username: String) -> html.Node {
         [attr.type_("hidden"), attr.name("show_bottles"), attr.value(val)],
         [],
       ),
+      redirect_field(redirect),
       html.Element(
         "button",
         [
@@ -540,6 +526,25 @@ fn bottles_toggle_form(wl: WineList, username: String) -> html.Node {
       ),
     ],
   )
+}
+
+fn redirect_field(redirect: Option(String)) -> html.Node {
+  case redirect {
+    None -> html.Nothing
+    Some(url) ->
+      html.Element(
+        "input",
+        [attr.type_("hidden"), attr.name("redirect"), attr.value(url)],
+        [],
+      )
+  }
+}
+
+fn redirect_or_default(form: wisp.FormData, default: String) -> String {
+  case list.key_find(form.values, "redirect") {
+    Ok(r) if r != "" -> r
+    _ -> default
+  }
 }
 
 pub fn set_show_bottles(
@@ -564,7 +569,9 @@ pub fn set_show_bottles(
                 _ -> False
               }
               db.set_list_show_bottles(conn, id, show)
-              wisp.redirect("/~" <> username <> "/lists/" <> id)
+              let target =
+                redirect_or_default(form, "/~" <> username <> "/lists/" <> id)
+              wisp.redirect(target)
             }
           }
         }
@@ -646,7 +653,9 @@ pub fn set_public(
                 _ -> False
               }
               db.set_list_public(conn, id, public)
-              wisp.redirect("/~" <> username <> "/lists/" <> id)
+              let target =
+                redirect_or_default(form, "/~" <> username <> "/lists/" <> id)
+              wisp.redirect(target)
             }
           }
         }

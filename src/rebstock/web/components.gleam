@@ -1,4 +1,6 @@
 import gleam/float
+import gleam/http
+import gleam/http/request
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -7,10 +9,32 @@ import nakai
 import nakai/attr
 import nakai/html.{type Node}
 import sqlight
-import wisp.{type Response}
+import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
 import rebstock/db
+
+// --- URL helpers ---
+
+pub fn base_url(req: Request) -> String {
+  let scheme = case request.get_header(req, "x-forwarded-proto") {
+    Ok(s) -> s
+    _ ->
+      case req.scheme {
+        http.Https -> "https"
+        http.Http -> "http"
+      }
+  }
+  let host = case request.get_header(req, "x-forwarded-host") {
+    Ok(h) -> h
+    _ ->
+      case request.get_header(req, "host") {
+        Ok(h) -> h
+        _ -> "localhost"
+      }
+  }
+  scheme <> "://" <> host
+}
 
 // --- Links ---
 
@@ -334,6 +358,28 @@ fn iso_to_country(code: String) -> String {
     Ok(name) -> name
     _ -> upper
   }
+}
+
+// --- Form helpers ---
+
+pub const input_class = "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
+
+pub fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
+  html.div([], [
+    html.Element(
+      "label",
+      [attr.class("block text-sm font-medium text-stone-700 mb-1")],
+      [
+        html.Text(label),
+        case required {
+          False -> html.Nothing
+          True ->
+            html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")])
+        },
+      ],
+    ),
+    ..children
+  ])
 }
 
 pub fn country_input(

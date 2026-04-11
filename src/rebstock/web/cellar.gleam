@@ -12,11 +12,20 @@ import wisp.{type Request, type Response}
 import rebstock/auth.{type User}
 import rebstock/db.{type CellarEntry, type CellarWine, type Wine}
 import rebstock/web/components as c
+import rebstock/web/lists
 import rebstock/web/ratings
 
-pub fn cellar(conn: Connection, user: User, username: String) -> Response {
+pub fn cellar(
+  req: Request,
+  conn: Connection,
+  user: User,
+  username: String,
+) -> Response {
   let wines = db.cellar_wines(conn, username)
   let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
+  let cellar_list = db.get_list_by_slug(conn, username, "cellar")
+  let is_owner = user.username == username
+  let redirect = Some("/~" <> username <> "/cellar")
 
   c.page("Cellar \u{2014} Rebstock", user, conn, [
     html.div([attr.class("flex items-end justify-between mb-6")], [
@@ -29,69 +38,50 @@ pub fn cellar(conn: Connection, user: User, username: String) -> Response {
           html.Text(int.to_string(total_bottles) <> " bottles"),
         ]),
       ]),
-      html.div([attr.class("flex gap-2")], [
-        html.a(
-          [
-            attr.href("/~" <> username <> "/cellar/export.csv"),
-            attr.class(
-              "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+      case is_owner {
+        False -> html.Nothing
+        True ->
+          html.div([attr.class("flex items-center gap-2")], [
+            case cellar_list {
+              Error(_) -> html.Nothing
+              Ok(wl) -> {
+                let share_path = "/shared/" <> wl.id <> "/" <> wl.slug
+                let full_share_url = c.base_url(req) <> share_path
+                html.Fragment([
+                  lists.share_control(wl, username, full_share_url, redirect),
+                ])
+              }
+            },
+            html.a(
+              [
+                attr.href("/~" <> username <> "/cellar/export.csv"),
+                attr.class(
+                  "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                ),
+              ],
+              [html.Text("Export CSV")],
             ),
-          ],
-          [html.Text("Export CSV")],
-        ),
-        html.a(
-          [
-            attr.href("/~" <> username <> "/cellar/print"),
-            attr.class(
-              "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
-            ),
-          ],
-          [html.Text("Wine List")],
-        ),
-      ]),
+            case cellar_list {
+              Error(_) -> html.Nothing
+              Ok(wl) ->
+                html.a(
+                  [
+                    attr.href(
+                      "/~" <> username <> "/lists/" <> wl.id <> "/print",
+                    ),
+                    attr.Attr("target", "_blank"),
+                    attr.class(
+                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                    ),
+                  ],
+                  [html.Text("Print")],
+                )
+            },
+          ])
+      },
     ]),
     cellar_wine_table(wines),
   ])
-}
-
-pub fn cellar_print(conn: Connection, _user: User, username: String) -> Response {
-  let wines = db.cellar_wines_by_type(conn, username)
-  let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
-
-  let grouped =
-    list.chunk(wines, fn(cw) { cw.wine.wine_type })
-    |> list.flat_map(fn(group) {
-      case group {
-        [first, ..] -> [
-          html.h2([attr.class("cellar-type-heading")], [
-            html.Text(c.wine_type_label(first.wine.wine_type)),
-          ]),
-          cellar_wine_table(group),
-        ]
-        _ -> []
-      }
-    })
-
-  c.layout("Cellar Inventory \u{2014} Rebstock", [
-    html.div([attr.class("cellar-print-page")], [
-      html.div([attr.class("print-header")], [
-        html.div([attr.class("flex items-center gap-3")], [
-          html.span([attr.class("text-2xl")], [html.Text("\u{1f347}")]),
-          html.span([attr.class("text-xl font-light tracking-tight")], [
-            html.Text("Rebstock"),
-          ]),
-        ]),
-        html.h1([attr.class("text-2xl font-light mt-4 mb-1")], [
-          html.Text("Cellar Inventory"),
-        ]),
-        html.p([attr.class("text-sm text-stone-500")], [
-          html.Text(int.to_string(total_bottles) <> " bottles"),
-        ]),
-      ]),
-      ..grouped
-    ]),
-  ])
-  |> c.render
 }
 
 pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {

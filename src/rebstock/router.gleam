@@ -1,8 +1,8 @@
+import gleam/erlang/application
 import gleam/http
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
-import gleam/erlang/application
 import rebstock/auth.{type AuthMode}
 import rebstock/db
 import rebstock/web/cellar
@@ -78,9 +78,7 @@ pub fn handle_request(
         ["wineries", id] | ["wineries", id, _slug] ->
           wineries.winery_detail(conn, id, user)
         ["~" <> username] -> home.profile(conn, user, username)
-        ["~" <> username, "cellar"] -> cellar.cellar(conn, user, username)
-        ["~" <> username, "cellar", "print"] ->
-          cellar.cellar_print(conn, user, username)
+        ["~" <> username, "cellar"] -> cellar.cellar(req, conn, user, username)
         ["~" <> username, "cellar", "export.csv"] ->
           cellar.cellar_csv(conn, user, username)
         ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)

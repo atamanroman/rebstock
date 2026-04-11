@@ -162,7 +162,7 @@ fn winery_form(
       attr.class("space-y-4"),
     ],
     [
-      form_field("Name", True, [
+      c.form_field("Name", True, [
         html.Element(
           "input",
           [
@@ -171,13 +171,13 @@ fn winery_form(
             attr.Attr("required", ""),
             attr.Attr("autofocus", ""),
             attr.value(name_val),
-            attr.class(input_class),
+            attr.class(c.input_class),
           ],
           [],
         ),
       ]),
-      form_field("Country", False, [
-        c.country_input("country", country_val, input_class),
+      c.form_field("Country", False, [
+        c.country_input("country", country_val, c.input_class),
       ]),
       html.div([attr.class("flex gap-3")], [
         html.Element(
@@ -195,38 +195,27 @@ fn winery_form(
   )
 }
 
-const input_class = "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
-
-fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
-  html.div([], [
-    html.Element(
-      "label",
-      [attr.class("block text-sm font-medium text-stone-700 mb-1")],
-      [
-        html.Text(label),
-        case required {
-          False -> html.Nothing
-          True ->
-            html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")])
-        },
-      ],
-    ),
-    ..children
-  ])
-}
-
 fn winery_row(winery: Winery, idx: Int) -> Node {
-  html.tr([attr.class(c.row_class(idx))], [
-    html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
-      c.link(c.winery_url(winery.id, winery.name), [
-        html.Text(c.display_winery(winery.name)),
+  html.tr(
+    [
+      attr.class(c.clickable_row_class(idx)),
+      attr.Attr(
+        "onclick",
+        "window.location='" <> c.winery_url(winery.id, winery.name) <> "'",
+      ),
+    ],
+    [
+      html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [
+        c.link_stop(c.winery_url(winery.id, winery.name), [
+          html.Text(c.display_winery(winery.name)),
+        ]),
       ]),
-    ]),
-    html.td([attr.class("px-4 py-3 text-stone-600")], [
-      html.Text(c.display_country(winery.country)),
-    ]),
-    html.td([attr.class("px-4 py-3 tabular-nums text-stone-600")], [
-      html.Text(int.to_string(winery.wine_count)),
-    ]),
-  ])
+      html.td([attr.class("px-4 py-3 text-stone-600")], [
+        html.Text(c.display_country(winery.country)),
+      ]),
+      html.td([attr.class("px-4 py-3 tabular-nums text-stone-600")], [
+        html.Text(int.to_string(winery.wine_count)),
+      ]),
+    ],
+  )
 }
