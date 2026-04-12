@@ -25,7 +25,6 @@ pub fn cellar(
   let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
   let cellar_list = db.get_list_by_slug(conn, username, "cellar")
   let is_owner = user.username == username
-  let redirect = Some("/~" <> username <> "/cellar")
 
   c.page("Cellar \u{2014} Rebstock", user, conn, [
     html.div([attr.class("flex items-end justify-between mb-6")], [
@@ -48,7 +47,11 @@ pub fn cellar(
                 let share_path = "/shared/" <> wl.id <> "/" <> wl.slug
                 let full_share_url = c.base_url(req) <> share_path
                 html.Fragment([
-                  lists.share_control(wl, username, full_share_url, redirect),
+                  lists.share_control(
+                    wl,
+                    full_share_url,
+                    "/~" <> username <> "/cellar/public",
+                  ),
                 ])
               }
             },
@@ -82,6 +85,31 @@ pub fn cellar(
     ]),
     cellar_wine_table(wines),
   ])
+}
+
+pub fn cellar_set_public(
+  req: Request,
+  conn: Connection,
+  user: User,
+  username: String,
+) -> Response {
+  case user.username == username {
+    False -> wisp.response(403)
+    True -> {
+      case db.get_list_by_slug(conn, username, "cellar") {
+        Error(_) -> c.not_found(user, conn)
+        Ok(wl) -> {
+          use form <- wisp.require_form(req)
+          let public = case list.key_find(form.values, "public") {
+            Ok("1") -> True
+            _ -> False
+          }
+          db.set_list_public(conn, wl.id, public)
+          wisp.redirect("/~" <> username <> "/cellar")
+        }
+      }
+    }
+  }
 }
 
 pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {

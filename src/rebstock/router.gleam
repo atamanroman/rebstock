@@ -79,6 +79,8 @@ pub fn handle_request(
           wineries.winery_detail(conn, id, user)
         ["~" <> username] -> home.profile(conn, user, username)
         ["~" <> username, "cellar"] -> cellar.cellar(req, conn, user, username)
+        ["~" <> username, "cellar", "public"] ->
+          cellar.cellar_set_public(req, conn, user, username)
         ["~" <> username, "cellar", "export.csv"] ->
           cellar.cellar_csv(conn, user, username)
         ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)

@@ -362,9 +362,17 @@ fn render_list_detail(
           html.div([attr.class("flex items-center gap-2")], [
             case is_custom {
               True -> html.Nothing
-              False -> bottles_toggle_form(wl, username, None)
+              False ->
+                bottles_toggle_form(
+                  wl,
+                  "/~" <> username <> "/lists/" <> wl.id <> "/show-bottles",
+                )
             },
-            share_control(wl, username, full_share_url, None),
+            share_control(
+              wl,
+              full_share_url,
+              "/~" <> username <> "/lists/" <> wl.id <> "/public",
+            ),
             html.a(
               [
                 attr.href("/~" <> username <> "/lists/" <> wl.id <> "/print"),
@@ -414,9 +422,8 @@ pub fn print_view(
 
 pub fn share_control(
   wl: WineList,
-  username: String,
   full_share_url: String,
-  redirect: Option(String),
+  action: String,
 ) -> html.Node {
   let #(label, public_val) = case wl.public {
     True -> #("Unshare", "0")
@@ -434,10 +441,7 @@ pub fn share_control(
         "form",
         [
           attr.method("post"),
-          attr.Attr(
-            "action",
-            "/~" <> username <> "/lists/" <> wl.id <> "/public",
-          ),
+          attr.Attr("action", action),
           attr.class("flex"),
         ],
         [
@@ -450,7 +454,6 @@ pub fn share_control(
             ],
             [],
           ),
-          redirect_field(redirect),
           html.Element(
             "button",
             [
@@ -489,62 +492,28 @@ pub fn share_control(
   )
 }
 
-pub fn bottles_toggle_form(
-  wl: WineList,
-  username: String,
-  redirect: Option(String),
-) -> html.Node {
+pub fn bottles_toggle_form(wl: WineList, action: String) -> html.Node {
   let #(label, val) = case wl.show_bottles {
     True -> #("Hide stock", "0")
     False -> #("Show stock", "1")
   }
-  html.Element(
-    "form",
-    [
-      attr.method("post"),
-      attr.Attr(
-        "action",
-        "/~" <> username <> "/lists/" <> wl.id <> "/show-bottles",
-      ),
-    ],
-    [
-      html.Element(
-        "input",
-        [attr.type_("hidden"), attr.name("show_bottles"), attr.value(val)],
-        [],
-      ),
-      redirect_field(redirect),
-      html.Element(
-        "button",
-        [
-          attr.type_("submit"),
-          attr.class(
-            "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
-          ),
-        ],
-        [html.Text(label)],
-      ),
-    ],
-  )
-}
-
-fn redirect_field(redirect: Option(String)) -> html.Node {
-  case redirect {
-    None -> html.Nothing
-    Some(url) ->
-      html.Element(
-        "input",
-        [attr.type_("hidden"), attr.name("redirect"), attr.value(url)],
-        [],
-      )
-  }
-}
-
-fn redirect_or_default(form: wisp.FormData, default: String) -> String {
-  case list.key_find(form.values, "redirect") {
-    Ok(r) if r != "" -> r
-    _ -> default
-  }
+  html.Element("form", [attr.method("post"), attr.Attr("action", action)], [
+    html.Element(
+      "input",
+      [attr.type_("hidden"), attr.name("show_bottles"), attr.value(val)],
+      [],
+    ),
+    html.Element(
+      "button",
+      [
+        attr.type_("submit"),
+        attr.class(
+          "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+        ),
+      ],
+      [html.Text(label)],
+    ),
+  ])
 }
 
 pub fn set_show_bottles(
@@ -569,9 +538,7 @@ pub fn set_show_bottles(
                 _ -> False
               }
               db.set_list_show_bottles(conn, id, show)
-              let target =
-                redirect_or_default(form, "/~" <> username <> "/lists/" <> id)
-              wisp.redirect(target)
+              wisp.redirect("/~" <> username <> "/lists/" <> id)
             }
           }
         }
@@ -653,9 +620,7 @@ pub fn set_public(
                 _ -> False
               }
               db.set_list_public(conn, id, public)
-              let target =
-                redirect_or_default(form, "/~" <> username <> "/lists/" <> id)
-              wisp.redirect(target)
+              wisp.redirect("/~" <> username <> "/lists/" <> id)
             }
           }
         }
