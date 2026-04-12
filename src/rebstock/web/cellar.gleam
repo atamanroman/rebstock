@@ -40,33 +40,36 @@ pub fn cellar(
       case is_owner {
         False -> html.Nothing
         True ->
-          html.div([attr.class("flex items-center gap-2")], [
-            case cellar_list {
-              Error(_) -> html.Nothing
-              Ok(wl) -> {
-                let share_path = "/shared/" <> wl.id <> "/" <> wl.slug
-                let full_share_url = c.base_url(req) <> share_path
-                html.Fragment([
-                  lists.share_control(
-                    wl,
-                    full_share_url,
-                    "/~" <> username <> "/cellar/public",
+          html.div([attr.class("flex items-center gap-2")], case cellar_list {
+            Error(_) -> [
+              html.a(
+                [
+                  attr.href("/~" <> username <> "/cellar/export.csv"),
+                  attr.class(
+                    "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                   ),
-                ])
-              }
-            },
-            html.a(
+                ],
+                [html.Text("Export CSV")],
+              ),
+            ]
+            Ok(wl) -> {
+              let share_path = "/shared/" <> wl.id <> "/" <> wl.slug
+              let full_share_url = c.base_url(req) <> share_path
               [
-                attr.href("/~" <> username <> "/cellar/export.csv"),
-                attr.class(
-                  "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                lists.share_control(
+                  wl,
+                  full_share_url,
+                  "/~" <> username <> "/cellar/public",
                 ),
-              ],
-              [html.Text("Export CSV")],
-            ),
-            case cellar_list {
-              Error(_) -> html.Nothing
-              Ok(wl) ->
+                html.a(
+                  [
+                    attr.href("/~" <> username <> "/cellar/export.csv"),
+                    attr.class(
+                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                    ),
+                  ],
+                  [html.Text("Export CSV")],
+                ),
                 html.a(
                   [
                     attr.href(
@@ -78,9 +81,10 @@ pub fn cellar(
                     ),
                   ],
                   [html.Text("Print")],
-                )
-            },
-          ])
+                ),
+              ]
+            }
+          })
       },
     ]),
     cellar_wine_table(wines),
