@@ -17,6 +17,10 @@ css:
 test:
     gleam test
 
+# Run tests with code coverage report
+cover:
+    gleam build && erl -pa build/dev/erlang/*/ebin -noshell -eval "coverage_ffi:run_with_coverage()"
+
 # Build everything
 build: css
     gleam build
