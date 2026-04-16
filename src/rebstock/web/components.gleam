@@ -645,6 +645,11 @@ pub fn layout(title: String, content: List(Node)) -> Node {
         ),
       ]),
       html.Element("script", [attr.src("/static/js/htmx.min.js")], []),
+      html.Element("script", [], [
+        html.Text(
+          "document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})})",
+        ),
+      ]),
     ]),
     html.Body(
       [
@@ -668,6 +673,12 @@ pub fn layout(title: String, content: List(Node)) -> Node {
 pub fn render(node: Node) -> Response {
   node
   |> nakai.to_string
+  |> wisp.html_response(200)
+}
+
+pub fn render_fragment(node: Node) -> Response {
+  node
+  |> nakai.to_inline_string
   |> wisp.html_response(200)
 }
 

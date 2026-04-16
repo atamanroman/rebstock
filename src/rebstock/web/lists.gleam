@@ -11,6 +11,7 @@ import rebstock/auth.{type User}
 import rebstock/db.{type WineList}
 import rebstock/web/components as c
 import rebstock/web/shared
+import rebstock/web/wines
 
 type ListViewWine {
   ListViewWine(
@@ -692,6 +693,63 @@ pub fn remove_wine(
             db.WishlistList | db.CustomList -> {
               db.remove_wine_from_list(conn, list_id, wine_id)
               wisp.redirect("/~" <> username <> "/lists/" <> list_id)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- Toggle wine in list (htmx) ---
+
+pub fn toggle_wine(
+  req: Request,
+  conn: Connection,
+  user: User,
+  username: String,
+  list_id: String,
+) -> Response {
+  case user.username == username {
+    False -> wisp.response(403)
+    True -> {
+      case db.get_list(conn, list_id) {
+        Error(_) -> wisp.response(404)
+        Ok(wl) -> {
+          case wl.list_type {
+            db.CellarList | db.RatedList -> wisp.response(403)
+            db.WishlistList | db.CustomList -> {
+              use form <- wisp.require_form(req)
+              case list.key_find(form.values, "wine_id") {
+                Error(_) -> wisp.response(400)
+                Ok(wine_id) -> {
+                  let vintage = case list.key_find(form.values, "vintage") {
+                    Ok(v) if v != "" -> Some(v)
+                    _ -> None
+                  }
+                  let was_in = db.is_wine_in_list(conn, list_id, wine_id)
+                  case was_in {
+                    True -> db.remove_wine_from_list(conn, list_id, wine_id)
+                    False ->
+                      db.add_wine_to_list(conn, list_id, wine_id, vintage, None)
+                  }
+                  let now_in = !was_in
+                  case db.get_wine(conn, username, wine_id) {
+                    Error(_) -> wisp.response(404)
+                    Ok(wine) -> {
+                      let node =
+                        wines.list_checkbox_row(
+                          wine,
+                          wl,
+                          now_in,
+                          vintage,
+                          username,
+                        )
+                      c.render_fragment(node)
+                    }
+                  }
+                }
+              }
             }
           }
         }

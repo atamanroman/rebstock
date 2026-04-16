@@ -55,7 +55,6 @@ pub fn wine_detail(
         |> list.filter(fn(l) {
           l.list_type == db.WishlistList || l.list_type == db.CustomList
         })
-
       let my =
         list.filter(all_ratings, fn(r) {
           r.source == "user" && r.username == user.username
@@ -72,11 +71,13 @@ pub fn wine_detail(
         False -> vintages
       }
 
+      let in_list_ids =
+        db.list_ids_containing_wine(conn, user.username, wine.id)
+
       c.page(wine.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wines", "All wines"),
         c.card([
-          wine_header(wine, user),
-          add_to_list_section(wine, user_lists, user.username),
+          wine_header(wine, user, user_lists, in_list_ids, selected),
           ..wine_body(
             wine,
             vintage_opts,
@@ -95,7 +96,13 @@ pub fn wine_detail(
 
 // --- Header ---
 
-fn wine_header(wine: Wine, user: User) -> Node {
+fn wine_header(
+  wine: Wine,
+  user: User,
+  user_lists: List(WineList),
+  in_list_ids: List(String),
+  selected_vintage: Option(String),
+) -> Node {
   html.div([], [
     html.div([attr.class("flex gap-6")], [
       // Bottle image placeholder
@@ -116,11 +123,45 @@ fn wine_header(wine: Wine, user: User) -> Node {
       // Wine details
       html.div([attr.class("flex-1 min-w-0")], [
         html.div([attr.class("flex items-start justify-between mb-2")], [
-          html.h1([attr.class("text-2xl font-light text-stone-800")], [
-            html.Text(wine.name),
+          html.div([attr.class("flex items-center gap-2")], [
+            html.h1([attr.class("text-2xl font-light text-stone-800")], [
+              html.Text(wine.name),
+            ]),
+            c.wine_type_badge(wine.wine_type),
           ]),
           html.div([attr.class("flex items-center gap-2")], [
-            c.wine_type_badge(wine.wine_type),
+            case user_lists {
+              [] -> html.Nothing
+              _ ->
+                html.Element("details", [attr.class("relative")], [
+                  html.Element(
+                    "summary",
+                    [
+                      attr.class(
+                        "cursor-pointer text-xs text-stone-400 hover:text-rose-800 transition-colors list-none",
+                      ),
+                    ],
+                    [html.Text("Add to List")],
+                  ),
+                  html.div(
+                    [
+                      attr.class(
+                        "absolute right-0 top-6 bg-white border border-stone-200 rounded-lg shadow-lg py-2 px-3 min-w-[180px] z-20",
+                      ),
+                    ],
+                    list.map(user_lists, fn(l) {
+                      let checked = list.contains(in_list_ids, l.id)
+                      list_checkbox_row(
+                        wine,
+                        l,
+                        checked,
+                        selected_vintage,
+                        user.username,
+                      )
+                    }),
+                  ),
+                ])
+            },
             case wine.created_by == user.username {
               False -> html.Nothing
               True ->
@@ -151,65 +192,55 @@ fn wine_header(wine: Wine, user: User) -> Node {
   ])
 }
 
-fn add_to_list_section(
+pub fn list_checkbox_row(
   wine: Wine,
-  lists: List(WineList),
+  l: WineList,
+  checked: Bool,
+  vintage: Option(String),
   username: String,
 ) -> Node {
-  case lists {
-    [] -> html.Nothing
-    _ ->
-      html.Element("details", [attr.class("relative mt-4")], [
-        html.Element(
-          "summary",
-          [
-            attr.class(
-              "cursor-pointer text-sm text-stone-500 hover:text-rose-800 transition-colors list-none",
-            ),
-          ],
-          [html.Text("Add to list...")],
-        ),
-        html.div(
-          [
-            attr.class(
-              "absolute left-0 top-8 bg-white border border-stone-200 rounded-lg shadow-lg py-1 min-w-[180px] z-20",
-            ),
-          ],
-          list.map(lists, fn(l) {
-            html.form(
-              [
-                attr.Attr("method", "POST"),
-                attr.Attr(
-                  "action",
-                  "/~" <> username <> "/lists/" <> l.id <> "/wines",
-                ),
-              ],
-              [
-                html.Element(
-                  "input",
-                  [
-                    attr.type_("hidden"),
-                    attr.name("wine_id"),
-                    attr.value(wine.id),
-                  ],
-                  [],
-                ),
-                html.Element(
-                  "button",
-                  [
-                    attr.type_("submit"),
-                    attr.class(
-                      "block w-full text-left px-4 py-2 text-sm text-stone-600 hover:bg-amber-50 hover:text-stone-800 transition-colors",
-                    ),
-                  ],
-                  [html.Text(l.name)],
-                ),
-              ],
-            )
-          }),
-        ),
-      ])
-  }
+  let vintage_val = option.unwrap(vintage, "")
+  let row_id = "list-row-" <> l.id
+  html.div(
+    [attr.id(row_id), attr.class("flex items-center justify-between gap-2")],
+    [
+      html.a(
+        [
+          attr.href("/~" <> username <> "/lists/" <> l.id),
+          attr.class(
+            "text-sm text-stone-600 hover:text-rose-800 transition-colors",
+          ),
+        ],
+        [html.Text(l.name)],
+      ),
+      html.Element(
+        "input",
+        [
+          attr.type_("checkbox"),
+          attr.class("accent-rose-800 cursor-pointer"),
+          attr.Attr(
+            "hx-post",
+            "/~" <> username <> "/lists/" <> l.id <> "/wines/toggle",
+          ),
+          attr.Attr(
+            "hx-vals",
+            "{\"wine_id\":\""
+              <> wine.id
+              <> "\",\"vintage\":\""
+              <> vintage_val
+              <> "\"}",
+          ),
+          attr.Attr("hx-target", "#" <> row_id),
+          attr.Attr("hx-swap", "outerHTML"),
+          ..case checked {
+            True -> [attr.Attr("checked", "")]
+            False -> []
+          }
+        ],
+        [],
+      ),
+    ],
+  )
 }
 
 fn vintage_pills(

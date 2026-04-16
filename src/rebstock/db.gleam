@@ -607,6 +607,27 @@ pub fn count_list_wines(conn: Connection, list_id: String) -> Int {
   count
 }
 
+pub fn list_ids_containing_wine(
+  conn: Connection,
+  username: String,
+  wine_id: String,
+) -> List(String) {
+  let id_decoder = {
+    use id <- decode.field(0, decode.string)
+    decode.success(id)
+  }
+  let assert Ok(ids) =
+    sqlight.query(
+      "SELECT lw.list_id FROM lists_wines lw
+       JOIN lists l ON l.id = lw.list_id
+       WHERE lw.wine_id = ? AND l.username = ?",
+      on: conn,
+      with: [sqlight.text(wine_id), sqlight.text(username)],
+      expecting: id_decoder,
+    )
+  ids
+}
+
 pub fn is_wine_in_list(
   conn: Connection,
   list_id: String,

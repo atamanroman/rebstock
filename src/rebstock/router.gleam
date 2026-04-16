@@ -101,6 +101,8 @@ pub fn handle_request(
           lists.set_public(req, conn, user, username, id)
         ["~" <> username, "lists", id, "show-bottles"] ->
           lists.set_show_bottles(req, conn, user, username, id)
+        ["~" <> username, "lists", id, "wines", "toggle"] ->
+          lists.toggle_wine(req, conn, user, username, id)
         ["~" <> username, "lists", id, "wines"] ->
           lists.add_wine(req, conn, user, username, id)
         ["~" <> username, "lists", id, "wines", wine_id] ->
