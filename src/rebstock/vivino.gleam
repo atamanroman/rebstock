@@ -554,87 +554,237 @@ fn extract_vivino_id(url: String) -> Option(String) {
   }
 }
 
+// --- CSV row parsing ---
+
+type ParsedRow {
+  ParsedRow(
+    winery: String,
+    name: String,
+    vintage: Option(String),
+    region: Option(String),
+    country: Option(String),
+    style: Option(String),
+    personal_note: Option(String),
+    wine_type: db.WineType,
+    vivino_id: Option(String),
+    avg_rating: Option(Float),
+    user_rating: Option(Float),
+    tasting_notes: Option(String),
+    cellar_count: Int,
+  )
+}
+
+fn parse_cellar_row(row: List(String)) -> Result(ParsedRow, Nil) {
+  case row {
+    [
+      winery,
+      name,
+      vintage_str,
+      region,
+      country,
+      style,
+      avg_rating,
+      _rating_count,
+      wine_type,
+      vivino_link,
+      cellar_count,
+    ] ->
+      case is_blank(name) {
+        True -> Error(Nil)
+        False ->
+          Ok(ParsedRow(
+            winery:,
+            name:,
+            vintage: db.parse_vintage(vintage_str),
+            region: db.optional_non_empty(region),
+            country: db.country_to_iso(country),
+            style: db.optional_non_empty(style),
+            personal_note: None,
+            wine_type: db.wine_type_from_string(wine_type),
+            vivino_id: extract_vivino_id(vivino_link),
+            avg_rating: db.parse_optional_float(avg_rating),
+            user_rating: None,
+            tasting_notes: None,
+            cellar_count: db.parse_int_or_zero(cellar_count),
+          ))
+      }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_wine_list_row(row: List(String)) -> Result(ParsedRow, Nil) {
+  case row {
+    [
+      winery,
+      name,
+      vintage_str,
+      region,
+      country,
+      style,
+      avg_rating,
+      _scan_date,
+      _scan_location,
+      user_rating,
+      user_review,
+      personal_note,
+      wine_type,
+      _drinking_window,
+      vivino_link,
+      ..
+    ] ->
+      case is_blank(name) {
+        True -> Error(Nil)
+        False ->
+          Ok(ParsedRow(
+            winery:,
+            name:,
+            vintage: db.parse_vintage(vintage_str),
+            region: db.optional_non_empty(region),
+            country: db.country_to_iso(country),
+            style: db.optional_non_empty(style),
+            personal_note: db.optional_non_empty(personal_note),
+            wine_type: db.wine_type_from_string(wine_type),
+            vivino_id: extract_vivino_id(vivino_link),
+            avg_rating: db.parse_optional_float(avg_rating),
+            user_rating: db.parse_optional_float(user_rating),
+            tasting_notes: db.optional_non_empty(user_review),
+            cellar_count: 0,
+          ))
+      }
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_wishlist_row(row: List(String)) -> Result(ParsedRow, Nil) {
+  case row {
+    [
+      winery,
+      name,
+      vintage_str,
+      region,
+      country,
+      style,
+      avg_rating,
+      _scan_date,
+      _scan_location,
+      user_rating,
+      user_review,
+      personal_note,
+      wine_type,
+      _wishlisted_date,
+      _drinking_window,
+      vivino_link,
+      ..
+    ] ->
+      case is_blank(name) {
+        True -> Error(Nil)
+        False ->
+          Ok(ParsedRow(
+            winery:,
+            name:,
+            vintage: db.parse_vintage(vintage_str),
+            region: db.optional_non_empty(region),
+            country: db.country_to_iso(country),
+            style: db.optional_non_empty(style),
+            personal_note: db.optional_non_empty(personal_note),
+            wine_type: db.wine_type_from_string(wine_type),
+            vivino_id: extract_vivino_id(vivino_link),
+            avg_rating: db.parse_optional_float(avg_rating),
+            user_rating: db.parse_optional_float(user_rating),
+            tasting_notes: db.optional_non_empty(user_review),
+            cellar_count: 0,
+          ))
+      }
+    _ -> Error(Nil)
+  }
+}
+
+fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
+  let wine_id =
+    db.upsert_wine(
+      conn,
+      created_by:,
+      winery: row.winery,
+      name: row.name,
+      vintage: row.vintage,
+      region: row.region,
+      country: row.country,
+      style: row.style,
+      personal_note: row.personal_note,
+      wine_type: row.wine_type,
+      vivino_id: row.vivino_id,
+    )
+  case row.avg_rating {
+    Some(r) ->
+      db.upsert_vivino_rating(
+        conn,
+        username: created_by,
+        wine_id:,
+        vintage: row.vintage,
+        rating: r,
+      )
+    None -> Nil
+  }
+  case row.user_rating, row.tasting_notes {
+    None, None -> Nil
+    _, _ ->
+      db.insert_rating(
+        conn,
+        username: created_by,
+        wine_id:,
+        vintage: row.vintage,
+        rating: row.user_rating,
+        tasting_notes: row.tasting_notes,
+        rated_at: None,
+        source: "user",
+      )
+  }
+  wine_id
+}
+
+fn parse_csv(content: String) -> List(List(String)) {
+  let assert Ok(rows) = gsv.to_lists(content, ",")
+  case rows {
+    [_header, ..data] -> data
+    _ -> []
+  }
+}
+
+// --- CSV importers ---
+
 pub fn import_cellar(
   conn: Connection,
   content: String,
   created_by: String,
 ) -> ImportResult {
-  let assert Ok(rows) = gsv.to_lists(content, ",")
-  case rows {
-    [_header, ..data] ->
-      list.fold(data, empty_result(), fn(acc, row) {
-        case row {
-          [
-            winery,
-            name,
-            vintage_str,
-            region,
-            country,
-            style,
-            avg_rating,
-            _rating_count,
-            wine_type,
-            vivino_link,
-            cellar_count,
-          ] ->
-            case is_blank(name) {
-              True -> acc
-              False -> {
-                let vintage = db.parse_vintage(vintage_str)
-                let wine_id =
-                  db.upsert_wine(
-                    conn,
-                    created_by:,
-                    winery:,
-                    name:,
-                    vintage:,
-                    region: db.optional_non_empty(region),
-                    country: db.country_to_iso(country),
-                    style: db.optional_non_empty(style),
-                    personal_note: None,
-                    wine_type: db.wine_type_from_string(wine_type),
-                    vivino_id: extract_vivino_id(vivino_link),
-                  )
-                let acc =
-                  ImportResult(..acc, wines_created: acc.wines_created + 1)
-                case db.parse_optional_float(avg_rating) {
-                  Some(r) ->
-                    db.upsert_vivino_rating(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      rating: r,
-                    )
-                  None -> Nil
-                }
-                let bottles = db.parse_int_or_zero(cellar_count)
-                case bottles > 0 {
-                  True -> {
-                    case vintage {
-                      Some(v) -> db.upsert_vintage(conn, wine_id, v)
-                      None -> Nil
-                    }
-                    db.insert_cellar_entry(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      quantity: bottles,
-                      notes: None,
-                      date: None,
-                    )
-                    ImportResult(..acc, cellar_created: acc.cellar_created + 1)
-                  }
-                  False -> acc
-                }
-              }
+  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+    case parse_cellar_row(row) {
+      Error(_) -> acc
+      Ok(parsed) -> {
+        let wine_id = persist_row(conn, created_by, parsed)
+        let acc = ImportResult(..acc, wines_created: acc.wines_created + 1)
+        case parsed.cellar_count > 0 {
+          True -> {
+            case parsed.vintage {
+              Some(v) -> db.upsert_vintage(conn, wine_id, v)
+              None -> Nil
             }
-          _ -> acc
+            db.insert_cellar_entry(
+              conn,
+              username: created_by,
+              wine_id:,
+              vintage: parsed.vintage,
+              quantity: parsed.cellar_count,
+              notes: None,
+              date: None,
+            )
+            ImportResult(..acc, cellar_created: acc.cellar_created + 1)
+          }
+          False -> acc
         }
-      })
-    _ -> empty_result()
-  }
+      }
+    }
+  })
 }
 
 pub fn import_full_wine_list(
@@ -642,84 +792,15 @@ pub fn import_full_wine_list(
   content: String,
   created_by: String,
 ) -> ImportResult {
-  let assert Ok(rows) = gsv.to_lists(content, ",")
-  case rows {
-    [_header, ..data] ->
-      list.fold(data, empty_result(), fn(acc, row) {
-        case row {
-          [
-            winery,
-            name,
-            vintage_str,
-            region,
-            country,
-            style,
-            avg_rating,
-            _scan_date,
-            _scan_location,
-            user_rating,
-            user_review,
-            personal_note,
-            wine_type,
-            _drinking_window,
-            vivino_link,
-            ..
-          ] ->
-            case is_blank(name) {
-              True -> acc
-              False -> {
-                let vintage = db.parse_vintage(vintage_str)
-                let wine_id =
-                  db.upsert_wine(
-                    conn,
-                    created_by:,
-                    winery:,
-                    name:,
-                    vintage:,
-                    region: db.optional_non_empty(region),
-                    country: db.country_to_iso(country),
-                    style: db.optional_non_empty(style),
-                    personal_note: db.optional_non_empty(personal_note),
-                    wine_type: db.wine_type_from_string(wine_type),
-                    vivino_id: extract_vivino_id(vivino_link),
-                  )
-                let acc =
-                  ImportResult(..acc, wines_created: acc.wines_created + 1)
-                case db.parse_optional_float(avg_rating) {
-                  Some(r) ->
-                    db.upsert_vivino_rating(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      rating: r,
-                    )
-                  None -> Nil
-                }
-                let rating = db.parse_optional_float(user_rating)
-                let tasting_notes = db.optional_non_empty(user_review)
-                case rating, tasting_notes {
-                  None, None -> Nil
-                  _, _ ->
-                    db.insert_rating(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      rating:,
-                      tasting_notes:,
-                      rated_at: None,
-                      source: "user",
-                    )
-                }
-                acc
-              }
-            }
-          _ -> acc
-        }
-      })
-    _ -> empty_result()
-  }
+  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+    case parse_wine_list_row(row) {
+      Error(_) -> acc
+      Ok(parsed) -> {
+        persist_row(conn, created_by, parsed)
+        ImportResult(..acc, wines_created: acc.wines_created + 1)
+      }
+    }
+  })
 }
 
 pub fn import_wishlisted(
@@ -727,92 +808,21 @@ pub fn import_wishlisted(
   content: String,
   created_by: String,
 ) -> ImportResult {
-  let assert Ok(rows) = gsv.to_lists(content, ",")
-  case rows {
-    [_header, ..data] ->
-      list.fold(data, empty_result(), fn(acc, row) {
-        case row {
-          [
-            winery,
-            name,
-            vintage_str,
-            region,
-            country,
-            style,
-            avg_rating,
-            _scan_date,
-            _scan_location,
-            user_rating,
-            user_review,
-            personal_note,
-            wine_type,
-            _wishlisted_date,
-            _drinking_window,
-            vivino_link,
-            ..
-          ] ->
-            case is_blank(name) {
-              True -> acc
-              False -> {
-                let vintage = db.parse_vintage(vintage_str)
-                let wine_id =
-                  db.upsert_wine(
-                    conn,
-                    created_by:,
-                    winery:,
-                    name:,
-                    vintage:,
-                    region: db.optional_non_empty(region),
-                    country: db.country_to_iso(country),
-                    style: db.optional_non_empty(style),
-                    personal_note: db.optional_non_empty(personal_note),
-                    wine_type: db.wine_type_from_string(wine_type),
-                    vivino_id: extract_vivino_id(vivino_link),
-                  )
-                let acc =
-                  ImportResult(..acc, wines_created: acc.wines_created + 1)
-                case db.parse_optional_float(avg_rating) {
-                  Some(r) ->
-                    db.upsert_vivino_rating(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      rating: r,
-                    )
-                  None -> Nil
-                }
-                let wishlist = db.get_user_wishlist(conn, created_by)
-                db.add_wine_to_list(conn, wishlist.id, wine_id, vintage, None)
-                let acc =
-                  ImportResult(
-                    ..acc,
-                    wishlist_created: acc.wishlist_created + 1,
-                  )
-                let rating = db.parse_optional_float(user_rating)
-                let tasting_notes = db.optional_non_empty(user_review)
-                case rating, tasting_notes {
-                  None, None -> Nil
-                  _, _ ->
-                    db.insert_rating(
-                      conn,
-                      username: created_by,
-                      wine_id:,
-                      vintage:,
-                      rating:,
-                      tasting_notes:,
-                      rated_at: None,
-                      source: "user",
-                    )
-                }
-                acc
-              }
-            }
-          _ -> acc
-        }
-      })
-    _ -> empty_result()
-  }
+  let wishlist = db.get_user_wishlist(conn, created_by)
+  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+    case parse_wishlist_row(row) {
+      Error(_) -> acc
+      Ok(parsed) -> {
+        let wine_id = persist_row(conn, created_by, parsed)
+        db.add_wine_to_list(conn, wishlist.id, wine_id, parsed.vintage, None)
+        ImportResult(
+          ..acc,
+          wines_created: acc.wines_created + 1,
+          wishlist_created: acc.wishlist_created + 1,
+        )
+      }
+    }
+  })
 }
 
 @external(erlang, "zip_ffi", "unzip_memory")
