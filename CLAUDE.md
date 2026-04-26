@@ -36,6 +36,7 @@ just format            # Format Gleam code
 - **Always** run `gleam build --warnings-as-errors` — no warnings allowed
 - Pre-commit hook (lefthook) runs `just lint` auto
 - Fix unused variables/imports immediately, never leave them
+- No conventional commits — use plain descriptive messages
 
 ## Architecture Notes
 

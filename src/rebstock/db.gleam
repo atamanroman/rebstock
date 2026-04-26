@@ -668,6 +668,55 @@ pub fn list_wines(conn: Connection, created_by: String) -> List(Wine) {
   wines
 }
 
+pub fn find_wine_by_vivino_id(
+  conn: Connection,
+  created_by: String,
+  vivino_id: String,
+) -> Result(Wine, Nil) {
+  let result =
+    sqlight.query(
+      "SELECT "
+        <> wine_cols
+        <> " "
+        <> wine_join
+        <> " WHERE w.created_by = ? AND w.vivino_id = ?",
+      on: conn,
+      with: [sqlight.text(created_by), sqlight.text(vivino_id)],
+      expecting: wine_decoder(),
+    )
+  case result {
+    Ok([wine]) -> Ok(wine)
+    _ -> Error(Nil)
+  }
+}
+
+pub fn find_wine_by_name(
+  conn: Connection,
+  created_by: String,
+  winery_name: String,
+  wine_name: String,
+) -> Result(Wine, Nil) {
+  let result =
+    sqlight.query(
+      "SELECT "
+        <> wine_cols
+        <> " "
+        <> wine_join
+        <> " WHERE w.created_by = ? AND wy.name = ? AND w.name = ?",
+      on: conn,
+      with: [
+        sqlight.text(created_by),
+        sqlight.text(winery_name),
+        sqlight.text(wine_name),
+      ],
+      expecting: wine_decoder(),
+    )
+  case result {
+    Ok([wine]) -> Ok(wine)
+    _ -> Error(Nil)
+  }
+}
+
 pub fn get_wine_by_id(conn: Connection, id: String) -> Result(Wine, Nil) {
   let result =
     sqlight.query(
@@ -1280,12 +1329,19 @@ pub fn update_winery(
   id: String,
   name: String,
   country: Option(String),
+  vivino_id: Option(String),
 ) -> Nil {
   let assert Ok(_) =
     sqlight.query(
-      "UPDATE wineries SET name = ?, country = ? WHERE id = ?",
+      "UPDATE wineries SET name = ?, country = ?,
+       vivino_id = COALESCE(?, vivino_id) WHERE id = ?",
       on: conn,
-      with: [sqlight.text(name), nullable_text(country), sqlight.text(id)],
+      with: [
+        sqlight.text(name),
+        nullable_text(country),
+        nullable_text(vivino_id),
+        sqlight.text(id),
+      ],
       expecting: decode.success(Nil),
     )
   Nil
@@ -1302,12 +1358,14 @@ pub fn update_wine(
   style: Option(String),
   personal_note: Option(String),
   wine_type: WineType,
+  vivino_id: Option(String),
 ) -> Nil {
   let winery_id = upsert_winery(conn, created_by, winery, country, None)
   let assert Ok(_) =
     sqlight.query(
       "UPDATE wines SET name = ?, winery_id = ?, region = ?, country = ?,
-       style = ?, personal_note = ?, wine_type = ? WHERE id = ?",
+       style = ?, personal_note = ?, wine_type = ?,
+       vivino_id = COALESCE(?, vivino_id) WHERE id = ?",
       on: conn,
       with: [
         sqlight.text(name),
@@ -1317,6 +1375,7 @@ pub fn update_wine(
         nullable_text(style),
         nullable_text(personal_note),
         sqlight.text(wine_type_to_string(wine_type)),
+        nullable_text(vivino_id),
         sqlight.text(id),
       ],
       expecting: decode.success(Nil),
@@ -1508,6 +1567,45 @@ pub fn insert_rating(
   Nil
 }
 
+pub fn upsert_vivino_rating(
+  conn: Connection,
+  username username: String,
+  wine_id wine_id: String,
+  vintage vintage: Option(String),
+  rating rating: Float,
+) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "DELETE FROM ratings
+       WHERE username = ? AND wine_id = ?
+         AND COALESCE(vintage, '') = COALESCE(?, '')
+         AND source = 'vivino'",
+      on: conn,
+      with: [
+        sqlight.text(username),
+        sqlight.text(wine_id),
+        nullable_text(vintage),
+      ],
+      expecting: decode.success(Nil),
+    )
+  let id = ulid.generate()
+  let assert Ok(_) =
+    sqlight.query(
+      "INSERT INTO ratings (id, username, wine_id, vintage, rating, source)
+       VALUES (?, ?, ?, ?, ?, 'vivino')",
+      on: conn,
+      with: [
+        sqlight.text(id),
+        sqlight.text(username),
+        sqlight.text(wine_id),
+        nullable_text(vintage),
+        sqlight.float(rating),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
 pub fn update_rating(
   conn: Connection,
   id id: String,
@@ -1630,39 +1728,39 @@ pub fn slugify(text: String) -> String {
 pub fn country_to_iso(name: String) -> Option(String) {
   case string.lowercase(string.trim(name)) {
     "" -> None
-    "france" -> Some("FR")
-    "italy" -> Some("IT")
-    "spain" -> Some("ES")
-    "germany" | "de" -> Some("DE")
-    "portugal" -> Some("PT")
-    "austria" | "at" -> Some("AT")
+    "france" | "fr" | "francia" -> Some("FR")
+    "italy" | "it" | "italia" -> Some("IT")
+    "spain" | "es" | "españa" -> Some("ES")
+    "germany" | "de" | "deutschland" -> Some("DE")
+    "portugal" | "pt" -> Some("PT")
+    "austria" | "at" | "österreich" -> Some("AT")
     "united states" | "usa" | "us" -> Some("US")
-    "argentina" -> Some("AR")
-    "chile" -> Some("CL")
-    "australia" -> Some("AU")
-    "new zealand" -> Some("NZ")
-    "south africa" -> Some("ZA")
-    "greece" -> Some("GR")
-    "hungary" -> Some("HU")
-    "georgia" -> Some("GE")
-    "lebanon" -> Some("LB")
-    "israel" -> Some("IL")
-    "croatia" -> Some("HR")
-    "slovenia" -> Some("SI")
-    "switzerland" -> Some("CH")
-    "romania" -> Some("RO")
-    "bulgaria" -> Some("BG")
-    "moldova" -> Some("MD")
-    "turkey" | "türkiye" -> Some("TR")
-    "uruguay" -> Some("UY")
-    "brazil" -> Some("BR")
-    "mexico" -> Some("MX")
-    "canada" -> Some("CA")
-    "united kingdom" | "uk" -> Some("GB")
-    "japan" -> Some("JP")
-    "china" -> Some("CN")
-    "czech republic" | "czechia" -> Some("CZ")
-    "ukraine" -> Some("UA")
+    "argentina" | "ar" -> Some("AR")
+    "chile" | "cl" -> Some("CL")
+    "australia" | "au" -> Some("AU")
+    "new zealand" | "nz" -> Some("NZ")
+    "south africa" | "za" -> Some("ZA")
+    "greece" | "gr" | "ελλάδα" -> Some("GR")
+    "hungary" | "hu" | "magyarország" -> Some("HU")
+    "georgia" | "ge" | "საქართველო" -> Some("GE")
+    "lebanon" | "lb" | "لبنان" -> Some("LB")
+    "israel" | "il" | "ישראל" -> Some("IL")
+    "croatia" | "hr" | "hrvatska" -> Some("HR")
+    "slovenia" | "si" | "slovenija" -> Some("SI")
+    "switzerland" | "ch" | "schweiz" | "suisse" | "svizzera" -> Some("CH")
+    "romania" | "ro" | "românia" -> Some("RO")
+    "bulgaria" | "bg" | "българия" -> Some("BG")
+    "moldova" | "md" -> Some("MD")
+    "turkey" | "tr" | "türkiye" -> Some("TR")
+    "uruguay" | "uy" -> Some("UY")
+    "brazil" | "br" | "brasil" -> Some("BR")
+    "mexico" | "mx" | "méxico" -> Some("MX")
+    "canada" | "ca" -> Some("CA")
+    "united kingdom" | "uk" | "gb" -> Some("GB")
+    "japan" | "jp" | "日本" -> Some("JP")
+    "china" | "cn" | "中国" -> Some("CN")
+    "czech republic" | "czechia" | "cz" | "česko" -> Some("CZ")
+    "ukraine" | "ua" | "україна" -> Some("UA")
     _ -> None
   }
 }

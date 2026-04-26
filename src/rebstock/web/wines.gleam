@@ -10,6 +10,7 @@ import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
 import rebstock/db.{type CellarEntry, type Rating, type Wine, type WineList}
+import rebstock/vivino
 import rebstock/web/components as c
 
 pub fn wines(conn: Connection, user: User) -> Response {
@@ -19,15 +20,26 @@ pub fn wines(conn: Connection, user: User) -> Response {
   c.page("All Wines \u{2014} Rebstock", user, conn, [
     html.div([attr.class("flex items-end justify-between mb-6")], [
       c.page_header("All Wines", count <> " total"),
-      html.a(
-        [
-          attr.href("/wines/new"),
-          attr.class(
-            "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
-          ),
-        ],
-        [html.Text("Add Wine")],
-      ),
+      html.div([attr.class("flex gap-2")], [
+        html.a(
+          [
+            attr.href("/wines/new"),
+            attr.class(
+              "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text("Add Wine")],
+        ),
+        html.a(
+          [
+            attr.href("/wines/import/vivino"),
+            attr.class(
+              "px-4 py-2 border border-stone-300 text-stone-700 rounded-lg text-sm hover:bg-stone-50 transition-colors",
+            ),
+          ],
+          [html.Text("Import from Vivino")],
+        ),
+      ]),
     ]),
     wine_table(wines),
   ])
@@ -457,6 +469,15 @@ fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
             "https://www.vivino.com/wines/" <> vid,
             "View on Vivino \u{2192}",
           ),
+          html.a(
+            [
+              attr.href(c.wine_url(wine) <> "/sync"),
+              attr.class(
+                "px-3 py-1.5 text-sm border border-amber-600 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors inline-block w-fit",
+              ),
+            ],
+            [html.Text("Sync from Vivino")],
+          ),
         ]
         None -> []
       },
@@ -866,20 +887,47 @@ fn wine_row(wine: Wine, idx: Int) -> Node {
 // --- Wine create/edit ---
 
 pub fn new_wine_form(req: Request, conn: Connection, user: User) -> Response {
-  let winery_prefill = case list.key_find(wisp.get_query(req), "winery") {
-    Ok(w) -> w
-    _ -> ""
+  let q = wisp.get_query(req)
+  let qv = fn(key) {
+    case list.key_find(q, key) {
+      Ok(v) -> v
+      _ -> ""
+    }
   }
   let winery_names = db.all_winery_names(conn)
+  let prefill =
+    NewWinePrefill(
+      name: qv("name"),
+      winery: qv("winery"),
+      region: qv("region"),
+      country: qv("country"),
+      style: qv("style"),
+      vintage: qv("vintage"),
+      wine_type: qv("wine_type"),
+      vivino_id: qv("vivino_id"),
+    )
   c.page("Add Wine \u{2014} Rebstock", user, conn, [
     c.back_link("/wines", "All wines"),
     html.div([attr.class("max-w-lg")], [
       html.h1([attr.class("text-3xl font-light text-stone-800 mb-6")], [
         html.Text("Add Wine"),
       ]),
-      wine_form(None, winery_prefill, winery_names, "/wines", "Add Wine"),
+      wine_form(None, prefill, winery_names, "/wines", "Add Wine"),
     ]),
   ])
+}
+
+type NewWinePrefill {
+  NewWinePrefill(
+    name: String,
+    winery: String,
+    region: String,
+    country: String,
+    style: String,
+    vintage: String,
+    wine_type: String,
+    vivino_id: String,
+  )
 }
 
 pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
@@ -902,18 +950,41 @@ pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
           style: opt_val(form, "style"),
           personal_note: opt_val(form, "personal_note"),
           wine_type: wine_type,
-          vivino_id: None,
+          vivino_id: opt_val(form, "vivino_id"),
         )
       wisp.redirect("/wines/" <> id)
     }
   }
 }
 
-pub fn edit_wine_form(conn: Connection, id: String, user: User) -> Response {
+pub fn edit_wine_form(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> c.not_found(user, conn)
     Ok(wine) -> {
+      let q = wisp.get_query(req)
+      let qv = fn(key) {
+        case list.key_find(q, key) {
+          Ok(v) -> v
+          _ -> ""
+        }
+      }
       let winery_names = db.all_winery_names(conn)
+      let prefill =
+        NewWinePrefill(
+          name: "",
+          winery: wine.winery_name,
+          region: "",
+          country: "",
+          style: "",
+          vintage: "",
+          wine_type: "",
+          vivino_id: qv("vivino_id"),
+        )
       c.page("Edit " <> wine.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link(c.wine_url(wine), wine.name),
         html.div([attr.class("max-w-lg")], [
@@ -922,7 +993,7 @@ pub fn edit_wine_form(conn: Connection, id: String, user: User) -> Response {
           ]),
           wine_form(
             Some(wine),
-            wine.winery_name,
+            prefill,
             winery_names,
             c.wine_url(wine) <> "/edit",
             "Update",
@@ -964,6 +1035,7 @@ pub fn handle_edit_wine(
                 opt_val(form, "style"),
                 opt_val(form, "personal_note"),
                 wine_type,
+                opt_val(form, "vivino_id"),
               )
               wisp.redirect("/wines/" <> id)
             }
@@ -981,7 +1053,7 @@ fn form_val(form: wisp.FormData, key: String) -> String {
   }
 }
 
-fn opt_val(form: wisp.FormData, key: String) -> Option(String) {
+pub fn opt_val(form: wisp.FormData, key: String) -> Option(String) {
   case form_val(form, key) {
     "" -> None
     v -> Some(v)
@@ -990,30 +1062,34 @@ fn opt_val(form: wisp.FormData, key: String) -> Option(String) {
 
 fn wine_form(
   existing: Option(Wine),
-  winery_prefill: String,
+  prefill: NewWinePrefill,
   winery_names: List(String),
   action: String,
   submit_label: String,
 ) -> Node {
-  let v = fn(f: fn(Wine) -> String) -> String {
+  let v = fn(f: fn(Wine) -> String, fallback: String) -> String {
     case existing {
       Some(w) -> f(w)
-      None -> ""
+      None -> fallback
     }
   }
-  let ov = fn(f: fn(Wine) -> Option(String)) -> String {
+  let ov = fn(f: fn(Wine) -> Option(String), fallback: String) -> String {
     case existing {
       Some(w) ->
         case f(w) {
           Some(s) -> s
           None -> ""
         }
-      None -> ""
+      None -> fallback
     }
   }
   let cur_type = case existing {
     Some(w) -> db.wine_type_to_string(w.wine_type)
-    None -> "RED"
+    None ->
+      case prefill.wine_type {
+        "" -> "RED"
+        t -> t
+      }
   }
 
   html.Element(
@@ -1032,7 +1108,7 @@ fn wine_form(
             attr.name("name"),
             attr.Attr("required", ""),
             attr.Attr("autofocus", ""),
-            attr.value(v(fn(w) { w.name })),
+            attr.value(v(fn(w) { w.name }, prefill.name)),
             attr.class(c.input_class),
           ],
           [],
@@ -1046,7 +1122,7 @@ fn wine_form(
             attr.name("winery"),
             attr.Attr("required", ""),
             attr.Attr("list", "winery-list"),
-            attr.value(winery_prefill),
+            attr.value(prefill.winery),
             attr.class(c.input_class),
           ],
           [],
@@ -1066,7 +1142,7 @@ fn wine_form(
             [
               attr.type_("text"),
               attr.name("region"),
-              attr.value(ov(fn(w) { w.region })),
+              attr.value(ov(fn(w) { w.region }, prefill.region)),
               attr.class(c.input_class),
             ],
             [],
@@ -1077,7 +1153,11 @@ fn wine_form(
             "country",
             case existing {
               Some(w) -> w.country
-              None -> None
+              None ->
+                case prefill.country {
+                  "" -> None
+                  c -> Some(c)
+                }
             },
             c.input_class,
           ),
@@ -1090,7 +1170,7 @@ fn wine_form(
             [
               attr.type_("text"),
               attr.name("style"),
-              attr.value(ov(fn(w) { w.style })),
+              attr.value(ov(fn(w) { w.style }, prefill.style)),
               attr.class(c.input_class),
             ],
             [],
@@ -1105,6 +1185,7 @@ fn wine_form(
                 [
                   attr.type_("text"),
                   attr.name("vintage"),
+                  attr.value(prefill.vintage),
                   attr.Attr("placeholder", "e.g. 2020"),
                   attr.class(c.input_class),
                 ],
@@ -1136,7 +1217,20 @@ fn wine_form(
             attr.Attr("rows", "3"),
             attr.class(c.input_class <> " resize-none"),
           ],
-          [html.Text(ov(fn(w) { w.personal_note }))],
+          [html.Text(ov(fn(w) { w.personal_note }, ""))],
+        ),
+      ]),
+      c.form_field("Vivino ID", False, [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("vivino_id"),
+            attr.value(ov(fn(w) { w.vivino_id }, prefill.vivino_id)),
+            attr.Attr("placeholder", "Vivino URL or ID"),
+            attr.class(c.input_class),
+          ],
+          [],
         ),
       ]),
       html.div([attr.class("flex gap-3")], [
@@ -1152,5 +1246,607 @@ fn wine_form(
         ),
       ]),
     ],
+  )
+}
+
+// --- Vivino import ---
+
+pub fn vivino_search(req: Request, conn: Connection, user: User) -> Response {
+  let query = case list.key_find(wisp.get_query(req), "q") {
+    Ok(q) -> string.trim(q)
+    _ -> ""
+  }
+  let page = fn(content) {
+    c.page("Import from Vivino \u{2014} Rebstock", user, conn, [
+      c.back_link("/wines", "All wines"),
+      html.h1(
+        [attr.class("text-3xl font-light text-stone-800 tracking-tight mb-6")],
+        [html.Text("Import from Vivino")],
+      ),
+      ..content
+    ])
+  }
+  case query {
+    "" -> page([vivino_id_form("")])
+    q ->
+      case vivino.parse_vivino_id(q) {
+        Error(_) ->
+          page([
+            vivino_id_form(q),
+            error_box("Enter a Vivino URL or wine ID"),
+          ])
+        Ok(vid) ->
+          case vivino.fetch_wine_by_id(vid) {
+            Error(msg) -> page([vivino_id_form(q), error_box(msg)])
+            Ok(result) -> {
+              let existing =
+                find_existing_wine(
+                  conn,
+                  user,
+                  result.wine_id,
+                  result.winery_name,
+                  result.wine_name,
+                )
+              let vintage_count = case
+                vivino.fetch_wine_with_vintages(int.to_string(result.wine_id))
+              {
+                Ok(detail) -> list.length(detail.vintages)
+                Error(_) -> 0
+              }
+              page([vivino_preview(result, existing, vintage_count)])
+            }
+          }
+      }
+  }
+}
+
+pub fn vivino_import(req: Request, conn: Connection, user: User) -> Response {
+  use form <- wisp.require_form(req)
+  let name = form_val(form, "name")
+  let winery = form_val(form, "winery")
+  let vivino_id = form_val(form, "vivino_id")
+  case name, winery, vivino_id {
+    "", _, _ | _, "", _ | _, _, "" -> wisp.redirect("/wines/import/vivino")
+    _, _, _ -> {
+      let wine_type = db.wine_type_from_string(form_val(form, "wine_type"))
+
+      let wine_id =
+        db.upsert_wine(
+          conn,
+          created_by: user.username,
+          winery: winery,
+          name: name,
+          vintage: None,
+          region: opt_val(form, "region"),
+          country: opt_val(form, "country"),
+          style: None,
+          personal_note: None,
+          wine_type: wine_type,
+          vivino_id: Some(vivino_id),
+        )
+
+      // Full sync: vintages + ratings
+      case vivino.fetch_wine_with_vintages(vivino_id) {
+        Ok(detail) ->
+          sync_vintages_and_ratings(conn, user.username, wine_id, detail)
+        Error(_) -> {
+          // Fallback: use rating from form if vintage fetch fails
+          case float.parse(form_val(form, "rating")) {
+            Ok(rating) ->
+              db.upsert_vivino_rating(
+                conn,
+                username: user.username,
+                wine_id: wine_id,
+                vintage: None,
+                rating: rating,
+              )
+            _ -> Nil
+          }
+        }
+      }
+
+      wisp.redirect("/wines/" <> wine_id <> "/" <> db.slugify(name))
+    }
+  }
+}
+
+pub fn vivino_sync_preview(conn: Connection, id: String, user: User) -> Response {
+  case db.get_wine(conn, user.username, id) {
+    Error(_) -> wisp.redirect("/wines")
+    Ok(wine) ->
+      case wine.vivino_id {
+        None -> wisp.redirect(c.wine_url(wine))
+        Some(vid) ->
+          case vivino.fetch_wine_with_vintages(vid) {
+            Error(msg) ->
+              c.page("Sync \u{2014} Rebstock", user, conn, [
+                c.back_link(c.wine_url(wine), wine.name),
+                error_box(msg),
+              ])
+            Ok(detail) -> {
+              let country = case detail.country {
+                "" -> None
+                co -> db.country_to_iso(co)
+              }
+              let region = case detail.region {
+                "" -> None
+                r -> Some(r)
+              }
+              let wine_type =
+                db.wine_type_from_string(string.uppercase(detail.wine_type))
+              let sync_url = c.wine_url(wine) <> "/sync"
+
+              // Compare vintages and rating against current db state
+              let current_vintages = db.vintages_for_wine(conn, wine.id)
+              let incoming_vintages =
+                list.map(detail.vintages, fn(v) { v.year })
+              let new_vintages =
+                list.filter(incoming_vintages, fn(v) {
+                  !list.contains(current_vintages, v)
+                })
+
+              let current_vivino_ratings =
+                db.ratings_for_wine(conn, wine.id)
+                |> list.filter(fn(r) { r.source == "vivino" })
+              let current_overall_rating =
+                list.find(current_vivino_ratings, fn(r) { r.vintage == None })
+              let rating_changed = case
+                detail.rating >. 0.0,
+                current_overall_rating
+              {
+                False, _ -> False
+                True, Error(_) -> True
+                True, Ok(r) ->
+                  case r.rating {
+                    Some(v) ->
+                      float.to_string(v) != float.to_string(detail.rating)
+                    None -> True
+                  }
+              }
+
+              c.page("Sync \u{2014} Rebstock", user, conn, [
+                c.back_link(c.wine_url(wine), wine.name),
+                html.h1(
+                  [
+                    attr.class(
+                      "text-3xl font-light text-stone-800 tracking-tight mb-6",
+                    ),
+                  ],
+                  [html.Text("Sync from Vivino")],
+                ),
+                html.Element(
+                  "form",
+                  [attr.method("post"), attr.Attr("action", sync_url)],
+                  [
+                    hidden("vivino_id", vid),
+                    hidden("name", detail.wine_name),
+                    hidden("winery", detail.winery_name),
+                    hidden("region", option.unwrap(region, "")),
+                    hidden("country", option.unwrap(country, "")),
+                    hidden("wine_type", db.wine_type_to_string(wine_type)),
+                    hidden("rating", float.to_string(detail.rating)),
+                    ..sync_diff_body(
+                      wine,
+                      detail,
+                      wine_type,
+                      region,
+                      country,
+                      new_vintages,
+                      current_vintages,
+                      rating_changed,
+                      current_overall_rating,
+                    )
+                  ],
+                ),
+              ])
+            }
+          }
+      }
+  }
+}
+
+pub fn vivino_sync_apply(
+  req: Request,
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
+  case db.get_wine(conn, user.username, id) {
+    Error(_) -> wisp.redirect("/wines")
+    Ok(wine) -> {
+      use form <- wisp.require_form(req)
+      let vid = form_val(form, "vivino_id")
+      case vid {
+        "" -> wisp.redirect(c.wine_url(wine))
+        _ -> {
+          // Update wine metadata from form
+          let name = form_val(form, "name")
+          let winery = form_val(form, "winery")
+          let wine_type = db.wine_type_from_string(form_val(form, "wine_type"))
+          db.update_wine(
+            conn,
+            id,
+            name,
+            winery,
+            user.username,
+            opt_val(form, "region"),
+            opt_val(form, "country"),
+            wine.style,
+            wine.personal_note,
+            wine_type,
+            Some(vid),
+          )
+          // Sync vintages and ratings from API
+          case vivino.fetch_wine_with_vintages(vid) {
+            Ok(detail) ->
+              sync_vintages_and_ratings(conn, user.username, wine.id, detail)
+            Error(_) -> Nil
+          }
+          wisp.redirect(c.wine_url(wine))
+        }
+      }
+    }
+  }
+}
+
+fn diff_row(label: String, current: String, incoming: String) -> Node {
+  let cur = string.trim(current)
+  let inc = string.trim(incoming)
+  case cur == inc || inc == "" {
+    True -> html.Nothing
+    False ->
+      html.div([attr.class("flex items-center gap-3 text-sm")], [
+        html.span([attr.class("w-20 text-stone-400 shrink-0")], [
+          html.Text(label),
+        ]),
+        case cur {
+          "" -> html.span([attr.class("text-green-700")], [html.Text(inc)])
+          _ ->
+            html.div([attr.class("flex items-center gap-2")], [
+              html.span([attr.class("line-through text-stone-400")], [
+                html.Text(cur),
+              ]),
+              html.span([attr.class("text-stone-300")], [
+                html.Text("\u{2192}"),
+              ]),
+              html.span([attr.class("text-green-700 font-medium")], [
+                html.Text(inc),
+              ]),
+            ])
+        },
+      ])
+  }
+}
+
+fn sync_diff_body(
+  wine: Wine,
+  detail: vivino.VivinoWineDetail,
+  wine_type: db.WineType,
+  region: Option(String),
+  country: Option(String),
+  new_vintages: List(String),
+  current_vintages: List(String),
+  rating_changed: Bool,
+  current_overall_rating: Result(Rating, Nil),
+) -> List(Node) {
+  let diff_rows =
+    list.filter(
+      [
+        diff_row("Name", wine.name, detail.wine_name),
+        diff_row("Winery", wine.winery_name, detail.winery_name),
+        diff_row(
+          "Region",
+          option.unwrap(wine.region, ""),
+          option.unwrap(region, ""),
+        ),
+        diff_row(
+          "Country",
+          c.display_country(wine.country),
+          c.display_country(country),
+        ),
+        diff_row(
+          "Type",
+          db.wine_type_label(wine.wine_type),
+          db.wine_type_label(wine_type),
+        ),
+        case new_vintages {
+          [] -> html.Nothing
+          _ ->
+            diff_row(
+              "Vintages",
+              int.to_string(list.length(current_vintages)),
+              int.to_string(
+                list.length(current_vintages) + list.length(new_vintages),
+              )
+                <> " (+"
+                <> int.to_string(list.length(new_vintages))
+                <> ")",
+            )
+        },
+        case rating_changed {
+          False -> html.Nothing
+          True ->
+            diff_row(
+              "Rating",
+              case current_overall_rating {
+                Ok(r) ->
+                  case r.rating {
+                    Some(v) -> float.to_string(v) <> "\u{2605}"
+                    None -> ""
+                  }
+                Error(_) -> ""
+              },
+              float.to_string(detail.rating)
+                <> "\u{2605} ("
+                <> int.to_string(detail.rating_count)
+                <> ")",
+            )
+        },
+      ],
+      fn(node) { node != html.Nothing },
+    )
+  case diff_rows {
+    [] -> [
+      html.p([attr.class("text-stone-500 italic mb-6")], [
+        html.Text("Already up to date"),
+      ]),
+      html.a(
+        [
+          attr.href(c.wine_url(wine)),
+          attr.class(
+            "px-4 py-2 border border-stone-300 text-stone-600 rounded-lg hover:bg-stone-50 transition-colors",
+          ),
+        ],
+        [html.Text("Back")],
+      ),
+    ]
+    _ -> [
+      html.div([attr.class("space-y-3 mb-6")], diff_rows),
+      html.div([attr.class("flex gap-3")], [
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text("Apply sync")],
+        ),
+        html.a(
+          [
+            attr.href(c.wine_url(wine)),
+            attr.class(
+              "px-4 py-2 border border-stone-300 text-stone-600 rounded-lg hover:bg-stone-50 transition-colors",
+            ),
+          ],
+          [html.Text("Cancel")],
+        ),
+      ]),
+    ]
+  }
+}
+
+fn sync_vintages_and_ratings(
+  conn: Connection,
+  username: String,
+  wine_id: String,
+  detail: vivino.VivinoWineDetail,
+) -> Nil {
+  // Upsert overall wine rating
+  case detail.rating >. 0.0 {
+    True ->
+      db.upsert_vivino_rating(
+        conn,
+        username: username,
+        wine_id: wine_id,
+        vintage: None,
+        rating: detail.rating,
+      )
+    False -> Nil
+  }
+  // Upsert each vintage and its rating
+  list.each(detail.vintages, fn(v) {
+    db.upsert_vintage(conn, wine_id, v.year)
+    case v.rating >. 0.0 {
+      True ->
+        db.upsert_vivino_rating(
+          conn,
+          username: username,
+          wine_id: wine_id,
+          vintage: Some(v.year),
+          rating: v.rating,
+        )
+      False -> Nil
+    }
+  })
+}
+
+fn vivino_id_form(query: String) -> Node {
+  html.Element(
+    "form",
+    [attr.method("get"), attr.Attr("action", "/wines/import/vivino")],
+    [
+      html.div([attr.class("flex gap-2 mb-6")], [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("q"),
+            attr.value(query),
+            attr.Attr("placeholder", "Vivino URL or wine ID\u{2026}"),
+            attr.Attr("autofocus", ""),
+            attr.class(c.input_class <> " flex-1"),
+          ],
+          [],
+        ),
+        html.Element(
+          "button",
+          [
+            attr.type_("submit"),
+            attr.class(
+              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text("Lookup")],
+        ),
+      ]),
+    ],
+  )
+}
+
+fn error_box(msg: String) -> Node {
+  html.div(
+    [attr.class("p-4 rounded-lg border bg-red-50 border-red-200 text-red-700")],
+    [html.Text(msg)],
+  )
+}
+
+fn find_existing_wine(
+  conn: Connection,
+  user: User,
+  wine_id: Int,
+  winery_name: String,
+  wine_name: String,
+) -> option.Option(Wine) {
+  let vivino_id = int.to_string(wine_id)
+  case db.find_wine_by_vivino_id(conn, user.username, vivino_id) {
+    Ok(wine) -> Some(wine)
+    Error(_) ->
+      case db.find_wine_by_name(conn, user.username, winery_name, wine_name) {
+        Ok(wine) -> Some(wine)
+        Error(_) -> None
+      }
+  }
+}
+
+fn vivino_preview(
+  result: vivino.VivinoSearchResult,
+  existing: option.Option(Wine),
+  vintage_count: Int,
+) -> Node {
+  let country_code = case db.country_to_iso(result.country) {
+    Some(code) -> code
+    None -> result.country
+  }
+  let vivino_id = int.to_string(result.wine_id)
+
+  let info_block =
+    html.div([attr.class("flex items-center gap-6")], [
+      case result.thumb_url {
+        "" -> html.Nothing
+        url ->
+          html.img([
+            attr.src(url),
+            attr.Attr("alt", result.wine_name),
+            attr.class("w-16 h-24 object-contain"),
+          ])
+      },
+      html.div([attr.class("flex-1 min-w-0")], [
+        html.div([attr.class("flex items-center gap-2 mb-1")], [
+          html.span(
+            [attr.class("text-lg font-medium text-stone-800 truncate")],
+            [html.Text(result.wine_name)],
+          ),
+          c.wine_type_badge(db.wine_type_from_string(result.wine_type)),
+        ]),
+        html.div([attr.class("text-stone-600 mb-1")], [
+          html.Text(result.winery_name),
+        ]),
+        html.div([attr.class("text-sm text-stone-500")], [
+          html.Text(
+            result.region
+            <> ", "
+            <> result.country
+            <> " \u{00b7} "
+            <> float.to_string(result.rating)
+            <> "\u{2605} ("
+            <> int.to_string(result.rating_count)
+            <> " ratings)"
+            <> case vintage_count {
+              0 -> ""
+              n -> " \u{00b7} " <> int.to_string(n) <> " vintages"
+            },
+          ),
+        ]),
+      ]),
+    ])
+
+  case existing {
+    Some(wine) ->
+      html.div(
+        [attr.class("p-6 bg-amber-50/30 rounded-lg border border-amber-200")],
+        [
+          info_block,
+          html.div([attr.class("flex gap-3 mt-4")], [
+            html.a(
+              [
+                attr.href(c.wine_url(wine) <> "/sync"),
+                attr.class(
+                  "px-4 py-2 border border-amber-600 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors",
+                ),
+              ],
+              [html.Text("Sync")],
+            ),
+            html.a(
+              [
+                attr.href("/wines/import/vivino"),
+                attr.class(
+                  "px-4 py-2 border border-stone-300 text-stone-600 rounded-lg hover:bg-stone-50 transition-colors",
+                ),
+              ],
+              [html.Text("Cancel")],
+            ),
+          ]),
+        ],
+      )
+    None ->
+      html.Element(
+        "form",
+        [
+          attr.method("post"),
+          attr.Attr("action", "/wines/import/vivino"),
+          attr.class("p-6 bg-white rounded-lg border border-stone-200"),
+        ],
+        [
+          hidden("name", result.wine_name),
+          hidden("winery", result.winery_name),
+          hidden("region", result.region),
+          hidden("country", country_code),
+          hidden("wine_type", string.uppercase(result.wine_type)),
+          hidden("vivino_id", vivino_id),
+          hidden("rating", float.to_string(result.rating)),
+          info_block,
+          html.div([attr.class("flex gap-3 mt-4")], [
+            html.Element(
+              "button",
+              [
+                attr.type_("submit"),
+                attr.class(
+                  "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+                ),
+              ],
+              [html.Text("Import")],
+            ),
+            html.a(
+              [
+                attr.href("/wines/import/vivino"),
+                attr.class(
+                  "px-4 py-2 border border-stone-300 text-stone-600 rounded-lg hover:bg-stone-50 transition-colors",
+                ),
+              ],
+              [html.Text("Cancel")],
+            ),
+          ]),
+        ],
+      )
+  }
+}
+
+fn hidden(name: String, value: String) -> Node {
+  html.Element(
+    "input",
+    [attr.type_("hidden"), attr.name(name), attr.value(value)],
+    [],
   )
 }

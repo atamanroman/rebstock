@@ -17,6 +17,7 @@ gleam_json = "~> 3.0"
 argv = "~> 1.0"
 migrant = "~> 1.0"
 gleam_crypto = "~> 1.0"
+gleam_httpc = "~> 5.0"
 
 [dev_dependencies]
 gleeunit = "~> 1.0"

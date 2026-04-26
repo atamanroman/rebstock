@@ -89,11 +89,9 @@ pub fn create_winery(req: Request, conn: Connection, user: User) -> Response {
   case list.key_find(form.values, "name") {
     Error(_) | Ok("") -> wisp.redirect("/wineries/new")
     Ok(name) -> {
-      let country = case list.key_find(form.values, "country") {
-        Ok(c) if c != "" -> Some(c)
-        _ -> None
-      }
-      let id = db.upsert_winery(conn, user.username, name, country, None)
+      let country = wines.opt_val(form, "country")
+      let vivino_id = wines.opt_val(form, "vivino_id")
+      let id = db.upsert_winery(conn, user.username, name, country, vivino_id)
       wisp.redirect("/wineries/" <> id)
     }
   }
@@ -129,11 +127,9 @@ pub fn handle_edit_winery(
       case list.key_find(form.values, "name") {
         Error(_) | Ok("") -> wisp.redirect("/wineries/" <> id <> "/edit")
         Ok(name) -> {
-          let country = case list.key_find(form.values, "country") {
-            Ok(c) if c != "" -> Some(c)
-            _ -> None
-          }
-          db.update_winery(conn, id, name, country)
+          let country = wines.opt_val(form, "country")
+          let vivino_id = wines.opt_val(form, "vivino_id")
+          db.update_winery(conn, id, name, country, vivino_id)
           wisp.redirect("/wineries/" <> id)
         }
       }
@@ -153,6 +149,14 @@ fn winery_form(
   let country_val = case existing {
     Some(w) -> w.country
     None -> None
+  }
+  let vivino_id_val = case existing {
+    Some(w) ->
+      case w.vivino_id {
+        Some(v) -> v
+        None -> ""
+      }
+    None -> ""
   }
   html.Element(
     "form",
@@ -178,6 +182,19 @@ fn winery_form(
       ]),
       c.form_field("Country", False, [
         c.country_input("country", country_val, c.input_class),
+      ]),
+      c.form_field("Vivino ID", False, [
+        html.Element(
+          "input",
+          [
+            attr.type_("text"),
+            attr.name("vivino_id"),
+            attr.value(vivino_id_val),
+            attr.Attr("placeholder", "e.g. 12345"),
+            attr.class(c.input_class),
+          ],
+          [],
+        ),
       ]),
       html.div([attr.class("flex gap-3")], [
         html.Element(

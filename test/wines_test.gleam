@@ -103,6 +103,7 @@ pub fn edit_wine_post_test() {
     None,
     None,
     db.White,
+    None,
   )
   let assert Ok(updated) = db.get_wine_by_id(conn, wine_id)
   let assert "Updated Name" = updated.name

@@ -1,5 +1,10 @@
 # Rebstock Changelog
 
+## 0.2.0
+
+- Vivino import and sync with vintage ratings and diff preview
+- Vintage-aware add-to-list on wine detail
+
 ## 0.1.0
 
 First release of Rebstock, a self-hosted wine cellar management app.

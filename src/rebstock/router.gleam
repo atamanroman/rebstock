@@ -40,11 +40,21 @@ pub fn handle_request(
             http.Post -> wines.create_wine(req, conn, user)
             _ -> wines.wines(conn, user)
           }
+        ["wines", "import", "vivino"] ->
+          case req.method {
+            http.Post -> wines.vivino_import(req, conn, user)
+            _ -> wines.vivino_search(req, conn, user)
+          }
         ["wines", "new"] -> wines.new_wine_form(req, conn, user)
         ["wines", id, _, "edit"] ->
           case req.method {
             http.Post -> wines.handle_edit_wine(req, conn, id, user)
-            _ -> wines.edit_wine_form(conn, id, user)
+            _ -> wines.edit_wine_form(req, conn, id, user)
+          }
+        ["wines", id, _, "sync"] ->
+          case req.method {
+            http.Post -> wines.vivino_sync_apply(req, conn, id, user)
+            _ -> wines.vivino_sync_preview(conn, id, user)
           }
         ["wines", id, _, "ratings", "new"] ->
           ratings.handle_new(req, conn, id, user)
