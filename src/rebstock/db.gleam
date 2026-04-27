@@ -1063,7 +1063,6 @@ pub fn update_cellar_entry(
 }
 
 pub fn delete_cellar_entry(conn: Connection, id: String) -> Nil {
-  // Delete children (drink events) first, then the entry itself
   let assert Ok(_) =
     sqlight.query(
       "DELETE FROM cellar WHERE parent_id = ?",

@@ -1,5 +1,6 @@
 import gleam/erlang/application
 import gleam/http
+import gleam/string
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
@@ -32,6 +33,16 @@ pub fn handle_request(
       let user = auth.get_user(req, auth)
       db.ensure_user(conn, user.username)
       db.ensure_system_lists(conn, user.username)
+
+      case req.method {
+        http.Post ->
+          wisp.log_info(
+            user.username
+            <> " POST /"
+            <> string.join(wisp.path_segments(req), "/"),
+          )
+        _ -> Nil
+      }
 
       case wisp.path_segments(req) {
         [] -> home.home(conn, user)

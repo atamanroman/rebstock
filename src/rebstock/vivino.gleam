@@ -180,7 +180,6 @@ fn vivino_mobile_get(url: String) -> Result(String, String) {
 }
 
 fn vivino_http(url: String, user_agent: String) -> Result(String, String) {
-  wisp.log_info("Vivino API: " <> url)
   case request.to(url) {
     Error(_) -> Error("Invalid URL")
     Ok(req) -> {
@@ -217,14 +216,7 @@ pub fn search(query: String) -> Result(List(VivinoSearchResult), String) {
     Error(e) -> Error(e)
     Ok(body) ->
       case json.parse(body, search_results_decoder()) {
-        Ok(results) -> {
-          wisp.log_info(
-            "Vivino search returned "
-            <> int.to_string(list.length(results))
-            <> " results",
-          )
-          Ok(results)
-        }
+        Ok(results) -> Ok(results)
         Error(e) -> {
           wisp.log_error("Vivino parse error: " <> string.inspect(e))
           Error("Failed to parse search results")
