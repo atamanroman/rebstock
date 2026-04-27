@@ -494,6 +494,36 @@ pub fn red_green_scale(rating: Float) -> String {
   "hsl(" <> int.to_string(hue) <> " 70% 35%)"
 }
 
+// --- Image helpers ---
+
+pub fn wine_image(wine_id: String, class: String) -> Node {
+  html.div([attr.class(class <> " relative overflow-hidden")], [
+    html.img([
+      attr.src("/images/bottles/" <> wine_id <> ".jpg"),
+      attr.Attr("alt", ""),
+      attr.class("w-full h-full object-contain"),
+      attr.Attr(
+        "onerror",
+        "this.style.display='none';this.nextElementSibling.style.display='flex'",
+      ),
+    ]),
+    html.div(
+      [
+        attr.class(
+          "hidden items-center justify-center w-full h-full bg-stone-100 border border-stone-200 rounded-lg p-1",
+        ),
+      ],
+      [
+        html.UnsafeInlineHtml(
+          "<svg class=\"w-full h-full\" viewBox=\"0 0 80 220\" fill=\"#2d5a27\" xmlns=\"http://www.w3.org/2000/svg\">"
+          <> "<path d=\"M30,0 L30,4 L26,4 L26,8 L30,8 L30,38 C30,52 10,62 10,80 L10,206 C10,214 16,220 24,220 L56,220 C64,220 70,214 70,206 L70,80 C70,62 50,52 50,38 L50,8 L54,8 L54,4 L50,4 L50,0 Z\"/>"
+          <> "</svg>",
+        ),
+      ],
+    ),
+  ])
+}
+
 // --- Card helpers ---
 
 pub fn card(content: List(Node)) -> Node {

@@ -15,8 +15,13 @@
     },
     "database_uri": {
       "type": "string",
-      "default": "file:rebstock.db",
+      "default": "file:./data/rebstock.db",
       "description": "SQLite database URI"
+    },
+    "image_dir": {
+      "type": "string",
+      "default": "./data/images",
+      "description": "Directory for wine bottle images"
     },
     "auth": {
       "type": "object",

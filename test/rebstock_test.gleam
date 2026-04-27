@@ -5,7 +5,7 @@ import wisp/simulate
 
 import rebstock/db
 import rebstock/router
-import test_helpers.{seed_two_users, test_auth, with_empty_db, with_seeded_db}
+import test_helpers.{seed_two_users, test_config, with_empty_db, with_seeded_db}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -16,7 +16,7 @@ pub fn home_contains_rebstock_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Rebstock")
   Nil
@@ -26,7 +26,7 @@ pub fn not_found_test() {
   use conn <- with_empty_db
   let response =
     simulate.request(http.Get, "/nope")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 404 = response.status
   Nil
 }
@@ -36,7 +36,7 @@ pub fn home_empty_shows_import_cta_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Import Vivino Data")
@@ -48,7 +48,7 @@ pub fn home_with_data_shows_stats_test() {
   use conn <- with_seeded_db
   let response =
     simulate.request(http.Get, "/")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Your Stats")
@@ -61,7 +61,7 @@ pub fn nav_contains_username_dropdown_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "~test")
   let assert True = string.contains(body, "/~test/import")
@@ -73,7 +73,7 @@ pub fn import_page_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/~test/import")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Import Vivino Data")
@@ -85,7 +85,7 @@ pub fn import_page_forbidden_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/~other/import")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 403 = response.status
   Nil
 }
@@ -95,7 +95,7 @@ pub fn profile_page_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/~test")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "test")
@@ -107,7 +107,7 @@ pub fn profile_other_user_test() {
   let #(_wa, _wb) = seed_two_users(conn)
   let response =
     simulate.request(http.Get, "/~alice")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   Nil
 }
@@ -117,7 +117,7 @@ pub fn head_request_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Head, "/")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   Nil
 }

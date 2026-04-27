@@ -512,15 +512,19 @@ pub fn import_data(
   conn: Connection,
   data_dir: String,
   created_by: String,
+  resolve_ids: Bool,
 ) -> Nil {
   db.ensure_user(conn, created_by)
   let assert Ok(cellar_csv) = simplifile.read(data_dir <> "/cellar.csv")
   let assert Ok(wine_list_csv) =
     simplifile.read(data_dir <> "/full_wine_list.csv")
   let assert Ok(wishlist_csv) = simplifile.read(data_dir <> "/wishlisted.csv")
-  import_cellar(conn, cellar_csv, created_by)
-  import_full_wine_list(conn, wine_list_csv, created_by)
-  import_wishlisted(conn, wishlist_csv, created_by)
+  wisp.log_info("Importing cellar.csv")
+  import_cellar(conn, cellar_csv, created_by, resolve_ids)
+  wisp.log_info("Importing full_wine_list.csv")
+  import_full_wine_list(conn, wine_list_csv, created_by, resolve_ids)
+  wisp.log_info("Importing wishlisted.csv")
+  import_wishlisted(conn, wishlist_csv, created_by, resolve_ids)
   let count = db.count_wines(conn)
   wisp.log_info(
     "Imported " <> int.to_string(count) <> " wines for " <> created_by,
@@ -543,6 +547,35 @@ fn extract_vivino_id(url: String) -> Option(String) {
           }
         _ -> None
       }
+  }
+}
+
+/// CSV export URLs use vintage IDs (/wines/{vintage_id}).
+/// Resolve to API wine ID via the vintages endpoint.
+pub fn resolve_vintage_to_wine_id(vintage_id: String) -> String {
+  let url = "https://api.vivino.com/vintages/" <> vintage_id
+  wisp.log_debug("Resolving vintage ID " <> vintage_id)
+  case vivino_mobile_get(url) {
+    Error(_) -> vintage_id
+    Ok(body) -> {
+      let decoder = {
+        use wine_id <- decode.field("wine", {
+          use id <- decode.field("id", decode.int)
+          decode.success(id)
+        })
+        decode.success(wine_id)
+      }
+      case json.parse(body, decoder) {
+        Ok(wine_id) -> {
+          let resolved = int.to_string(wine_id)
+          wisp.log_debug(
+            "Resolved vintage " <> vintage_id <> " -> wine " <> resolved,
+          )
+          resolved
+        }
+        Error(_) -> vintage_id
+      }
+    }
   }
 }
 
@@ -691,7 +724,29 @@ fn parse_wishlist_row(row: List(String)) -> Result(ParsedRow, Nil) {
   }
 }
 
-fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
+fn persist_row(
+  conn: Connection,
+  created_by: String,
+  row: ParsedRow,
+  resolve_ids: Bool,
+  index: Int,
+  total: Int,
+) -> String {
+  wisp.log_debug(
+    "["
+    <> int.to_string(index)
+    <> "/"
+    <> int.to_string(total)
+    <> "] "
+    <> row.name
+    <> " ("
+    <> row.winery
+    <> ")",
+  )
+  let vivino_id = case resolve_ids, row.vivino_id {
+    True, Some(vid) -> Some(resolve_vintage_to_wine_id(vid))
+    _, id -> id
+  }
   let wine_id =
     db.upsert_wine(
       conn,
@@ -704,7 +759,7 @@ fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
       style: row.style,
       personal_note: row.personal_note,
       wine_type: row.wine_type,
-      vivino_id: row.vivino_id,
+      vivino_id:,
     )
   case row.avg_rating {
     Some(r) ->
@@ -748,12 +803,16 @@ pub fn import_cellar(
   conn: Connection,
   content: String,
   created_by: String,
+  resolve_ids: Bool,
 ) -> ImportResult {
-  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+  let rows = parse_csv(content)
+  let total = list.length(rows)
+  list.index_fold(rows, empty_result(), fn(acc, row, i) {
     case parse_cellar_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        let wine_id = persist_row(conn, created_by, parsed)
+        let wine_id =
+          persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
         let acc = ImportResult(..acc, wines_created: acc.wines_created + 1)
         case parsed.cellar_count > 0 {
           True -> {
@@ -783,12 +842,15 @@ pub fn import_full_wine_list(
   conn: Connection,
   content: String,
   created_by: String,
+  resolve_ids: Bool,
 ) -> ImportResult {
-  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+  let rows = parse_csv(content)
+  let total = list.length(rows)
+  list.index_fold(rows, empty_result(), fn(acc, row, i) {
     case parse_wine_list_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        persist_row(conn, created_by, parsed)
+        persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
         ImportResult(..acc, wines_created: acc.wines_created + 1)
       }
     }
@@ -799,13 +861,17 @@ pub fn import_wishlisted(
   conn: Connection,
   content: String,
   created_by: String,
+  resolve_ids: Bool,
 ) -> ImportResult {
   let wishlist = db.get_user_wishlist(conn, created_by)
-  list.fold(parse_csv(content), empty_result(), fn(acc, row) {
+  let rows = parse_csv(content)
+  let total = list.length(rows)
+  list.index_fold(rows, empty_result(), fn(acc, row, i) {
     case parse_wishlist_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        let wine_id = persist_row(conn, created_by, parsed)
+        let wine_id =
+          persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
         db.add_wine_to_list(conn, wishlist.id, wine_id, parsed.vintage, None)
         ImportResult(
           ..acc,
@@ -846,17 +912,21 @@ pub fn import_from_zip(
       case find_file(files, "full_wine_list.csv") {
         Error(_) -> Error("Zip must contain full_wine_list.csv")
         Ok(wine_list_csv) -> {
-          let result = import_full_wine_list(conn, wine_list_csv, created_by)
+          let result =
+            import_full_wine_list(conn, wine_list_csv, created_by, True)
           let result = case find_file(files, "cellar.csv") {
             Ok(cellar_csv) ->
-              merge_results(result, import_cellar(conn, cellar_csv, created_by))
+              merge_results(
+                result,
+                import_cellar(conn, cellar_csv, created_by, True),
+              )
             Error(_) -> result
           }
           let result = case find_file(files, "wishlisted.csv") {
             Ok(wishlist_csv) ->
               merge_results(
                 result,
-                import_wishlisted(conn, wishlist_csv, created_by),
+                import_wishlisted(conn, wishlist_csv, created_by, True),
               )
             Error(_) -> result
           }
@@ -877,4 +947,47 @@ fn find_file(
       False -> Error(Nil)
     }
   })
+}
+
+pub fn download_image(
+  url: String,
+  image_dir: String,
+  wine_id: String,
+) -> Result(Nil, String) {
+  case url {
+    "" -> Error("No image URL")
+    _ ->
+      case request.to(url) {
+        Error(_) -> Error("Invalid image URL")
+        Ok(req) -> {
+          let req = request.set_body(req, <<>>)
+          case httpc.send_bits(req) {
+            Error(e) -> {
+              wisp.log_warning("Image download failed: " <> string.inspect(e))
+              Error("Image download failed")
+            }
+            Ok(resp) ->
+              case resp.status {
+                200 ->
+                  case
+                    simplifile.write_bits(
+                      image_dir <> "/" <> wine_id <> ".jpg",
+                      resp.body,
+                    )
+                  {
+                    Ok(_) -> Ok(Nil)
+                    Error(e) -> {
+                      wisp.log_warning(
+                        "Image write failed: " <> string.inspect(e),
+                      )
+                      Error("Failed to write image")
+                    }
+                  }
+                status ->
+                  Error("Image download status " <> int.to_string(status))
+              }
+          }
+        }
+      }
+  }
 }

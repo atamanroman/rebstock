@@ -54,7 +54,7 @@ pub fn config_single_mode_test() {
   let cfg = config.parse("{\"auth\": {\"single\": {\"user\": \"bob\"}}}")
   let assert auth.Single("bob") = cfg.auth
   let assert 3000 = cfg.port
-  let assert "file:rebstock.db" = cfg.database_uri
+  let assert "file:./data/rebstock.db" = cfg.database_uri
   Nil
 }
 
@@ -76,7 +76,8 @@ pub fn config_defaults_test() {
   let cfg = config.parse("{\"auth\": {\"single\": {}}}")
   let assert auth.Single("admin") = cfg.auth
   let assert 3000 = cfg.port
-  let assert "file:rebstock.db" = cfg.database_uri
+  let assert "file:./data/rebstock.db" = cfg.database_uri
+  let assert "./data/images" = cfg.image_dir
   Nil
 }
 

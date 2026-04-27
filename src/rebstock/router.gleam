@@ -4,7 +4,8 @@ import gleam/string
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
-import rebstock/auth.{type AuthMode}
+import rebstock/auth
+import rebstock/config.{type Config}
 import rebstock/db
 import rebstock/web/cellar
 import rebstock/web/components as c
@@ -20,17 +21,22 @@ import rebstock/web/wishlist
 pub fn handle_request(
   req: Request,
   conn: Connection,
-  auth: AuthMode,
+  config: Config,
 ) -> Response {
   use req <- wisp.handle_head(req)
   let assert Ok(priv) = application.priv_directory("rebstock")
   use <- wisp.serve_static(req, under: "/static", from: priv <> "/static")
+  use <- wisp.serve_static(
+    req,
+    under: "/images/bottles",
+    from: config.image_dir,
+  )
 
   // Public routes (no auth required)
   case wisp.path_segments(req) {
     ["shared", id, _slug] -> shared.shared_list(conn, id)
     _ -> {
-      let user = auth.get_user(req, auth)
+      let user = auth.get_user(req, config.auth)
       db.ensure_user(conn, user.username)
       db.ensure_system_lists(conn, user.username)
 
@@ -48,23 +54,25 @@ pub fn handle_request(
         [] -> home.home(conn, user)
         ["wines"] ->
           case req.method {
-            http.Post -> wines.create_wine(req, conn, user)
+            http.Post -> wines.create_wine(req, conn, user, config.image_dir)
             _ -> wines.wines(conn, user)
           }
         ["wines", "import", "vivino"] ->
           case req.method {
-            http.Post -> wines.vivino_import(req, conn, user)
+            http.Post -> wines.vivino_import(req, conn, user, config.image_dir)
             _ -> wines.vivino_search(req, conn, user)
           }
         ["wines", "new"] -> wines.new_wine_form(req, conn, user)
         ["wines", id, _, "edit"] ->
           case req.method {
-            http.Post -> wines.handle_edit_wine(req, conn, id, user)
+            http.Post ->
+              wines.handle_edit_wine(req, conn, id, user, config.image_dir)
             _ -> wines.edit_wine_form(req, conn, id, user)
           }
         ["wines", id, _, "sync"] ->
           case req.method {
-            http.Post -> wines.vivino_sync_apply(req, conn, id, user)
+            http.Post ->
+              wines.vivino_sync_apply(req, conn, id, user, config.image_dir)
             _ -> wines.vivino_sync_preview(conn, id, user)
           }
         ["wines", id, _, "ratings", "new"] ->

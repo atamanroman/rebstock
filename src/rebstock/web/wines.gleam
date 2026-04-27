@@ -5,6 +5,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import nakai/attr
 import nakai/html.{type Node}
+import simplifile
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
@@ -117,21 +118,7 @@ fn wine_header(
 ) -> Node {
   html.div([], [
     html.div([attr.class("flex gap-6")], [
-      // Bottle image placeholder
-      html.div(
-        [
-          attr.class(
-            "hidden sm:flex w-28 h-28 shrink-0 rounded-lg bg-stone-100 border border-stone-200 items-center justify-center p-1",
-          ),
-        ],
-        [
-          html.UnsafeInlineHtml(
-            "<svg class=\"w-full h-full\" viewBox=\"0 0 80 220\" fill=\"#2d5a27\" xmlns=\"http://www.w3.org/2000/svg\">"
-            <> "<path d=\"M30,0 L30,4 L26,4 L26,8 L30,8 L30,38 C30,52 10,62 10,80 L10,206 C10,214 16,220 24,220 L56,220 C64,220 70,214 70,206 L70,80 C70,62 50,52 50,38 L50,8 L54,8 L54,4 L50,4 L50,0 Z\"/>"
-            <> "</svg>",
-          ),
-        ],
-      ),
+      c.wine_image(wine.id, "hidden sm:flex w-28 h-28 shrink-0 rounded-lg"),
       // Wine details
       html.div([attr.class("flex-1 min-w-0")], [
         html.div([attr.class("flex items-start justify-between mb-2")], [
@@ -466,7 +453,7 @@ fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
       case wine.vivino_id {
         Some(vid) -> [
           c.action_link(
-            "https://www.vivino.com/wines/" <> vid,
+            "https://www.vivino.com/w/" <> vid,
             "View on Vivino \u{2192}",
           ),
           html.a(
@@ -693,7 +680,9 @@ fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
   ])
 }
 
-fn compute_parent_remaining(entries: List(CellarEntry)) -> List(#(String, Int)) {
+fn compute_parent_remaining(
+  entries: List(CellarEntry),
+) -> List(#(String, Int)) {
   // For each parent entry, compute: original quantity + sum of child quantities
   let parents = list.filter(entries, fn(e) { e.parent_id == None })
   list.map(parents, fn(p) {
@@ -930,7 +919,12 @@ type NewWinePrefill {
   )
 }
 
-pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
+pub fn create_wine(
+  req: Request,
+  conn: Connection,
+  user: User,
+  image_dir: String,
+) -> Response {
   use form <- wisp.require_form(req)
   let name = form_val(form, "name")
   let winery = form_val(form, "winery")
@@ -938,7 +932,7 @@ pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
     "", _ | _, "" -> wisp.redirect("/wines/new")
     _, _ -> {
       let wine_type = db.wine_type_from_string(form_val(form, "wine_type"))
-      let id =
+      let wine_id =
         db.upsert_wine(
           conn,
           created_by: user.username,
@@ -952,7 +946,23 @@ pub fn create_wine(req: Request, conn: Connection, user: User) -> Response {
           wine_type: wine_type,
           vivino_id: opt_val(form, "vivino_id"),
         )
-      wisp.redirect("/wines/" <> id)
+      // Save uploaded image if present
+      case list.key_find(form.files, "image") {
+        Ok(file) ->
+          case file.file_name {
+            "" -> Nil
+            _ -> {
+              let _ =
+                simplifile.copy(
+                  file.path,
+                  image_dir <> "/" <> wine_id <> ".jpg",
+                )
+              Nil
+            }
+          }
+        Error(_) -> Nil
+      }
+      wisp.redirect("/wines/" <> wine_id)
     }
   }
 }
@@ -1009,6 +1019,7 @@ pub fn handle_edit_wine(
   conn: Connection,
   id: String,
   user: User,
+  image_dir: String,
 ) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> c.not_found(user, conn)
@@ -1037,6 +1048,22 @@ pub fn handle_edit_wine(
                 wine_type,
                 opt_val(form, "vivino_id"),
               )
+              // Save uploaded image if present
+              case list.key_find(form.files, "image") {
+                Ok(file) ->
+                  case file.file_name {
+                    "" -> Nil
+                    _ -> {
+                      let _ =
+                        simplifile.copy(
+                          file.path,
+                          image_dir <> "/" <> id <> ".jpg",
+                        )
+                      Nil
+                    }
+                  }
+                Error(_) -> Nil
+              }
               wisp.redirect("/wines/" <> id)
             }
           }
@@ -1097,6 +1124,7 @@ fn wine_form(
     [
       attr.method("post"),
       attr.Attr("action", action),
+      attr.Attr("enctype", "multipart/form-data"),
       attr.class("space-y-4"),
     ],
     [
@@ -1113,6 +1141,22 @@ fn wine_form(
           ],
           [],
         ),
+      ]),
+      html.div([attr.class("space-y-1")], [
+        html.label([attr.class("block text-sm text-stone-600")], [
+          html.Text("Label Photo"),
+        ]),
+        html.input([
+          attr.type_("file"),
+          attr.name("image"),
+          attr.Attr("accept", "image/*"),
+          attr.class(
+            "block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-stone-300 file:text-sm file:text-stone-700 file:bg-white hover:file:bg-stone-50",
+          ),
+        ]),
+        html.p([attr.class("text-xs text-stone-400 mt-1")], [
+          html.Text("Portrait orientation, ideally 300\u{00d7}400px or larger"),
+        ]),
       ]),
       c.form_field("Winery", True, [
         html.Element(
@@ -1300,7 +1344,12 @@ pub fn vivino_search(req: Request, conn: Connection, user: User) -> Response {
   }
 }
 
-pub fn vivino_import(req: Request, conn: Connection, user: User) -> Response {
+pub fn vivino_import(
+  req: Request,
+  conn: Connection,
+  user: User,
+  image_dir: String,
+) -> Response {
   use form <- wisp.require_form(req)
   let name = form_val(form, "name")
   let winery = form_val(form, "winery")
@@ -1327,8 +1376,11 @@ pub fn vivino_import(req: Request, conn: Connection, user: User) -> Response {
 
       // Full sync: vintages + ratings
       case vivino.fetch_wine_with_vintages(vivino_id) {
-        Ok(detail) ->
+        Ok(detail) -> {
           sync_vintages_and_ratings(conn, user.username, wine_id, detail)
+          let _ = vivino.download_image(detail.thumb_url, image_dir, wine_id)
+          Nil
+        }
         Error(_) -> {
           // Fallback: use rating from form if vintage fetch fails
           case float.parse(form_val(form, "rating")) {
@@ -1350,7 +1402,11 @@ pub fn vivino_import(req: Request, conn: Connection, user: User) -> Response {
   }
 }
 
-pub fn vivino_sync_preview(conn: Connection, id: String, user: User) -> Response {
+pub fn vivino_sync_preview(
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> wisp.redirect("/wines")
     Ok(wine) ->
@@ -1450,6 +1506,7 @@ pub fn vivino_sync_apply(
   conn: Connection,
   id: String,
   user: User,
+  image_dir: String,
 ) -> Response {
   case db.get_wine(conn, user.username, id) {
     Error(_) -> wisp.redirect("/wines")
@@ -1478,8 +1535,12 @@ pub fn vivino_sync_apply(
           )
           // Sync vintages and ratings from API
           case vivino.fetch_wine_with_vintages(vid) {
-            Ok(detail) ->
+            Ok(detail) -> {
               sync_vintages_and_ratings(conn, user.username, wine.id, detail)
+              let _ =
+                vivino.download_image(detail.thumb_url, image_dir, wine.id)
+              Nil
+            }
             Error(_) -> Nil
           }
           wisp.redirect(c.wine_url(wine))

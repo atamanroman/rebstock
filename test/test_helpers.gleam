@@ -2,16 +2,23 @@ import gleam/list
 import gleam/option.{None, Some}
 import sqlight
 
-import rebstock/auth.{type AuthMode}
+import rebstock/auth
+import rebstock/config.{type Config}
 import rebstock/db
 import rebstock/vivino
 
-pub const test_auth: AuthMode = auth.Single("test")
+pub const test_config: Config = config.Config(
+  host: "127.0.0.1",
+  port: 3000,
+  database_uri: ":memory:",
+  image_dir: "/tmp/rebstock-test-images",
+  auth: auth.Single("test"),
+)
 
 pub fn with_seeded_db(f: fn(sqlight.Connection) -> Nil) -> Nil {
   use conn <- sqlight.with_connection(":memory:")
   db.migrate(conn)
-  vivino.import_data(conn, "vivino_data", "test")
+  vivino.import_data(conn, "vivino_data", "test", False)
   f(conn)
 }
 

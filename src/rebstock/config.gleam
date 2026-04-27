@@ -9,14 +9,21 @@ import rebstock/auth.{type AuthMode, Forward, Single}
 import wisp
 
 pub type Config {
-  Config(host: String, port: Int, database_uri: String, auth: AuthMode)
+  Config(
+    host: String,
+    port: Int,
+    database_uri: String,
+    image_dir: String,
+    auth: AuthMode,
+  )
 }
 
 pub fn default() -> Config {
   Config(
     host: "127.0.0.1",
     port: 3000,
-    database_uri: "file:rebstock.db",
+    database_uri: "file:./data/rebstock.db",
+    image_dir: "./data/images",
     auth: Single("admin"),
   )
 }
@@ -60,6 +67,8 @@ pub fn load(path: String) -> Config {
     <> int.to_string(config.port)
     <> " | db: "
     <> config.database_uri
+    <> " | images: "
+    <> config.image_dir
     <> " | auth: "
     <> auth_desc,
   )
@@ -80,8 +89,13 @@ fn config_decoder(d: Config) -> decode.Decoder(Config) {
     d.database_uri,
     decode.string,
   )
+  use image_dir <- decode.optional_field(
+    "image_dir",
+    d.image_dir,
+    decode.string,
+  )
   use auth <- decode.field("auth", auth_decoder())
-  decode.success(Config(host:, port:, database_uri:, auth:))
+  decode.success(Config(host:, port:, database_uri:, image_dir:, auth:))
 }
 
 fn auth_decoder() -> decode.Decoder(AuthMode) {

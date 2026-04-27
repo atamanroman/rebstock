@@ -11,3 +11,4 @@ config.json
 /.claude
 /.superpowers/brainstorm
 /.worktrees
+data/

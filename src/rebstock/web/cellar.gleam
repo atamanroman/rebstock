@@ -139,7 +139,11 @@ pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
   )
 }
 
-pub fn cellar_entry_detail(conn: Connection, id: String, user: User) -> Response {
+pub fn cellar_entry_detail(
+  conn: Connection,
+  id: String,
+  user: User,
+) -> Response {
   case db.get_cellar_entry_by_id(conn, id) {
     Error(_) -> c.not_found(user, conn)
     Ok(entry) ->

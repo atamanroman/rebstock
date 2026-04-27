@@ -1,8 +1,14 @@
 _default:
     @just --list
 
-# Start a devserver on localhost:3000 that watches for changes in *.gleam and *.css files
-dev:
+# Start a devserver on localhost:3000 that watches for changes in *.gleam and *.css files (--clean to wipe ./data)
+dev *args:
+    #!/usr/bin/env sh
+    for arg in {{args}}; do
+        case "$arg" in
+            --clean) rm -rf ./data && echo "Cleaned ./data" ;;
+        esac
+    done
     watchexec --restart --exts gleam,css -- just _dev
 
 _dev:

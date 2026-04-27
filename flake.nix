@@ -106,6 +106,7 @@
                         host = cfg.host;
                         port = cfg.port;
                         database_uri = "file:${cfg.dataDir}/rebstock.db";
+                        image_dir = "${cfg.dataDir}/images";
                         auth =
                           if cfg.auth.mode == "single" then {
                             single = { user = cfg.auth.user; };

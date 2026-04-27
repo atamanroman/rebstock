@@ -504,7 +504,10 @@ pub type ListWine {
   ListWine(wine: Wine, vintage: Option(String), notes: Option(String))
 }
 
-pub fn list_wines_for_list(conn: Connection, list_id: String) -> List(ListWine) {
+pub fn list_wines_for_list(
+  conn: Connection,
+  list_id: String,
+) -> List(ListWine) {
   let decoder = {
     use id <- decode.field(0, decode.string)
     use created_by <- decode.field(1, decode.string)

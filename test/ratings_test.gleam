@@ -4,10 +4,11 @@ import gleam/string
 import wisp/simulate
 
 import rebstock/auth
+import rebstock/config
 import rebstock/db
 import rebstock/router
 import test_helpers.{
-  seed_two_users, test_auth, user_ratings, wine_path, with_empty_db,
+  seed_two_users, test_config, user_ratings, wine_path, with_empty_db,
   with_seeded_db,
 }
 
@@ -15,7 +16,7 @@ pub fn ratings_page_test() {
   use conn <- with_seeded_db
   let response =
     simulate.request(http.Get, "/~test/ratings")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Your Ratings")
@@ -27,7 +28,7 @@ pub fn ratings_page_other_user_test() {
   let #(_wa, _wb) = seed_two_users(conn)
   let response =
     simulate.request(http.Get, "/~alice/ratings")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "alice's Ratings")
@@ -41,7 +42,7 @@ pub fn rating_detail_page_test() {
   let assert [rating, ..] = ratings
   let response =
     simulate.request(http.Get, "/ratings/" <> rating.id)
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   Nil
 }
@@ -51,7 +52,7 @@ pub fn rating_detail_not_found_test() {
   db.ensure_user(conn, "test")
   let response =
     simulate.request(http.Get, "/ratings/nonexistent")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 404 = response.status
   Nil
 }
@@ -63,7 +64,7 @@ pub fn rating_overlay_test() {
   let assert [rating, ..] = ratings
   let response =
     simulate.request(http.Get, "/ratings/" <> rating.id <> "/overlay")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   Nil
 }
@@ -80,7 +81,7 @@ pub fn create_and_delete_rating_test() {
       #("tasting_notes", "Great wine"),
       #("rated_at", "2026-01-01"),
     ])
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let assert [r, ..] = user_ratings(db.ratings_for_wine(conn, wine.id), "test")
   let response =
@@ -90,13 +91,13 @@ pub fn create_and_delete_rating_test() {
       #("tasting_notes", "Actually ok"),
       #("rated_at", "2026-01-02"),
     ])
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let assert Ok(updated) = db.get_rating_by_id(conn, r.id)
   let assert Some(3.0) = updated.rating
   let response =
     simulate.request(http.Post, base <> "/ratings/" <> r.id <> "/delete")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let assert Error(_) = db.get_rating_by_id(conn, r.id)
   Nil
@@ -108,7 +109,7 @@ pub fn rating_new_form_get_test() {
   let assert [wine, ..] = wines
   let response =
     simulate.request(http.Get, wine_path(wine.id, wine.name) <> "/ratings/new")
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Rate")
@@ -123,7 +124,10 @@ pub fn rating_edit_form_get_test() {
   let base = wine_path(wine_a, "Pinot Noir Reserve")
   let response =
     simulate.request(http.Get, base <> "/ratings/" <> rating.id <> "/edit")
-    |> router.handle_request(conn, auth.Single("alice"))
+    |> router.handle_request(
+      conn,
+      config.Config(..test_config, auth: auth.Single("alice")),
+    )
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Edit Rating")
@@ -143,7 +147,7 @@ pub fn rating_delete_forbidden_test() {
         <> rating.id
         <> "/delete",
     )
-    |> router.handle_request(conn, test_auth)
+    |> router.handle_request(conn, test_config)
   let assert 403 = response.status
   Nil
 }

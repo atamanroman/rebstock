@@ -1,6 +1,7 @@
 import gleam/erlang/process
 import gleam/int
 import mist
+import simplifile
 import sqlight
 import wisp
 import wisp/wisp_mist
@@ -14,8 +15,11 @@ import rebstock/vivino
 
 pub fn main() -> Nil {
   wisp.configure_logger()
+  wisp.set_logger_level(wisp.DebugLevel)
 
   let cfg = config.load(config.parse_args())
+
+  let assert Ok(_) = simplifile.create_directory_all(cfg.image_dir)
 
   let assert Ok(conn) = sqlight.open(cfg.database_uri)
   db.migrate(conn)
@@ -27,7 +31,7 @@ pub fn main() -> Nil {
 
   case db.count_wines(conn) {
     0 -> {
-      vivino.import_data(conn, "vivino_data", username)
+      vivino.import_data(conn, "vivino_data", username, True)
       seed.seed_alice(conn, username)
     }
     n ->
@@ -37,7 +41,7 @@ pub fn main() -> Nil {
   }
 
   let assert Ok(_) =
-    wisp_mist.handler(router.handle_request(_, conn, cfg.auth), "secret")
+    wisp_mist.handler(router.handle_request(_, conn, cfg), "secret")
     |> mist.new
     |> mist.port(cfg.port)
     |> mist.start
