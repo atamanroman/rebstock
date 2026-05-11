@@ -1,6 +1,7 @@
 import gleam/bit_array
 import gleam/dynamic
 import gleam/dynamic/decode
+import gleam/erlang/process
 import gleam/http/request
 import gleam/httpc
 import gleam/int
@@ -555,6 +556,7 @@ fn extract_vivino_id(url: String) -> Option(String) {
 pub fn resolve_vintage_to_wine_id(vintage_id: String) -> String {
   let url = "https://api.vivino.com/vintages/" <> vintage_id
   wisp.log_debug("Resolving vintage ID " <> vintage_id)
+  process.sleep(500)
   case vivino_mobile_get(url) {
     Error(_) -> vintage_id
     Ok(body) -> {
@@ -732,7 +734,7 @@ fn persist_row(
   index: Int,
   total: Int,
 ) -> String {
-  wisp.log_debug(
+  wisp.log_info(
     "["
     <> int.to_string(index)
     <> "/"

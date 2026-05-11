@@ -1,3 +1,4 @@
+import envoy
 import gleam/erlang/process
 import gleam/int
 import mist
@@ -17,6 +18,7 @@ pub fn main() -> Nil {
   wisp.configure_logger()
   wisp.set_logger_level(wisp.DebugLevel)
 
+  let skip_import = envoy.get("SKIP_IMPORT") == Ok("1")
   let cfg = config.load(config.parse_args())
 
   let assert Ok(_) = simplifile.create_directory_all(cfg.image_dir)
@@ -29,12 +31,13 @@ pub fn main() -> Nil {
     auth.Forward(..) -> "admin"
   }
 
-  case db.count_wines(conn) {
-    0 -> {
+  case skip_import, db.count_wines(conn) {
+    True, _ -> wisp.log_info("Skipping Vivino import (--skip-import)")
+    _, 0 -> {
       vivino.import_data(conn, "vivino_data", username, True)
       seed.seed_alice(conn, username)
     }
-    n ->
+    _, n ->
       wisp.log_info(
         "DB already has " <> int.to_string(n) <> " wines, skipping seed",
       )
