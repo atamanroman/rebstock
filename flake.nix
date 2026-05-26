@@ -143,8 +143,7 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          config.allowUnfreePredicate = pkg:
-            builtins.elem (nixpkgs.lib.getName pkg) [ "rebstock" ];
+          config.allowUnfree = true;
         };
 
         inherit (pkgs) lib;
@@ -264,11 +263,36 @@
             mainProgram = "rebstock";
           };
         };
+        lint = rebstock.overrideAttrs (old: {
+          pname = "rebstock-lint";
+          buildPhase = ''
+            runHook preBuild
+
+            export HOME=$TMPDIR
+            export REBAR_CACHE_DIR="$TMPDIR/.rebar-cache"
+
+            gleam format --check .
+            gleam build --warnings-as-errors
+
+            runHook postBuild
+          '';
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out
+            touch $out/lint-ok
+            runHook postInstall
+          '';
+        });
       in
       {
         packages = {
           default = rebstock;
           rebstock = rebstock;
+        };
+
+        checks = {
+          inherit lint;
+          build = rebstock;
         };
 
         devShells.default = pkgs.mkShell {
