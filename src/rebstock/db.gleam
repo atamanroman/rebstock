@@ -279,15 +279,29 @@ fn cellar_entry_decoder() -> decode.Decoder(CellarEntry) {
   ))
 }
 
+/// Runs on every request, so check with a read first and only write
+/// when the user is missing.
 pub fn ensure_user(conn: Connection, username: String) -> Nil {
-  let assert Ok(_) =
+  let assert Ok(rows) =
     sqlight.query(
-      "INSERT OR IGNORE INTO users (username) VALUES (?)",
+      "SELECT 1 FROM users WHERE username = ?",
       on: conn,
       with: [sqlight.text(username)],
       expecting: decode.success(Nil),
     )
-  Nil
+  case rows {
+    [_, ..] -> Nil
+    [] -> {
+      let assert Ok(_) =
+        sqlight.query(
+          "INSERT OR IGNORE INTO users (username) VALUES (?)",
+          on: conn,
+          with: [sqlight.text(username)],
+          expecting: decode.success(Nil),
+        )
+      Nil
+    }
+  }
 }
 
 fn list_decoder() -> decode.Decoder(WineList) {
@@ -313,7 +327,22 @@ fn list_decoder() -> decode.Decoder(WineList) {
   ))
 }
 
+/// Runs on every request, so skip the writes when the three system
+/// lists already exist.
 pub fn ensure_system_lists(conn: Connection, username: String) -> Nil {
+  let existing =
+    count_query(
+      conn,
+      "SELECT COUNT(*) FROM lists WHERE username = ? AND list_type IN ('cellar', 'rated', 'wishlist')",
+      [sqlight.text(username)],
+    )
+  case existing >= 3 {
+    True -> Nil
+    False -> create_system_lists(conn, username)
+  }
+}
+
+fn create_system_lists(conn: Connection, username: String) -> Nil {
   let system = [
     #("Cellar", "cellar", "cellar", True),
     #("Rated", "rated", "rated", False),
