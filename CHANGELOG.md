@@ -2,8 +2,16 @@
 
 ## 0.2.0
 
-- Vivino import and sync with vintage ratings and diff preview
+Migrations 00002–00004 apply on first start and drop columns — back up
+the database before upgrading.
+
+- Vivino import by URL or ID and re-sync with diff preview, wine label images
+- Vivino community ratings stored on wines and vintages with real rating counts
+- Instant zip import: vintage IDs resolve lazily on first sync instead of per row
 - Vintage-aware add-to-list on wine detail
+- Filter input on wines, cellar, and wineries tables
+- Cellar quantity edits validated against the drink ledger
+- Hardening: CSRF protection, owner checks on winery edit and CSV export, configurable signing secret
 
 ## 0.1.0
 
