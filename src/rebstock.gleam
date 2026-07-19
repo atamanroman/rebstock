@@ -20,7 +20,10 @@ pub fn main() -> Nil {
   db.migrate(conn)
 
   let assert Ok(_) =
-    wisp_mist.handler(router.handle_request(_, conn, cfg), "secret")
+    wisp_mist.handler(
+      router.handle_request(_, conn, cfg),
+      config.secret_key_base(cfg),
+    )
     |> mist.new
     |> mist.port(cfg.port)
     |> mist.bind(cfg.host)

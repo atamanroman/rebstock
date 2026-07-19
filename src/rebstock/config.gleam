@@ -1,4 +1,6 @@
 import argv
+import gleam/bit_array
+import gleam/crypto
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
@@ -15,6 +17,7 @@ pub type Config {
     database_uri: String,
     image_dir: String,
     auth: AuthMode,
+    secret_key_base: String,
   )
 }
 
@@ -25,7 +28,20 @@ pub fn default() -> Config {
     database_uri: "file:./data/rebstock.db",
     image_dir: "./data/images",
     auth: Single("admin"),
+    secret_key_base: "",
   )
+}
+
+/// Signing secret for the wisp handler. Configured value wins;
+/// otherwise a random one is generated at boot (fine as long as
+/// nothing signed needs to survive restarts).
+pub fn secret_key_base(config: Config) -> String {
+  case config.secret_key_base {
+    "" ->
+      crypto.strong_random_bytes(32)
+      |> bit_array.base64_encode(False)
+    key -> key
+  }
 }
 
 pub fn parse_args() -> String {
@@ -94,8 +110,20 @@ fn config_decoder(d: Config) -> decode.Decoder(Config) {
     d.image_dir,
     decode.string,
   )
+  use secret_key_base <- decode.optional_field(
+    "secret_key_base",
+    d.secret_key_base,
+    decode.string,
+  )
   use auth <- decode.field("auth", auth_decoder())
-  decode.success(Config(host:, port:, database_uri:, image_dir:, auth:))
+  decode.success(Config(
+    host:,
+    port:,
+    database_uri:,
+    image_dir:,
+    auth:,
+    secret_key_base:,
+  ))
 }
 
 fn auth_decoder() -> decode.Decoder(AuthMode) {

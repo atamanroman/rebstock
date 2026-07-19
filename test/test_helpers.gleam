@@ -13,6 +13,7 @@ pub const test_config: Config = config.Config(
   database_uri: ":memory:",
   image_dir: "/tmp/rebstock-test-images",
   auth: auth.Single("test"),
+  secret_key_base: "test-secret",
 )
 
 pub fn with_seeded_db(f: fn(sqlight.Connection) -> Nil) -> Nil {
