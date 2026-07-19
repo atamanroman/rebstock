@@ -43,7 +43,8 @@ pub fn wines(conn: Connection, user: User) -> Response {
         ),
       ]),
     ]),
-    wine_table(wines),
+    c.table_filter("wines-table", "Filter wines\u{2026}"),
+    html.div([attr.id("wines-table")], [wine_table(wines)]),
   ])
 }
 

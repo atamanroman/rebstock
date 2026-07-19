@@ -87,7 +87,8 @@ pub fn cellar(
           })
       },
     ]),
-    cellar_wine_table(wines),
+    c.table_filter("cellar-table", "Filter wines\u{2026}"),
+    html.div([attr.id("cellar-table")], [cellar_wine_table(wines)]),
   ])
 }
 

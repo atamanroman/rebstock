@@ -28,10 +28,13 @@ pub fn wineries(conn: Connection, user: User) -> Response {
         [html.Text("Add Winery")],
       ),
     ]),
-    c.table(
-      ["Winery", "Country", "Wines"],
-      list.index_map(winery_list, winery_row),
-    ),
+    c.table_filter("wineries-table", "Filter wineries\u{2026}"),
+    html.div([attr.id("wineries-table")], [
+      c.table(
+        ["Winery", "Country", "Wines"],
+        list.index_map(winery_list, winery_row),
+      ),
+    ]),
   ])
 }
 

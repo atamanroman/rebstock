@@ -549,6 +549,28 @@ pub fn table(headers: List(String), rows: List(Node)) -> Node {
   ])
 }
 
+/// Client-side text filter input for the table inside `#target_id`.
+/// Hides rows whose text does not contain the query.
+pub fn table_filter(target_id: String, placeholder: String) -> Node {
+  html.Element(
+    "input",
+    [
+      attr.type_("search"),
+      attr.Attr("placeholder", placeholder),
+      attr.class(
+        "w-full sm:w-72 border border-stone-300 rounded-lg px-3 py-2 text-sm mb-4",
+      ),
+      attr.Attr(
+        "oninput",
+        "var q=this.value.toLowerCase();document.querySelectorAll('#"
+          <> target_id
+          <> " tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(q)===-1?'none':''})",
+      ),
+    ],
+    [],
+  )
+}
+
 fn th(label: String) -> Node {
   html.th(
     [
