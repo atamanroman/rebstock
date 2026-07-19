@@ -116,7 +116,14 @@ pub fn cellar_set_public(
   }
 }
 
-pub fn cellar_csv(conn: Connection, _user: User, username: String) -> Response {
+pub fn cellar_csv(conn: Connection, user: User, username: String) -> Response {
+  case user.username == username {
+    False -> wisp.response(403)
+    True -> cellar_csv_body(conn, username)
+  }
+}
+
+fn cellar_csv_body(conn: Connection, username: String) -> Response {
   let wines = db.cellar_wines(conn, username)
   let header = "Winery,Wine,Vintage,Country,Type,Bottles"
   let rows =

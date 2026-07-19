@@ -160,11 +160,29 @@ pub type CellarEntry {
 pub type Winery {
   Winery(
     id: String,
+    created_by: String,
     name: String,
     wine_count: Int,
     country: Option(String),
     vivino_id: Option(String),
   )
+}
+
+fn winery_decoder() -> decode.Decoder(Winery) {
+  use id <- decode.field(0, decode.string)
+  use created_by <- decode.field(1, decode.string)
+  use name <- decode.field(2, decode.string)
+  use wine_count <- decode.field(3, decode.int)
+  use country <- decode.field(4, decode.optional(decode.string))
+  use vivino_id <- decode.field(5, decode.optional(decode.string))
+  decode.success(Winery(
+    id:,
+    created_by:,
+    name:,
+    wine_count:,
+    country:,
+    vivino_id:,
+  ))
 }
 
 pub fn migrate(conn: Connection) -> Nil {
@@ -764,44 +782,28 @@ pub fn get_wine(
 }
 
 pub fn list_wineries(conn: Connection) -> List(Winery) {
-  let decoder = {
-    use id <- decode.field(0, decode.string)
-    use name <- decode.field(1, decode.string)
-    use wine_count <- decode.field(2, decode.int)
-    use country <- decode.field(3, decode.optional(decode.string))
-    use vivino_id <- decode.field(4, decode.optional(decode.string))
-    decode.success(Winery(id:, name:, wine_count:, country:, vivino_id:))
-  }
   let assert Ok(wineries) =
     sqlight.query(
-      "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
+      "SELECT wy.id, wy.created_by, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
        FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
        GROUP BY wy.id ORDER BY wy.name",
       on: conn,
       with: [],
-      expecting: decoder,
+      expecting: winery_decoder(),
     )
   wineries
 }
 
 pub fn get_winery(conn: Connection, id: String) -> Result(Winery, Nil) {
-  let decoder = {
-    use id <- decode.field(0, decode.string)
-    use name <- decode.field(1, decode.string)
-    use wine_count <- decode.field(2, decode.int)
-    use country <- decode.field(3, decode.optional(decode.string))
-    use vivino_id <- decode.field(4, decode.optional(decode.string))
-    decode.success(Winery(id:, name:, wine_count:, country:, vivino_id:))
-  }
   let result =
     sqlight.query(
-      "SELECT wy.id, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
+      "SELECT wy.id, wy.created_by, wy.name, COUNT(w.id) as wine_count, wy.country, wy.vivino_id
        FROM wineries wy LEFT JOIN wines w ON wy.id = w.winery_id
        WHERE wy.id = ?
        GROUP BY wy.id",
       on: conn,
       with: [sqlight.text(id)],
-      expecting: decoder,
+      expecting: winery_decoder(),
     )
   case result {
     Ok([winery]) -> Ok(winery)

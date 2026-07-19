@@ -55,15 +55,19 @@ pub fn winery_detail(conn: Connection, id: String, user: User) -> Response {
               ],
               [html.Text("Add Wine")],
             ),
-            html.a(
-              [
-                attr.href("/wineries/" <> winery.id <> "/edit"),
-                attr.class(
-                  "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
-                ),
-              ],
-              [html.Text("Edit")],
-            ),
+            case winery.created_by == user.username {
+              False -> html.Nothing
+              True ->
+                html.a(
+                  [
+                    attr.href("/wineries/" <> winery.id <> "/edit"),
+                    attr.class(
+                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                    ),
+                  ],
+                  [html.Text("Edit")],
+                )
+            },
           ]),
         ]),
         wines.wine_table(winery_wines),
@@ -100,6 +104,7 @@ pub fn create_winery(req: Request, conn: Connection, user: User) -> Response {
 pub fn edit_winery_form(conn: Connection, id: String, user: User) -> Response {
   case db.get_winery(conn, id) {
     Error(_) -> c.not_found(user, conn)
+    Ok(winery) if winery.created_by != user.username -> wisp.response(403)
     Ok(winery) -> {
       c.page("Edit " <> winery.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wineries/" <> id, winery.name),
@@ -122,6 +127,7 @@ pub fn handle_edit_winery(
 ) -> Response {
   case db.get_winery(conn, id) {
     Error(_) -> c.not_found(user, conn)
+    Ok(winery) if winery.created_by != user.username -> wisp.response(403)
     Ok(_) -> {
       use form <- wisp.require_form(req)
       case list.key_find(form.values, "name") {
