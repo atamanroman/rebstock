@@ -562,9 +562,9 @@ pub fn table_filter(target_id: String, placeholder: String) -> Node {
       ),
       attr.Attr(
         "oninput",
-        "var q=this.value.toLowerCase();document.querySelectorAll('#"
+        "var q=this.value.toLowerCase();var i=0;document.querySelectorAll('#"
           <> target_id
-          <> " tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(q)===-1?'none':''})",
+          <> " tbody tr').forEach(function(r){var show=r.textContent.toLowerCase().indexOf(q)!==-1;r.style.display=show?'':'none';if(show){r.classList.remove('bg-white','bg-stone-50/30');r.classList.add(i%2?'bg-stone-50/30':'bg-white');i++}})",
       ),
     ],
     [],
