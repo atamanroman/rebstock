@@ -1,5 +1,10 @@
 # Rebstock Changelog
 
+## 0.2.1
+
+- Fix migration 00002 failing on databases with duplicate Vivino ratings:
+  keep the newest rating per wine+vintage before creating the unique index
+
 ## 0.2.0
 
 Migrations 00002–00004 apply on first start and drop columns — back up
