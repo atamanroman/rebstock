@@ -225,10 +225,8 @@ fn winery_row(winery: Winery, idx: Int) -> Node {
   html.tr(
     [
       attr.class(c.clickable_row_class(idx)),
-      attr.Attr(
-        "onclick",
-        "window.location='" <> c.winery_url(winery.id, winery.name) <> "'",
-      ),
+      c.row_onclick(c.winery_url(winery.id, winery.name)),
+      c.row_onauxclick(c.winery_url(winery.id, winery.name)),
     ],
     [
       html.td([attr.class("px-4 py-3 font-medium text-stone-800")], [

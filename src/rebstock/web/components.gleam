@@ -594,6 +594,26 @@ pub fn clickable_row_class(idx: Int) -> String {
   row_class(idx) <> " cursor-pointer"
 }
 
+/// Navigate on row click; ctrl/cmd/middle click opens a new tab like
+/// a regular link would.
+pub fn row_onclick(url: String) -> attr.Attr {
+  attr.Attr(
+    "onclick",
+    "if(event.ctrlKey||event.metaKey){window.open('"
+      <> url
+      <> "','_blank')}else{window.location='"
+      <> url
+      <> "'}",
+  )
+}
+
+pub fn row_onauxclick(url: String) -> attr.Attr {
+  attr.Attr(
+    "onauxclick",
+    "if(event.button===1){window.open('" <> url <> "','_blank')}",
+  )
+}
+
 // --- Section helpers (home page cards) ---
 
 pub fn section_header(title: String, link_href: String) -> Node {

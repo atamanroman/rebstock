@@ -313,7 +313,7 @@ fn rating_form(
                   attr.type_("range"),
                   attr.name("rating"),
                   attr.Attr("step", "0.1"),
-                  attr.Attr("min", "0"),
+                  attr.Attr("min", "1"),
                   attr.Attr("max", "5"),
                   attr.value(cur_rating),
                   attr.class("flex-1 accent-amber-500"),
@@ -551,7 +551,8 @@ fn rating_row(rating: Rating, idx: Int, conn: Connection) -> html.Node {
       html.tr(
         [
           attr.class(c.clickable_row_class(idx)),
-          attr.Attr("onclick", "window.location='" <> c.wine_url(wine) <> "'"),
+          c.row_onclick(c.wine_url(wine)),
+          c.row_onauxclick(c.wine_url(wine)),
         ],
         [
           html.td([attr.class("px-4 py-3 text-stone-700")], [
