@@ -78,7 +78,7 @@ pub fn user_ratings(
   ratings: List(db.Rating),
   username: String,
 ) -> List(db.Rating) {
-  list.filter(ratings, fn(r) { r.username == username && r.source == "user" })
+  list.filter(ratings, fn(r) { r.username == username })
 }
 
 pub fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
@@ -140,7 +140,6 @@ pub fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     rating: Some(4.5),
     tasting_notes: Some("Excellent"),
     rated_at: None,
-    source: "user",
   )
   db.insert_rating(
     conn,
@@ -150,7 +149,6 @@ pub fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     rating: Some(3.8),
     tasting_notes: None,
     rated_at: None,
-    source: "user",
   )
   let alice_wl = db.get_user_wishlist(conn, "alice")
   db.add_wine_to_list(

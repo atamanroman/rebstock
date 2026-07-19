@@ -424,11 +424,20 @@ pub fn db_latest_cellar_entries_test() {
 }
 
 pub fn db_vivino_rating_test() {
-  use conn <- with_seeded_db
-  let wines = db.list_wines(conn, "test")
-  let assert [wine, ..] = wines
-  let rating = db.vivino_rating(conn, wine.id)
-  let assert True = rating != None
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Rated Wine", db.Red)
+  db.set_wine_vivino_rating(conn, wine_id, 4.2, Some(1500))
+  let assert Ok(wine) = db.get_wine(conn, "test", wine_id)
+  let assert Some(4.2) = wine.vivino_rating
+  let assert Some(1500) = wine.vivino_rating_count
+
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.set_vintage_vivino_rating(conn, wine_id, "2020", 4.4, None)
+  let assert [vr] = db.vintage_ratings_for_wine(conn, wine_id)
+  let assert "2020" = vr.year
+  let assert Some(4.4) = vr.rating
+  let assert None = vr.rating_count
   Nil
 }
 

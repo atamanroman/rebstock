@@ -22,7 +22,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
           "Rich and complex, dark fruit with a hint of leather. Long finish.",
         ),
         rated_at: Some("2025-11-15"),
-        source: "user",
       )
       db.insert_rating(
         conn,
@@ -32,7 +31,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         rating: Some(3.8),
         tasting_notes: Some("Pleasant but not outstanding. Good acidity."),
         rated_at: Some("2025-12-01"),
-        source: "user",
       )
       db.insert_rating(
         conn,
@@ -44,7 +42,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
           "Exceptional. Layers of blackberry, cedar, and spice. One of the best I've had this year.",
         ),
         rated_at: Some("2026-01-10"),
-        source: "user",
       )
       db.insert_rating(
         conn,
@@ -54,7 +51,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         rating: Some(3.5),
         tasting_notes: None,
         rated_at: Some("2026-02-20"),
-        source: "user",
       )
       db.insert_rating(
         conn,
@@ -64,7 +60,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         rating: Some(4.0),
         tasting_notes: Some("Solid everyday wine. Cherry and vanilla notes."),
         rated_at: Some("2026-03-05"),
-        source: "user",
       )
 
       // Cellar entries for alice
@@ -122,7 +117,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
               rating: rating,
               tasting_notes: notes,
               rated_at: Some(date),
-              source: "user",
             )
           })
         }
@@ -151,7 +145,6 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
           rating: Some(4.0),
           tasting_notes: Some("Nice wine."),
           rated_at: Some("2026-01-01"),
-          source: "user",
         )
       })
     }

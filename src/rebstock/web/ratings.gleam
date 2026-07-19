@@ -88,7 +88,6 @@ pub fn handle_new(
             rating: rating,
             tasting_notes: notes,
             rated_at: date,
-            source: "user",
           )
           wisp.response(200)
           |> wisp.set_header("HX-Redirect", c.wine_url(wine))

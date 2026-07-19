@@ -63,21 +63,16 @@ pub fn wine_detail(
     Error(_) -> c.not_found(user, conn)
     Ok(wine) -> {
       let all_ratings = db.ratings_for_wine(conn, wine.id)
-      let vintages = db.vintages_for_wine(conn, wine.id)
+      let vintage_ratings = db.vintage_ratings_for_wine(conn, wine.id)
+      let vintages = list.map(vintage_ratings, fn(v) { v.year })
       let user_lists =
         db.lists_for_user(conn, user.username)
         |> list.filter(fn(l) {
           l.list_type == db.WishlistList || l.list_type == db.CustomList
         })
-      let my =
-        list.filter(all_ratings, fn(r) {
-          r.source == "user" && r.username == user.username
-        })
+      let my = list.filter(all_ratings, fn(r) { r.username == user.username })
       let others =
-        list.filter(all_ratings, fn(r) {
-          r.source == "user" && r.username != user.username
-        })
-      let vivino = list.filter(all_ratings, fn(r) { r.source == "vivino" })
+        list.filter(all_ratings, fn(r) { r.username != user.username })
 
       let has_nv = list.any(all_ratings, fn(r) { r.vintage == None })
       let vintage_opts = case has_nv {
@@ -94,9 +89,9 @@ pub fn wine_detail(
           wine_header(wine, user, user_lists, in_list_ids, selected),
           ..wine_body(
             wine,
+            vintage_ratings,
             vintage_opts,
             selected,
-            vivino,
             my,
             others,
             conn,
@@ -276,18 +271,31 @@ fn vintage_pill(label: String, href: String, active: Bool) -> Node {
 }
 
 fn stat_boxes(
-  vivino: List(Rating),
+  vivino: #(Option(Float), Option(Int)),
   my: List(Rating),
   others: List(Rating),
 ) -> Node {
+  let #(vivino_rating, vivino_count) = vivino
   html.div([attr.class("grid grid-cols-3 gap-3 mt-4")], [
-    stat_box("Vivino", avg_rating(vivino), count_rated(vivino)),
-    stat_box("You", avg_rating(my), count_rated(my)),
-    stat_box("Others", avg_rating(others), count_rated(others)),
+    stat_box("Vivino", vivino_rating, case vivino_count {
+      Some(n) -> int.to_string(n) <> " ratings"
+      None -> ""
+    }),
+    stat_box("You", avg_rating(my), count_label(my)),
+    stat_box("Others", avg_rating(others), count_label(others)),
   ])
 }
 
-fn stat_box(label: String, avg: Option(Float), count: Int) -> Node {
+fn count_label(ratings: List(Rating)) -> String {
+  let count = count_rated(ratings)
+  int.to_string(count)
+  <> case count {
+    1 -> " rating"
+    _ -> " ratings"
+  }
+}
+
+fn stat_box(label: String, avg: Option(Float), count_text: String) -> Node {
   html.div(
     [
       attr.class(
@@ -299,15 +307,7 @@ fn stat_box(label: String, avg: Option(Float), count: Int) -> Node {
       html.div([attr.class("text-xs text-stone-400 mt-0.5")], [
         html.Text(label),
       ]),
-      html.div([attr.class("text-xs text-stone-400")], [
-        html.Text(
-          int.to_string(count)
-          <> case count {
-            1 -> " rating"
-            _ -> " ratings"
-          },
-        ),
-      ]),
+      html.div([attr.class("text-xs text-stone-400")], [html.Text(count_text)]),
     ],
   )
 }
@@ -360,15 +360,25 @@ fn vintage_matches(r: Rating, v: String) -> Bool {
 
 fn wine_body(
   wine: Wine,
+  vintage_ratings: List(db.VintageRating),
   vintage_opts: List(String),
   selected: Option(String),
-  vivino: List(Rating),
   my: List(Rating),
   others: List(Rating),
   conn: Connection,
   user: User,
 ) -> List(Node) {
-  let fv = filter_by_vintage(vivino, selected)
+  // NV and "All" show the wine-level Vivino rating; a year shows
+  // that vintage's cached rating.
+  let vivino_stat = case selected {
+    None -> #(wine.vivino_rating, wine.vivino_rating_count)
+    Some("NV") -> #(wine.vivino_rating, wine.vivino_rating_count)
+    Some(year) ->
+      case list.find(vintage_ratings, fn(v) { v.year == year }) {
+        Ok(v) -> #(v.rating, v.rating_count)
+        Error(_) -> #(None, None)
+      }
+  }
   let fm = filter_by_vintage(my, selected)
   let fo = filter_by_vintage(others, selected)
   let cellar_entries =
@@ -381,7 +391,7 @@ fn wine_body(
       section_label("Ratings"),
       vintage_pills(wine, vintage_opts, selected),
       html.div([attr.class("pl-4 ml-1 border-l-2 border-stone-200")], [
-        stat_boxes(fv, fm, fo),
+        stat_boxes(vivino_stat, fm, fo),
         my_ratings_section(fm, wine),
         others_ratings_section(fo),
       ]),
@@ -1369,21 +1379,14 @@ pub fn vivino_import(
       // Full sync: vintages + ratings
       case vivino.fetch_wine_with_vintages(vivino_id) {
         Ok(detail) -> {
-          sync_vintages_and_ratings(conn, user.username, wine_id, detail)
+          sync_vintages_and_ratings(conn, wine_id, detail)
           let _ = vivino.download_image(detail.thumb_url, image_dir, wine_id)
           Nil
         }
         Error(_) -> {
           // Fallback: use rating from form if vintage fetch fails
           case float.parse(form_val(form, "rating")) {
-            Ok(rating) ->
-              db.upsert_vivino_rating(
-                conn,
-                username: user.username,
-                wine_id: wine_id,
-                vintage: None,
-                rating: rating,
-              )
+            Ok(rating) -> db.set_wine_vivino_rating(conn, wine_id, rating, None)
             _ -> Nil
           }
         }
@@ -1439,23 +1442,14 @@ pub fn vivino_sync_preview(
                   !list.contains(current_vintages, v)
                 })
 
-              let current_vivino_ratings =
-                db.ratings_for_wine(conn, wine.id)
-                |> list.filter(fn(r) { r.source == "vivino" })
-              let current_overall_rating =
-                list.find(current_vivino_ratings, fn(r) { r.vintage == None })
               let rating_changed = case
                 detail.rating >. 0.0,
-                current_overall_rating
+                wine.vivino_rating
               {
                 False, _ -> False
-                True, Error(_) -> True
-                True, Ok(r) ->
-                  case r.rating {
-                    Some(v) ->
-                      float.to_string(v) != float.to_string(detail.rating)
-                    None -> True
-                  }
+                True, None -> True
+                True, Some(v) ->
+                  float.to_string(v) != float.to_string(detail.rating)
               }
 
               c.page("Sync \u{2014} Rebstock", user, conn, [
@@ -1488,7 +1482,6 @@ pub fn vivino_sync_preview(
                       new_vintages,
                       current_vintages,
                       rating_changed,
-                      current_overall_rating,
                     )
                   ],
                 ),
@@ -1537,7 +1530,7 @@ pub fn vivino_sync_apply(
           // Sync vintages and ratings from API
           case vivino.fetch_wine_with_vintages(vid) {
             Ok(detail) -> {
-              sync_vintages_and_ratings(conn, user.username, wine.id, detail)
+              sync_vintages_and_ratings(conn, wine.id, detail)
               let _ =
                 vivino.download_image(detail.thumb_url, image_dir, wine.id)
               Nil
@@ -1589,7 +1582,6 @@ fn sync_diff_body(
   new_vintages: List(String),
   current_vintages: List(String),
   rating_changed: Bool,
-  current_overall_rating: Result(Rating, Nil),
 ) -> List(Node) {
   let diff_rows =
     list.filter(
@@ -1630,13 +1622,9 @@ fn sync_diff_body(
           True ->
             diff_row(
               "Rating",
-              case current_overall_rating {
-                Ok(r) ->
-                  case r.rating {
-                    Some(v) -> float.to_string(v) <> "\u{2605}"
-                    None -> ""
-                  }
-                Error(_) -> ""
+              case wine.vivino_rating {
+                Some(v) -> float.to_string(v) <> "\u{2605}"
+                None -> ""
               },
               float.to_string(detail.rating)
                 <> "\u{2605} ("
@@ -1691,33 +1679,31 @@ fn sync_diff_body(
 
 fn sync_vintages_and_ratings(
   conn: Connection,
-  username: String,
   wine_id: String,
   detail: vivino.VivinoWineDetail,
 ) -> Nil {
-  // Upsert overall wine rating
+  // Overall wine rating
   case detail.rating >. 0.0 {
     True ->
-      db.upsert_vivino_rating(
+      db.set_wine_vivino_rating(
         conn,
-        username: username,
-        wine_id: wine_id,
-        vintage: None,
-        rating: detail.rating,
+        wine_id,
+        detail.rating,
+        Some(detail.rating_count),
       )
     False -> Nil
   }
-  // Upsert each vintage and its rating
+  // Each vintage and its rating
   list.each(detail.vintages, fn(v) {
     db.upsert_vintage(conn, wine_id, v.year)
     case v.rating >. 0.0 {
       True ->
-        db.upsert_vivino_rating(
+        db.set_vintage_vivino_rating(
           conn,
-          username: username,
-          wine_id: wine_id,
-          vintage: Some(v.year),
-          rating: v.rating,
+          wine_id,
+          v.year,
+          v.rating,
+          Some(v.rating_count),
         )
       False -> Nil
     }

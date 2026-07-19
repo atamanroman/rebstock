@@ -497,13 +497,10 @@ fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
     )
   case row.avg_rating {
     Some(r) ->
-      db.upsert_vivino_rating(
-        conn,
-        username: created_by,
-        wine_id:,
-        vintage: row.vintage,
-        rating: r,
-      )
+      case row.vintage {
+        Some(year) -> db.set_vintage_vivino_rating(conn, wine_id, year, r, None)
+        None -> db.set_wine_vivino_rating(conn, wine_id, r, None)
+      }
     None -> Nil
   }
   case row.user_rating, row.tasting_notes {
@@ -517,7 +514,6 @@ fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
         rating: row.user_rating,
         tasting_notes: row.tasting_notes,
         rated_at: None,
-        source: "user",
       )
   }
   wine_id
