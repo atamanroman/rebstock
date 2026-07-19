@@ -193,10 +193,10 @@ pub fn migrate(conn: Connection) -> Nil {
   Nil
 }
 
-// Columns: wines fields + winery name from JOIN + vintages subquery
+// Columns: wines fields + winery name/country from JOIN + vintages subquery
 const wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
         (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
-        w.region, w.country, w.style,
+        w.region, wy.country, w.style,
         w.personal_note, w.wine_type,
         w.vivino_id, w.vivino_rating, w.vivino_rating_count"
 
@@ -866,7 +866,7 @@ pub type CellarWine {
 
 const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
         (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
-        w.region, w.country, w.style,
+        w.region, wy.country, w.style,
         w.personal_note, w.wine_type,
         w.vivino_id, w.vivino_rating, w.vivino_rating_count,
         c.vintage, COALESCE(SUM(c.quantity), 0) AS bottles"
@@ -1465,7 +1465,7 @@ pub fn update_wine(
   let winery_id = upsert_winery(conn, created_by, winery, country, None)
   let assert Ok(_) =
     sqlight.query(
-      "UPDATE wines SET name = ?, winery_id = ?, region = ?, country = ?,
+      "UPDATE wines SET name = ?, winery_id = ?, region = ?,
        style = ?, personal_note = ?, wine_type = ?,
        vivino_id = COALESCE(?, vivino_id) WHERE id = ?",
       on: conn,
@@ -1473,7 +1473,6 @@ pub fn update_wine(
         sqlight.text(name),
         sqlight.text(winery_id),
         nullable_text(region),
-        nullable_text(country),
         nullable_text(style),
         nullable_text(personal_note),
         sqlight.text(wine_type_to_string(wine_type)),
@@ -1583,7 +1582,6 @@ pub fn upsert_wine(
         sqlight.query(
           "UPDATE wines SET
              region = COALESCE(?, wines.region),
-             country = COALESCE(?, wines.country),
              style = COALESCE(?, wines.style),
              personal_note = COALESCE(?, wines.personal_note),
              wine_type = COALESCE(?, wines.wine_type),
@@ -1592,7 +1590,6 @@ pub fn upsert_wine(
           on: conn,
           with: [
             nullable_text(region),
-            nullable_text(country),
             nullable_text(style),
             nullable_text(personal_note),
             sqlight.text(wine_type_to_string(wine_type)),
@@ -1607,9 +1604,9 @@ pub fn upsert_wine(
       let id = ulid.generate()
       let assert Ok(_) =
         sqlight.query(
-          "INSERT INTO wines (id, created_by, winery_id, name, region, country, style,
+          "INSERT INTO wines (id, created_by, winery_id, name, region, style,
                               personal_note, wine_type, vivino_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           on: conn,
           with: [
             sqlight.text(id),
@@ -1617,7 +1614,6 @@ pub fn upsert_wine(
             sqlight.text(winery_id),
             sqlight.text(name),
             nullable_text(region),
-            nullable_text(country),
             nullable_text(style),
             nullable_text(personal_note),
             sqlight.text(wine_type_to_string(wine_type)),
