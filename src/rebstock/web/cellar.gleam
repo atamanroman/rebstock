@@ -204,17 +204,26 @@ pub fn handle_new(
           let quantity = form_int(form, "quantity")
           let notes = form_value(form, "notes")
           let date = form_value(form, "date")
-          db.insert_cellar_entry(
-            conn,
-            username: user.username,
-            wine_id: wine.id,
-            vintage: vintage,
-            quantity: quantity,
-            notes: notes,
-            date: date,
-          )
-          wisp.response(200)
-          |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+          case quantity < 1 {
+            True ->
+              form_error(
+                cellar_form(wine, vintages, None),
+                "Quantity must be at least 1",
+              )
+            False -> {
+              db.insert_cellar_entry(
+                conn,
+                username: user.username,
+                wine_id: wine.id,
+                vintage: vintage,
+                quantity: quantity,
+                notes: notes,
+                date: date,
+              )
+              wisp.response(200)
+              |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+            }
+          }
         }
         _ -> wisp.method_not_allowed([http.Get, http.Post])
       }
@@ -256,16 +265,22 @@ pub fn handle_edit(
                   let quantity = form_int(form, "quantity")
                   let notes = form_value(form, "notes")
                   let date = form_value(form, "date")
-                  db.update_cellar_entry(
-                    conn,
-                    id: entry.id,
-                    vintage: vintage,
-                    quantity: quantity,
-                    notes: notes,
-                    date: date,
-                  )
-                  wisp.response(200)
-                  |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                  case quantity_error(conn, entry, quantity) {
+                    Some(msg) ->
+                      form_error(cellar_form(wine, vintages, Some(entry)), msg)
+                    None -> {
+                      db.update_cellar_entry(
+                        conn,
+                        id: entry.id,
+                        vintage: vintage,
+                        quantity: quantity,
+                        notes: notes,
+                        date: date,
+                      )
+                      wisp.response(200)
+                      |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                    }
+                  }
                 }
                 _ -> wisp.method_not_allowed([http.Get, http.Post])
               }
@@ -309,26 +324,35 @@ pub fn handle_drink(
                     Ok("on") -> True
                     _ -> False
                   }
-                  db.insert_cellar_drink(
-                    conn,
-                    parent_id: entry.id,
-                    username: user.username,
-                    wine_id: entry.wine_id,
-                    vintage: entry.vintage,
-                    notes: notes,
-                    date: date,
-                  )
-                  case rate {
-                    True -> {
-                      let rating_url = c.wine_url(wine) <> "/ratings/new"
-                      ratings.new_rating_overlay(wine, conn, date)
-                      |> wisp.set_header("HX-Push-Url", rating_url)
-                      |> wisp.set_header("HX-Retarget", "#overlay")
-                      |> wisp.set_header("HX-Reswap", "outerHTML")
+                  case entry_remaining(conn, entry) < 1 {
+                    True ->
+                      form_error(
+                        drink_form(wine, entry),
+                        "No bottles left in this entry",
+                      )
+                    False -> {
+                      db.insert_cellar_drink(
+                        conn,
+                        parent_id: entry.id,
+                        username: user.username,
+                        wine_id: entry.wine_id,
+                        vintage: entry.vintage,
+                        notes: notes,
+                        date: date,
+                      )
+                      case rate {
+                        True -> {
+                          let rating_url = c.wine_url(wine) <> "/ratings/new"
+                          ratings.new_rating_overlay(wine, conn, date)
+                          |> wisp.set_header("HX-Push-Url", rating_url)
+                          |> wisp.set_header("HX-Retarget", "#overlay")
+                          |> wisp.set_header("HX-Reswap", "outerHTML")
+                        }
+                        False ->
+                          wisp.response(200)
+                          |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                      }
                     }
-                    False ->
-                      wisp.response(200)
-                      |> wisp.set_header("HX-Redirect", c.wine_url(wine))
                   }
                 }
                 _ -> wisp.method_not_allowed([http.Get, http.Post])
@@ -364,6 +388,80 @@ pub fn handle_delete(
           }
       }
     _ -> wisp.method_not_allowed([http.Post])
+  }
+}
+
+/// Re-render an overlay form with an error message on invalid input.
+fn form_error(form: html.Node, message: String) -> Response {
+  c.overlay_wrapper(
+    html.div([], [
+      html.div(
+        [
+          attr.class(
+            "mb-4 p-3 rounded-lg border bg-red-50 border-red-200 text-red-700 text-sm",
+          ),
+        ],
+        [html.Text(message)],
+      ),
+      form,
+    ]),
+  )
+  |> wisp.set_header("HX-Retarget", "#overlay")
+  |> wisp.set_header("HX-Reswap", "outerHTML")
+}
+
+/// Bottles left in a purchase entry after subtracting its drink events.
+fn entry_remaining(conn: Connection, entry: CellarEntry) -> Int {
+  db.cellar_entries_for_wine(conn, entry.wine_id)
+  |> list.filter(fn(e) { e.parent_id == Some(entry.id) })
+  |> list.fold(entry.quantity, fn(acc, e) { acc + e.quantity })
+}
+
+/// Validate a quantity edit against the event-sourcing invariants:
+/// purchases must stay at or above what has already been drunk,
+/// drink events must stay negative and not overdraw their parent.
+fn quantity_error(
+  conn: Connection,
+  entry: CellarEntry,
+  quantity: Int,
+) -> Option(String) {
+  case entry.parent_id {
+    None -> {
+      let consumed = entry.quantity - entry_remaining(conn, entry)
+      let min = int.max(consumed, 1)
+      case quantity < min {
+        True ->
+          Some(
+            "Quantity cannot be below "
+            <> int.to_string(min)
+            <> " ("
+            <> int.to_string(consumed)
+            <> " bottles already drunk from this entry)",
+          )
+        False -> None
+      }
+    }
+    Some(parent_id) ->
+      case quantity >= 0 {
+        True -> Some("A drink entry must have a negative quantity")
+        False ->
+          case db.get_cellar_entry_by_id(conn, parent_id) {
+            Error(_) -> None
+            Ok(parent) -> {
+              let remaining_without_this =
+                entry_remaining(conn, parent) - entry.quantity
+              case remaining_without_this + quantity < 0 {
+                True ->
+                  Some(
+                    "Only "
+                    <> int.to_string(remaining_without_this)
+                    <> " bottles left in the parent entry",
+                  )
+                False -> None
+              }
+            }
+          }
+      }
   }
 }
 
