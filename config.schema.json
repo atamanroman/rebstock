@@ -23,6 +23,10 @@
       "default": "./data/images",
       "description": "Directory for wine bottle images"
     },
+    "secret_key_base": {
+      "type": "string",
+      "description": "Secret key base for signed data. A random per-boot value is generated when unset."
+    },
     "auth": {
       "type": "object",
       "description": "Authentication configuration. Exactly one of 'single' or 'forward' must be set.",

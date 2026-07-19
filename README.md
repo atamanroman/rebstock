@@ -83,6 +83,8 @@ See [Installation](#Installation) for example snippets from my setup.
 
 > [!CAUTION]
 > Read the docs to understand the security implications of _forward auth_ or someone will steal all your bottles.
+>
+> In forward mode the app trusts the auth headers unconditionally: anyone who can reach the port directly can impersonate any user (and unknown usernames are auto-created). Bind the app to localhost or a private interface, expose it **only** through the reverse proxy, and make sure the proxy strips/overwrites the `X-WEBAUTH-*` headers on incoming requests.
 
 ## Installation
 
