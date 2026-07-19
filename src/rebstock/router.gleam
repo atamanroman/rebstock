@@ -1,5 +1,6 @@
 import gleam/erlang/application
 import gleam/http
+import gleam/http/request
 import gleam/string
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
@@ -18,12 +19,44 @@ import rebstock/web/wineries
 import rebstock/web/wines
 import rebstock/web/wishlist
 
+/// CSRF protection: browsers send Origin (and Sec-Fetch-Site) on
+/// form posts, so reject POSTs whose origin does not match the Host.
+/// Requests without either header (curl, htmx same-origin GET) pass.
+fn require_same_origin(req: Request, next: fn() -> Response) -> Response {
+  case req.method {
+    http.Post ->
+      case same_origin(req) {
+        True -> next()
+        False -> wisp.response(403)
+      }
+    _ -> next()
+  }
+}
+
+fn same_origin(req: Request) -> Bool {
+  case request.get_header(req, "origin") {
+    Ok(origin) -> {
+      let host = case request.get_header(req, "host") {
+        Ok(h) -> h
+        Error(_) -> ""
+      }
+      string.ends_with(origin, "://" <> host)
+    }
+    Error(_) ->
+      case request.get_header(req, "sec-fetch-site") {
+        Ok("cross-site") -> False
+        _ -> True
+      }
+  }
+}
+
 pub fn handle_request(
   req: Request,
   conn: Connection,
   config: Config,
 ) -> Response {
   use req <- wisp.handle_head(req)
+  use <- require_same_origin(req)
   let assert Ok(priv) = application.priv_directory("rebstock")
   use <- wisp.serve_static(req, under: "/static", from: priv <> "/static")
   use <- wisp.serve_static(
