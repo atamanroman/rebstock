@@ -1320,24 +1320,18 @@ pub fn vivino_search(req: Request, conn: Connection, user: User) -> Response {
             error_box("Enter a Vivino URL or wine ID"),
           ])
         Ok(vid) ->
-          case vivino.fetch_wine_by_id(vid) {
+          case vivino.fetch_wine_with_vintages(vid) {
             Error(msg) -> page([vivino_id_form(q), error_box(msg)])
-            Ok(result) -> {
+            Ok(detail) -> {
               let existing =
                 find_existing_wine(
                   conn,
                   user,
-                  result.wine_id,
-                  result.winery_name,
-                  result.wine_name,
+                  detail.wine_id,
+                  detail.winery_name,
+                  detail.wine_name,
                 )
-              let vintage_count = case
-                vivino.fetch_wine_with_vintages(int.to_string(result.wine_id))
-              {
-                Ok(detail) -> list.length(detail.vintages)
-                Error(_) -> 0
-              }
-              page([vivino_preview(result, existing, vintage_count)])
+              page([vivino_preview(detail, existing)])
             }
           }
       }
@@ -1782,14 +1776,14 @@ fn find_existing_wine(
 }
 
 fn vivino_preview(
-  result: vivino.VivinoSearchResult,
+  result: vivino.VivinoWineDetail,
   existing: option.Option(Wine),
-  vintage_count: Int,
 ) -> Node {
   let country_code = case db.country_to_iso(result.country) {
     Some(code) -> code
     None -> result.country
   }
+  let vintage_count = list.length(result.vintages)
   let vivino_id = int.to_string(result.wine_id)
 
   let info_block =
@@ -1818,7 +1812,7 @@ fn vivino_preview(
           html.Text(
             result.region
             <> ", "
-            <> result.country
+            <> country_code
             <> " \u{00b7} "
             <> float.to_string(result.rating)
             <> "\u{2605} ("
