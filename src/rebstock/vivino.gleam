@@ -107,28 +107,40 @@ fn vivino_http(url: String, user_agent: String) -> Result(String, String) {
   }
 }
 
+/// Accepts a plain wine ID, a /w/{wine_id} URL, or a
+/// /wines/{vintage_id} URL (returned prefixed for later resolution).
 pub fn parse_vivino_id(input: String) -> Result(String, Nil) {
   let trimmed = string.trim(input)
   case int.parse(trimmed) {
     Ok(_) -> Ok(trimmed)
     Error(_) ->
       case string.split(trimmed, "/w/") {
-        [_, id_part, ..] -> {
-          let id =
-            id_part
-            |> string.split("/")
-            |> list.first
-            |> result.unwrap("")
-            |> string.split("?")
-            |> list.first
-            |> result.unwrap("")
-          case int.parse(id) {
-            Ok(_) -> Ok(id)
-            Error(_) -> Error(Nil)
+        [_, id_part, ..] -> leading_id(id_part)
+        _ ->
+          case string.split(trimmed, "/wines/") {
+            [_, id_part, ..] ->
+              case leading_id(id_part) {
+                Ok(vintage_id) -> Ok(vintage_id_prefix <> vintage_id)
+                Error(_) -> Error(Nil)
+              }
+            _ -> Error(Nil)
           }
-        }
-        _ -> Error(Nil)
       }
+  }
+}
+
+fn leading_id(id_part: String) -> Result(String, Nil) {
+  let id =
+    id_part
+    |> string.split("/")
+    |> list.first
+    |> result.unwrap("")
+    |> string.split("?")
+    |> list.first
+    |> result.unwrap("")
+  case int.parse(id) {
+    Ok(_) -> Ok(id)
+    Error(_) -> Error(Nil)
   }
 }
 

@@ -1330,7 +1330,10 @@ pub fn vivino_search(req: Request, conn: Connection, user: User) -> Response {
             error_box("Enter a Vivino URL or wine ID"),
           ])
         Ok(vid) ->
-          case vivino.fetch_wine_with_vintages(vid) {
+          case
+            vivino.ensure_wine_id(vid)
+            |> result.try(vivino.fetch_wine_with_vintages)
+          {
             Error(msg) -> page([vivino_id_form(q), error_box(msg)])
             Ok(detail) -> {
               let existing =

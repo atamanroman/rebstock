@@ -51,6 +51,14 @@ pub fn parse_vivino_id_url_with_query_test() {
   Nil
 }
 
+pub fn parse_vivino_id_vintage_url_test() {
+  // CSV-style /wines/ URLs carry vintage IDs, returned with the
+  // unresolved-vintage prefix.
+  let assert Ok("v3269106") =
+    parse_vivino_id("https://www.vivino.com/wines/3269106?year=2015")
+  Nil
+}
+
 pub fn parse_vivino_id_invalid_test() {
   let assert Error(Nil) = parse_vivino_id("not-a-url")
   Nil
