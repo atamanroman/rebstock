@@ -18,7 +18,7 @@ pub const test_config: Config = config.Config(
 pub fn with_seeded_db(f: fn(sqlight.Connection) -> Nil) -> Nil {
   use conn <- sqlight.with_connection(":memory:")
   db.migrate(conn)
-  vivino.import_data(conn, "vivino_data", "test", False)
+  vivino.import_data(conn, "vivino_data", "test")
   f(conn)
 }
 

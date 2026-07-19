@@ -250,7 +250,7 @@ fn drop_zone_js() -> String {
     btn.setAttribute('disabled', '');
     btn.innerHTML = '<svg class=\"inline animate-spin -ml-1 mr-2 h-4 w-4\" viewBox=\"0 0 24 24\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\" fill=\"none\"/><path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z\"/></svg>Importing...';
     dz.style.display = 'none';
-    fn_.textContent = 'This may take a minute - resolving Vivino IDs for each wine.';
+    fn_.textContent = 'Importing\\u2026';
     fn_.classList.remove('hidden');
   });
 })();"

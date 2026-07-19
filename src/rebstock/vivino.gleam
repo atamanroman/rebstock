@@ -1,7 +1,6 @@
 import gleam/bit_array
 import gleam/dynamic
 import gleam/dynamic/decode
-import gleam/erlang/process
 import gleam/http/request
 import gleam/httpc
 import gleam/int
@@ -18,14 +17,7 @@ import rebstock/db
 import wisp
 
 pub type ImportResult {
-  ImportResult(
-    wineries_created: Int,
-    wineries_updated: Int,
-    wines_created: Int,
-    wines_updated: Int,
-    cellar_created: Int,
-    wishlist_created: Int,
-  )
+  ImportResult(wines_created: Int, cellar_created: Int, wishlist_created: Int)
 }
 
 pub const vivino_mobile_user_agent = "Vivino/8.18.11 (Android; SDK 30)"
@@ -232,22 +224,12 @@ fn vintage_decoder() -> decode.Decoder(VivinoVintage) {
 }
 
 pub fn empty_result() -> ImportResult {
-  ImportResult(
-    wineries_created: 0,
-    wineries_updated: 0,
-    wines_created: 0,
-    wines_updated: 0,
-    cellar_created: 0,
-    wishlist_created: 0,
-  )
+  ImportResult(wines_created: 0, cellar_created: 0, wishlist_created: 0)
 }
 
 pub fn merge_results(a: ImportResult, b: ImportResult) -> ImportResult {
   ImportResult(
-    wineries_created: a.wineries_created + b.wineries_created,
-    wineries_updated: a.wineries_updated + b.wineries_updated,
     wines_created: a.wines_created + b.wines_created,
-    wines_updated: a.wines_updated + b.wines_updated,
     cellar_created: a.cellar_created + b.cellar_created,
     wishlist_created: a.wishlist_created + b.wishlist_created,
   )
@@ -257,7 +239,6 @@ pub fn import_data(
   conn: Connection,
   data_dir: String,
   created_by: String,
-  resolve_ids: Bool,
 ) -> Nil {
   db.ensure_user(conn, created_by)
   let assert Ok(cellar_csv) = simplifile.read(data_dir <> "/cellar.csv")
@@ -265,11 +246,11 @@ pub fn import_data(
     simplifile.read(data_dir <> "/full_wine_list.csv")
   let assert Ok(wishlist_csv) = simplifile.read(data_dir <> "/wishlisted.csv")
   wisp.log_info("Importing cellar.csv")
-  import_cellar(conn, cellar_csv, created_by, resolve_ids)
+  import_cellar(conn, cellar_csv, created_by)
   wisp.log_info("Importing full_wine_list.csv")
-  import_full_wine_list(conn, wine_list_csv, created_by, resolve_ids)
+  import_full_wine_list(conn, wine_list_csv, created_by)
   wisp.log_info("Importing wishlisted.csv")
-  import_wishlisted(conn, wishlist_csv, created_by, resolve_ids)
+  import_wishlisted(conn, wishlist_csv, created_by)
   let count = db.count_wines(conn)
   wisp.log_info(
     "Imported " <> int.to_string(count) <> " wines for " <> created_by,
@@ -280,6 +261,11 @@ fn is_blank(s: String) -> Bool {
   string.trim(s) == ""
 }
 
+/// Marker prefix for unresolved vintage IDs from CSV exports.
+/// CSV link URLs point at /wines/{vintage_id}, not the API wine ID;
+/// resolution costs one HTTP call, so it is deferred until first sync.
+const vintage_id_prefix = "v"
+
 fn extract_vivino_id(url: String) -> Option(String) {
   case db.optional_non_empty(url) {
     None -> None
@@ -287,7 +273,11 @@ fn extract_vivino_id(url: String) -> Option(String) {
       case string.split(u, "/wines/") {
         [_, id_part] ->
           case string.split(id_part, "?") {
-            [id, ..] -> db.optional_non_empty(id)
+            [id, ..] ->
+              case db.optional_non_empty(id) {
+                Some(id) -> Some(vintage_id_prefix <> id)
+                None -> None
+              }
             _ -> None
           }
         _ -> None
@@ -295,14 +285,40 @@ fn extract_vivino_id(url: String) -> Option(String) {
   }
 }
 
-/// CSV export URLs use vintage IDs (/wines/{vintage_id}).
-/// Resolve to API wine ID via the vintages endpoint.
-pub fn resolve_vintage_to_wine_id(vintage_id: String) -> String {
+/// Public Vivino URL for a stored ID (resolved wine ID or
+/// prefixed vintage ID).
+pub fn vivino_url(vivino_id: String) -> String {
+  case unresolved_vintage_id(vivino_id) {
+    Some(vintage_id) -> "https://www.vivino.com/wines/" <> vintage_id
+    None -> "https://www.vivino.com/w/" <> vivino_id
+  }
+}
+
+fn unresolved_vintage_id(vivino_id: String) -> Option(String) {
+  case string.split_once(vivino_id, vintage_id_prefix) {
+    Ok(#("", rest)) ->
+      case int.parse(rest) {
+        Ok(_) -> Some(rest)
+        Error(_) -> None
+      }
+    _ -> None
+  }
+}
+
+/// Turn a stored ID into an API wine ID, resolving prefixed
+/// vintage IDs via the vintages endpoint on demand.
+pub fn ensure_wine_id(vivino_id: String) -> Result(String, String) {
+  case unresolved_vintage_id(vivino_id) {
+    None -> Ok(vivino_id)
+    Some(vintage_id) -> resolve_vintage_to_wine_id(vintage_id)
+  }
+}
+
+fn resolve_vintage_to_wine_id(vintage_id: String) -> Result(String, String) {
   let url = "https://api.vivino.com/vintages/" <> vintage_id
   wisp.log_debug("Resolving vintage ID " <> vintage_id)
-  process.sleep(500)
   case vivino_mobile_get(url) {
-    Error(_) -> vintage_id
+    Error(e) -> Error(e)
     Ok(body) -> {
       let decoder = {
         use wine_id <- decode.field("wine", {
@@ -312,14 +328,8 @@ pub fn resolve_vintage_to_wine_id(vintage_id: String) -> String {
         decode.success(wine_id)
       }
       case json.parse(body, decoder) {
-        Ok(wine_id) -> {
-          let resolved = int.to_string(wine_id)
-          wisp.log_debug(
-            "Resolved vintage " <> vintage_id <> " -> wine " <> resolved,
-          )
-          resolved
-        }
-        Error(_) -> vintage_id
+        Ok(wine_id) -> Ok(int.to_string(wine_id))
+        Error(_) -> Error("Failed to resolve Vivino vintage ID")
       }
     }
   }
@@ -470,29 +480,7 @@ fn parse_wishlist_row(row: List(String)) -> Result(ParsedRow, Nil) {
   }
 }
 
-fn persist_row(
-  conn: Connection,
-  created_by: String,
-  row: ParsedRow,
-  resolve_ids: Bool,
-  index: Int,
-  total: Int,
-) -> String {
-  wisp.log_info(
-    "["
-    <> int.to_string(index)
-    <> "/"
-    <> int.to_string(total)
-    <> "] "
-    <> row.name
-    <> " ("
-    <> row.winery
-    <> ")",
-  )
-  let vivino_id = case resolve_ids, row.vivino_id {
-    True, Some(vid) -> Some(resolve_vintage_to_wine_id(vid))
-    _, id -> id
-  }
+fn persist_row(conn: Connection, created_by: String, row: ParsedRow) -> String {
   let wine_id =
     db.upsert_wine(
       conn,
@@ -505,7 +493,7 @@ fn persist_row(
       style: row.style,
       personal_note: row.personal_note,
       wine_type: row.wine_type,
-      vivino_id:,
+      vivino_id: row.vivino_id,
     )
   case row.avg_rating {
     Some(r) ->
@@ -549,16 +537,13 @@ pub fn import_cellar(
   conn: Connection,
   content: String,
   created_by: String,
-  resolve_ids: Bool,
 ) -> ImportResult {
   let rows = parse_csv(content)
-  let total = list.length(rows)
-  list.index_fold(rows, empty_result(), fn(acc, row, i) {
+  list.fold(rows, empty_result(), fn(acc, row) {
     case parse_cellar_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        let wine_id =
-          persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
+        let wine_id = persist_row(conn, created_by, parsed)
         let acc = ImportResult(..acc, wines_created: acc.wines_created + 1)
         case parsed.cellar_count > 0 {
           True -> {
@@ -588,15 +573,13 @@ pub fn import_full_wine_list(
   conn: Connection,
   content: String,
   created_by: String,
-  resolve_ids: Bool,
 ) -> ImportResult {
   let rows = parse_csv(content)
-  let total = list.length(rows)
-  list.index_fold(rows, empty_result(), fn(acc, row, i) {
+  list.fold(rows, empty_result(), fn(acc, row) {
     case parse_wine_list_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
+        persist_row(conn, created_by, parsed)
         ImportResult(..acc, wines_created: acc.wines_created + 1)
       }
     }
@@ -607,17 +590,14 @@ pub fn import_wishlisted(
   conn: Connection,
   content: String,
   created_by: String,
-  resolve_ids: Bool,
 ) -> ImportResult {
   let wishlist = db.get_user_wishlist(conn, created_by)
   let rows = parse_csv(content)
-  let total = list.length(rows)
-  list.index_fold(rows, empty_result(), fn(acc, row, i) {
+  list.fold(rows, empty_result(), fn(acc, row) {
     case parse_wishlist_row(row) {
       Error(_) -> acc
       Ok(parsed) -> {
-        let wine_id =
-          persist_row(conn, created_by, parsed, resolve_ids, i + 1, total)
+        let wine_id = persist_row(conn, created_by, parsed)
         db.add_wine_to_list(conn, wishlist.id, wine_id, parsed.vintage, None)
         ImportResult(
           ..acc,
@@ -658,21 +638,17 @@ pub fn import_from_zip(
       case find_file(files, "full_wine_list.csv") {
         Error(_) -> Error("Zip must contain full_wine_list.csv")
         Ok(wine_list_csv) -> {
-          let result =
-            import_full_wine_list(conn, wine_list_csv, created_by, True)
+          let result = import_full_wine_list(conn, wine_list_csv, created_by)
           let result = case find_file(files, "cellar.csv") {
             Ok(cellar_csv) ->
-              merge_results(
-                result,
-                import_cellar(conn, cellar_csv, created_by, True),
-              )
+              merge_results(result, import_cellar(conn, cellar_csv, created_by))
             Error(_) -> result
           }
           let result = case find_file(files, "wishlisted.csv") {
             Ok(wishlist_csv) ->
               merge_results(
                 result,
-                import_wishlisted(conn, wishlist_csv, created_by, True),
+                import_wishlisted(conn, wishlist_csv, created_by),
               )
             Error(_) -> result
           }

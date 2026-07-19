@@ -34,7 +34,7 @@ pub fn main() -> Nil {
   case skip_import, db.count_wines(conn) {
     True, _ -> wisp.log_info("Skipping Vivino import (--skip-import)")
     _, 0 -> {
-      vivino.import_data(conn, "vivino_data", username, True)
+      vivino.import_data(conn, "vivino_data", username)
       seed.seed_alice(conn, username)
     }
     _, n ->

@@ -2,6 +2,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import nakai/attr
 import nakai/html.{type Node}
@@ -452,10 +453,7 @@ fn action_links_section(wine: Wine, conn: Connection, user: User) -> Node {
       },
       case wine.vivino_id {
         Some(vid) -> [
-          c.action_link(
-            "https://www.vivino.com/w/" <> vid,
-            "View on Vivino \u{2192}",
-          ),
+          c.action_link(vivino.vivino_url(vid), "View on Vivino \u{2192}"),
           html.a(
             [
               attr.href(c.wine_url(wine) <> "/sync"),
@@ -1406,14 +1404,20 @@ pub fn vivino_sync_preview(
     Ok(wine) ->
       case wine.vivino_id {
         None -> wisp.redirect(c.wine_url(wine))
-        Some(vid) ->
-          case vivino.fetch_wine_with_vintages(vid) {
+        Some(stored_vid) ->
+          case
+            vivino.ensure_wine_id(stored_vid)
+            |> result.try(fn(vid) {
+              vivino.fetch_wine_with_vintages(vid)
+              |> result.map(fn(detail) { #(vid, detail) })
+            })
+          {
             Error(msg) ->
               c.page("Sync \u{2014} Rebstock", user, conn, [
                 c.back_link(c.wine_url(wine), wine.name),
                 error_box(msg),
               ])
-            Ok(detail) -> {
+            Ok(#(vid, detail)) -> {
               let country = case detail.country {
                 "" -> None
                 co -> db.country_to_iso(co)
@@ -1506,7 +1510,10 @@ pub fn vivino_sync_apply(
     Error(_) -> wisp.redirect("/wines")
     Ok(wine) -> {
       use form <- wisp.require_form(req)
-      let vid = form_val(form, "vivino_id")
+      let vid = case vivino.ensure_wine_id(form_val(form, "vivino_id")) {
+        Ok(resolved) -> resolved
+        Error(_) -> form_val(form, "vivino_id")
+      }
       case vid {
         "" -> wisp.redirect(c.wine_url(wine))
         _ -> {
