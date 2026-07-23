@@ -137,6 +137,25 @@ pub fn list_print_view_test() {
   Nil
 }
 
+pub fn wishlist_shows_entry_vintage_only_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Multi Vintage Riesling", db.White)
+  db.upsert_vintage(conn, wine_id, "2018")
+  db.upsert_vintage(conn, wine_id, "2019")
+  db.upsert_vintage(conn, wine_id, "2020")
+  let wl = db.get_user_wishlist(conn, "test")
+  db.add_wine_to_list(conn, wl.id, wine_id, Some("2020"), None)
+  let response =
+    simulate.request(http.Get, "/~test/wishlist")
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "2020")
+  let assert False = string.contains(body, "2018")
+  Nil
+}
+
 pub fn list_detail_with_wines_test() {
   use conn <- with_empty_db
   db.ensure_user(conn, "test")

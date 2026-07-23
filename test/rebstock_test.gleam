@@ -1,11 +1,14 @@
 import gleam/http
+import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
 import wisp/simulate
 
 import rebstock/db
 import rebstock/router
-import test_helpers.{seed_two_users, test_config, with_empty_db, with_seeded_db}
+import test_helpers.{
+  create_test_wine, seed_two_users, test_config, with_empty_db, with_seeded_db,
+}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -53,6 +56,32 @@ pub fn home_with_data_shows_stats_test() {
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Your Stats")
   let assert False = string.contains(body, "Welcome to Rebstock")
+  Nil
+}
+
+pub fn home_recent_cellar_shows_entry_vintage_only_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Multi Vintage Riesling", db.White)
+  db.upsert_vintage(conn, wine_id, "2018")
+  db.upsert_vintage(conn, wine_id, "2019")
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 1,
+    notes: None,
+    date: None,
+  )
+  let response =
+    simulate.request(http.Get, "/")
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "2020")
+  let assert False = string.contains(body, "2018")
   Nil
 }
 

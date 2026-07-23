@@ -87,7 +87,7 @@ fn wishlist_row(lw: ListWine, idx: Int) -> html.Node {
         c.link_stop(c.wine_url(wine), [html.Text(wine.name)]),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-500 tabular-nums")], [
-        html.Text(c.display_vintages(wine.vintages)),
+        html.Text(c.display_vintage(lw.vintage)),
       ]),
       html.td([attr.class("px-4 py-3 text-stone-600")], [
         html.Text(c.display_country(wine.country)),

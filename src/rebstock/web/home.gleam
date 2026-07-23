@@ -385,7 +385,7 @@ fn cellar_entry_section(
                         ),
                         html.span(
                           [attr.class("text-xs text-stone-400 shrink-0")],
-                          [html.Text(c.display_vintages(wine.vintages))],
+                          [html.Text(c.display_vintage(e.vintage))],
                         ),
                       ]),
                       html.div(
