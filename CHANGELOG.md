@@ -1,5 +1,11 @@
 # Rebstock Changelog
 
+## 0.2.2
+
+- Fix dashboard "Recently Added to Cellar" and wishlist table showing all of a
+  wine's vintages instead of the specific vintage on the cellar entry or
+  wishlist item
+
 ## 0.2.1
 
 - Fix migration 00002 failing on databases with duplicate Vivino ratings:
