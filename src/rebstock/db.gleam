@@ -915,23 +915,6 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
   ))
 }
 
-pub fn cellar_wines(conn: Connection, username: String) -> List(CellarWine) {
-  let assert Ok(wines) =
-    sqlight.query(
-      "SELECT "
-        <> cellar_wine_cols
-        <> " "
-        <> cellar_wine_join
-        <> " WHERE c.username = ?
-       GROUP BY w.id, c.vintage HAVING bottles > 0
-       ORDER BY wy.name, w.name",
-      on: conn,
-      with: [sqlight.text(username)],
-      expecting: cellar_wine_decoder(),
-    )
-  wines
-}
-
 pub fn cellar_wines_by_type(
   conn: Connection,
   username: String,
@@ -1127,18 +1110,10 @@ pub fn delete_cellar_entry(conn: Connection, id: String) -> Nil {
   Nil
 }
 
-pub fn ratings_by_user(conn: Connection, username: String) -> List(Rating) {
-  let assert Ok(ratings) =
-    sqlight.query(
-      "SELECT r.id, r.username, r.wine_id, r.vintage, r.rating, r.tasting_notes, r.rated_at, r.created_at
-       FROM ratings r
-       WHERE r.username = ? ORDER BY r.rating DESC, r.rated_at DESC",
-      on: conn,
-      with: [sqlight.text(username)],
-      expecting: rating_decoder(),
-    )
-  ratings
-}
+const rating_cols = "r.id, r.username, r.wine_id, r.vintage, r.rating,
+        r.tasting_notes, r.rated_at, r.created_at"
+
+const rating_order = " ORDER BY r.rating DESC, r.rated_at DESC"
 
 pub fn top_ratings_by_user(
   conn: Connection,
@@ -1494,6 +1469,107 @@ fn compare_buckets(a: Option(Float), b: Option(Float)) -> order.Order {
     Some(_), None -> order.Lt
     Some(x), Some(y) -> float.compare(x, y)
   }
+}
+
+/// What one rater's score has to be for a row to survive. Bounds are on the
+/// score itself, both inclusive, and either end may be left open.
+pub type ScoreFilter {
+  AnyScore
+  NoScore
+  ScoreRange(min: Option(Float), max: Option(Float))
+}
+
+/// The two raters filter independently and both have to agree
+pub type RatingFilter {
+  RatingFilter(mine: ScoreFilter, vivino: ScoreFilter)
+}
+
+pub const unfiltered = RatingFilter(AnyScore, AnyScore)
+
+fn score_condition(
+  score: String,
+  filter: ScoreFilter,
+) -> #(String, List(sqlight.Value)) {
+  case filter {
+    AnyScore -> #("", [])
+    NoScore -> #(" AND " <> score <> " IS NULL", [])
+    ScoreRange(min, max) -> {
+      let #(low, low_params) = bound(score, ">=", min)
+      let #(high, high_params) = bound(score, "<=", max)
+      #(low <> high, list.append(low_params, high_params))
+    }
+  }
+}
+
+fn bound(
+  score: String,
+  operator: String,
+  value: Option(Float),
+) -> #(String, List(sqlight.Value)) {
+  case value {
+    None -> #("", [])
+    Some(v) -> #(" AND " <> score <> " " <> operator <> " ?", [sqlight.float(v)])
+  }
+}
+
+/// A user's ratings, narrowed to those where their own score and Vivino's
+/// both fall where the filter asks
+pub fn ratings_by_user(
+  conn: Connection,
+  username: String,
+  filter: RatingFilter,
+) -> List(Rating) {
+  let #(mine, mine_params) = score_condition("r.rating", filter.mine)
+  let #(vivino, vivino_params) = score_condition(vivino_rating, filter.vivino)
+  let assert Ok(ratings) =
+    sqlight.query("SELECT " <> rating_cols <> " FROM ratings r
+       LEFT JOIN wines w ON w.id = r.wine_id
+       LEFT JOIN wines_vintages v
+         ON v.wine_id = r.wine_id AND v.year = r.vintage
+       WHERE r.username = ?" <> mine <> vivino <> rating_order, on: conn, with: [
+      sqlight.text(username),
+      ..list.append(mine_params, vivino_params)
+    ], expecting: rating_decoder())
+  ratings
+}
+
+/// A wine the user rated across several vintages scores as its best, the same
+/// way the cellar quality chart counts it
+const own_rating_join = "LEFT JOIN (
+     SELECT wine_id, MAX(rating) AS rating FROM ratings
+     WHERE username = ? AND rating IS NOT NULL GROUP BY wine_id
+   ) mine ON mine.wine_id = w.id"
+
+/// Bottles held, narrowed the same way as `ratings_by_user`
+pub fn cellar_wines(
+  conn: Connection,
+  username: String,
+  filter: RatingFilter,
+) -> List(CellarWine) {
+  let #(mine, mine_params) = score_condition("mine.rating", filter.mine)
+  let #(vivino, vivino_params) = score_condition(vivino_rating, filter.vivino)
+  let assert Ok(wines) =
+    sqlight.query(
+      "SELECT "
+        <> cellar_wine_cols
+        <> " "
+        <> cellar_wine_join
+        <> " LEFT JOIN wines_vintages v ON v.wine_id = w.id AND v.year = c.vintage "
+        <> own_rating_join
+        <> " WHERE c.username = ?"
+        <> mine
+        <> vivino
+        <> " GROUP BY w.id, c.vintage HAVING bottles > 0
+       ORDER BY wy.name, w.name",
+      on: conn,
+      with: [
+        sqlight.text(username),
+        sqlight.text(username),
+        ..list.append(mine_params, vivino_params)
+      ],
+      expecting: cellar_wine_decoder(),
+    )
+  wines
 }
 
 fn count_query(

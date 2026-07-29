@@ -480,6 +480,165 @@ pub fn rating_display(rating: Option(Float)) -> Node {
   }
 }
 
+// --- Rating filters ---
+
+/// Which half of a filter a parameter or a chart wing speaks for
+pub type Rater {
+  Mine
+  Vivino
+}
+
+fn rater_prefix(rater: Rater) -> String {
+  case rater {
+    Mine -> "my"
+    Vivino -> "vivino"
+  }
+}
+
+/// `?my_min=4&my_max=5&vivino_min=3`, with `?my=none` for wines that side
+/// never scored. Both halves narrow the list together.
+pub fn rating_filter(req: Request) -> db.RatingFilter {
+  let query = wisp.get_query(req)
+  db.RatingFilter(
+    mine: score_filter(query, Mine),
+    vivino: score_filter(query, Vivino),
+  )
+}
+
+fn score_filter(
+  query: List(#(String, String)),
+  rater: Rater,
+) -> db.ScoreFilter {
+  let prefix = rater_prefix(rater)
+  let bound = fn(suffix) {
+    case list.key_find(query, prefix <> suffix) {
+      Ok(value) -> db.parse_optional_float(value)
+      Error(_) -> None
+    }
+  }
+  case list.key_find(query, prefix), bound("_min"), bound("_max") {
+    Ok("none"), _, _ -> db.NoScore
+    _, None, None -> db.AnyScore
+    _, min, max -> db.ScoreRange(min, max)
+  }
+}
+
+/// The query string that reproduces a filter, so a chip can drop its own half
+/// and leave the rest standing
+pub fn filter_url(base: String, filter: db.RatingFilter) -> String {
+  case
+    list.append(
+      score_params(filter.mine, Mine),
+      score_params(filter.vivino, Vivino),
+    )
+  {
+    [] -> base
+    params -> base <> "?" <> string.join(params, "&")
+  }
+}
+
+fn score_params(filter: db.ScoreFilter, rater: Rater) -> List(String) {
+  let prefix = rater_prefix(rater)
+  case filter {
+    db.AnyScore -> []
+    db.NoScore -> [prefix <> "=none"]
+    db.ScoreRange(min, max) ->
+      [#("_min", min), #("_max", max)]
+      |> list.filter_map(fn(bound) {
+        case bound.1 {
+          Some(value) -> Ok(prefix <> bound.0 <> "=" <> number(value))
+          None -> Error(Nil)
+        }
+      })
+  }
+}
+
+/// A bar holds every score that rounds to it, so its link asks for that
+/// window on the raw score. Both ends are inclusive, which at the edge two
+/// bars share (4.75 is drawn on the 5.0 bar) shows a row on both rather than
+/// losing it from either.
+pub fn bar_url(base: String, rater: Rater, bucket: Option(Float)) -> String {
+  let score = case bucket {
+    None -> db.NoScore
+    Some(rating) -> db.ScoreRange(Some(rating -. 0.25), Some(rating +. 0.25))
+  }
+  let filter = case rater {
+    Mine -> db.RatingFilter(..db.unfiltered, mine: score)
+    Vivino -> db.RatingFilter(..db.unfiltered, vivino: score)
+  }
+  filter_url(base, filter)
+}
+
+/// Ratings are written the way people say them: 4, not 4.0
+fn number(value: Float) -> String {
+  let text = float.to_string(value)
+  case string.ends_with(text, ".0") {
+    True -> string.drop_end(text, 2)
+    False -> text
+  }
+}
+
+/// Names each half of the filter the list was narrowed by; clicking one drops
+/// that half and keeps the other
+pub fn filter_chips(filter: db.RatingFilter, base: String) -> Node {
+  let chips =
+    [
+      #(filter.mine, Mine, db.RatingFilter(..filter, mine: db.AnyScore)),
+      #(filter.vivino, Vivino, db.RatingFilter(..filter, vivino: db.AnyScore)),
+    ]
+    |> list.filter_map(fn(chip) {
+      let #(score, rater, without) = chip
+      case score {
+        db.AnyScore -> Error(Nil)
+        _ ->
+          Ok(filter_chip(chip_label(score, rater), filter_url(base, without)))
+      }
+    })
+
+  case chips {
+    [] -> html.Nothing
+    _ -> html.div([attr.class("flex flex-wrap gap-2 mb-4")], chips)
+  }
+}
+
+fn chip_label(score: db.ScoreFilter, rater: Rater) -> String {
+  let who = case rater {
+    Mine -> "Rated"
+    Vivino -> "Vivino"
+  }
+  case score {
+    db.AnyScore -> who
+    db.NoScore ->
+      case rater {
+        Mine -> "Unrated"
+        Vivino -> "No Vivino score"
+      }
+    db.ScoreRange(Some(min), Some(max)) ->
+      case min == max {
+        True -> who <> " " <> number(min)
+        False -> who <> " " <> number(min) <> "\u{2013}" <> number(max)
+      }
+    db.ScoreRange(Some(min), None) -> who <> " \u{2265}" <> number(min)
+    db.ScoreRange(None, Some(max)) -> who <> " \u{2264}" <> number(max)
+    db.ScoreRange(None, None) -> who
+  }
+}
+
+fn filter_chip(label: String, clear_href: String) -> Node {
+  html.a(
+    [
+      attr.href(clear_href),
+      attr.class(
+        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors",
+      ),
+    ],
+    [
+      html.Text(label),
+      html.span([attr.class("text-stone-400")], [html.Text("\u{00d7}")]),
+    ],
+  )
+}
+
 /// Two rating distributions over shared buckets, growing outward from a
 /// centred rating axis. Colour already encodes the rating, so the two sides
 /// are told apart by direction and weight rather than hue: the left side is
@@ -488,8 +647,8 @@ pub fn rating_display(rating: Option(Float)) -> Node {
 pub fn rating_butterfly(
   title: String,
   unit: String,
-  left_label: String,
-  right_label: String,
+  left: ButterflySide,
+  right: ButterflySide,
   rows: List(db.BucketPair),
 ) -> Node {
   case rows {
@@ -506,14 +665,20 @@ pub fn rating_butterfly(
             html.Text("(" <> int.to_string(left_total) <> " " <> unit <> ")"),
           ]),
         ]),
-        butterfly_legend(left_label, right_label),
+        butterfly_legend(left.label, right.label),
         html.div(
           [attr.class("space-y-1.5")],
-          list.map(rows, fn(row) { butterfly_row(row, max) }),
+          list.map(rows, fn(row) { butterfly_row(row, max, unit, left, right) }),
         ),
       ])
     }
   }
+}
+
+/// One wing of the butterfly: how it is named, and the filtered list a bar
+/// of it leads to
+pub type ButterflySide {
+  ButterflySide(label: String, href: fn(Option(Float)) -> String)
 }
 
 fn butterfly_legend(left_label: String, right_label: String) -> Node {
@@ -532,7 +697,13 @@ fn butterfly_legend(left_label: String, right_label: String) -> Node {
   ])
 }
 
-fn butterfly_row(row: db.BucketPair, max: Int) -> Node {
+fn butterfly_row(
+  row: db.BucketPair,
+  max: Int,
+  unit: String,
+  left_side: ButterflySide,
+  right_side: ButterflySide,
+) -> Node {
   let #(bucket, left, right) = row
   let #(label, label_class, fill) = case bucket {
     Some(rating) -> #(
@@ -551,9 +722,25 @@ fn butterfly_row(row: db.BucketPair, max: Int) -> Node {
     Some(_) -> ""
   }
 
+  let spoken_bucket = case bucket {
+    Some(rating) -> float.to_string(rating)
+    None -> "unrated"
+  }
+  let title = fn(side: ButterflySide, count) {
+    side.label
+    <> " "
+    <> spoken_bucket
+    <> " \u{00b7} "
+    <> int.to_string(count)
+    <> " "
+    <> pluralize(unit, count)
+  }
+
   html.div([attr.class("flex items-center gap-1.5 " <> separated)], [
-    butterfly_count(left, "text-right"),
-    butterfly_track(left, max, fill, "justify-end", ""),
+    butterfly_wing(left, left_side.href(bucket), title(left_side, left), [
+      butterfly_count(left, "text-right"),
+      butterfly_track(left, max, fill, "justify-end", ""),
+    ]),
     html.span(
       [
         attr.class(
@@ -564,9 +751,41 @@ fn butterfly_row(row: db.BucketPair, max: Int) -> Node {
       ],
       [html.Text(label)],
     ),
-    butterfly_track(right, max, fill, "", "opacity-40"),
-    butterfly_count(right, "text-left"),
+    butterfly_wing(right, right_side.href(bucket), title(right_side, right), [
+      butterfly_track(right, max, fill, "", "opacity-40"),
+      butterfly_count(right, "text-left"),
+    ]),
   ])
+}
+
+fn pluralize(plural: String, count: Int) -> String {
+  case count {
+    1 -> string.drop_end(plural, 1)
+    _ -> plural
+  }
+}
+
+/// An empty bar leads to an empty list, so only bars with something in them
+/// become links
+fn butterfly_wing(
+  count: Int,
+  href: String,
+  title: String,
+  children: List(Node),
+) -> Node {
+  let layout = "flex items-center gap-1.5 flex-1"
+  case count {
+    0 -> html.div([attr.class(layout)], children)
+    _ ->
+      html.a(
+        [
+          attr.href(href),
+          attr.Attr("title", title),
+          attr.class(layout <> " hover:opacity-70 transition-opacity"),
+        ],
+        children,
+      )
+  }
 }
 
 /// Bottles and wines nobody has scored get the one neutral fill on the chart

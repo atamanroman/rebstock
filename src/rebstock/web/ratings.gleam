@@ -13,8 +13,14 @@ import rebstock/auth.{type User}
 import rebstock/db.{type Rating, type Wine}
 import rebstock/web/components as c
 
-pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
-  let ratings = db.ratings_by_user(conn, username)
+pub fn my_ratings(
+  req: Request,
+  conn: Connection,
+  user: User,
+  username: String,
+) -> Response {
+  let filter = c.rating_filter(req)
+  let ratings = db.ratings_by_user(conn, username, filter)
   let count = int.to_string(list.length(ratings))
   let title = case username == user.username {
     True -> "Your Ratings"
@@ -23,6 +29,7 @@ pub fn my_ratings(conn: Connection, user: User, username: String) -> Response {
 
   c.page(title <> " \u{2014} Rebstock", user, conn, [
     c.page_header(title, count <> " ratings"),
+    c.filter_chips(filter, "/~" <> username <> "/ratings"),
     rating_table(ratings, conn),
   ])
 }

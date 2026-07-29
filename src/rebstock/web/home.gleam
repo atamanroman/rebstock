@@ -63,7 +63,7 @@ pub fn profile(conn: Connection, user: User, username: String) -> Response {
 }
 
 fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
-  let all_cellar = db.cellar_wines(conn, username)
+  let all_cellar = db.cellar_wines(conn, username, db.unfiltered)
   let cellar_bottles =
     list.fold(all_cellar, 0, fn(acc, cw) { acc + cw.bottles })
   let cellar_wines = db.count_cellar_wines(conn, username)
@@ -126,20 +126,28 @@ fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
           c.rating_butterfly(
             "Rating Distribution",
             "ratings",
-            "You",
-            "Vivino",
+            butterfly_side("You", "/~" <> username <> "/ratings", c.Mine),
+            butterfly_side("Vivino", "/~" <> username <> "/ratings", c.Vivino),
             ratings_vs_vivino,
           ),
           c.rating_butterfly(
             "Cellar Quality",
             "bottles",
-            "You",
-            "Vivino",
+            butterfly_side("You", "/~" <> username <> "/cellar", c.Mine),
+            butterfly_side("Vivino", "/~" <> username <> "/cellar", c.Vivino),
             cellar_vs_vivino,
           ),
         ])
     },
   ])
+}
+
+fn butterfly_side(
+  label: String,
+  base: String,
+  rater: c.Rater,
+) -> c.ButterflySide {
+  c.ButterflySide(label, fn(bucket) { c.bar_url(base, rater, bucket) })
 }
 
 fn activity_grid(conn: Connection, username: String) -> Node {

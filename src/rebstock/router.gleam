@@ -148,7 +148,8 @@ pub fn handle_request(
         ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)
         ["~" <> username, "import"] ->
           imports.import_page(req, conn, user, username)
-        ["~" <> username, "ratings"] -> ratings.my_ratings(conn, user, username)
+        ["~" <> username, "ratings"] ->
+          ratings.my_ratings(req, conn, user, username)
         ["~" <> username, "lists"] ->
           case req.method {
             http.Post -> lists.create_list(req, conn, user)

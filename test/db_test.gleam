@@ -19,8 +19,8 @@ pub fn import_and_count_test() {
 pub fn cellar_isolation_test() {
   use conn <- with_empty_db
   let #(wine_a, _wine_b) = seed_two_users(conn)
-  let alice_cellar = db.cellar_wines(conn, "alice")
-  let bob_cellar = db.cellar_wines(conn, "bob")
+  let alice_cellar = db.cellar_wines(conn, "alice", db.unfiltered)
+  let bob_cellar = db.cellar_wines(conn, "bob", db.unfiltered)
   let assert 1 = list.length(alice_cellar)
   let assert 1 = list.length(bob_cellar)
   let assert 6 = db.cellar_bottle_count(conn, "alice", wine_a)
@@ -31,8 +31,8 @@ pub fn cellar_isolation_test() {
 pub fn ratings_isolation_test() {
   use conn <- with_empty_db
   let #(_wine_a, _wine_b) = seed_two_users(conn)
-  let alice_ratings = db.ratings_by_user(conn, "alice")
-  let bob_ratings = db.ratings_by_user(conn, "bob")
+  let alice_ratings = db.ratings_by_user(conn, "alice", db.unfiltered)
+  let bob_ratings = db.ratings_by_user(conn, "bob", db.unfiltered)
   let assert 1 = list.length(alice_ratings)
   let assert 1 = list.length(bob_ratings)
   let assert [r] = alice_ratings
@@ -285,9 +285,9 @@ pub fn set_list_public_test() {
 pub fn seed_alice_test() {
   use conn <- with_seeded_db
   seed.seed_alice(conn, "test")
-  let alice_ratings = db.ratings_by_user(conn, "alice")
+  let alice_ratings = db.ratings_by_user(conn, "alice", db.unfiltered)
   let assert True = alice_ratings != []
-  let alice_cellar = db.cellar_wines(conn, "alice")
+  let alice_cellar = db.cellar_wines(conn, "alice", db.unfiltered)
   let assert True = alice_cellar != []
   Nil
 }
@@ -297,7 +297,7 @@ pub fn seed_alice_few_wines_test() {
   db.ensure_user(conn, "test")
   create_test_wine(conn, "Solo Wine", db.Red)
   seed.seed_alice(conn, "test")
-  let alice_ratings = db.ratings_by_user(conn, "alice")
+  let alice_ratings = db.ratings_by_user(conn, "alice", db.unfiltered)
   let assert 1 = list.length(alice_ratings)
   Nil
 }

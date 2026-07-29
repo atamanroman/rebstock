@@ -21,7 +21,8 @@ pub fn cellar(
   user: User,
   username: String,
 ) -> Response {
-  let wines = db.cellar_wines(conn, username)
+  let filter = c.rating_filter(req)
+  let wines = db.cellar_wines(conn, username, filter)
   let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
   let cellar_list = db.get_list_by_slug(conn, username, "cellar")
   let is_owner = user.username == username
@@ -87,6 +88,7 @@ pub fn cellar(
           })
       },
     ]),
+    c.filter_chips(filter, "/~" <> username <> "/cellar"),
     c.table_filter("cellar-table", "Filter wines\u{2026}"),
     html.div([attr.id("cellar-table")], [cellar_wine_table(wines)]),
   ])
@@ -125,7 +127,7 @@ pub fn cellar_csv(conn: Connection, user: User, username: String) -> Response {
 }
 
 fn cellar_csv_body(conn: Connection, username: String) -> Response {
-  let wines = db.cellar_wines(conn, username)
+  let wines = db.cellar_wines(conn, username, db.unfiltered)
   let header = "Winery,Wine,Vintage,Country,Type,Bottles"
   let rows =
     list.map(wines, fn(cw) {
