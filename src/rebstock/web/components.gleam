@@ -472,7 +472,7 @@ pub fn rating_display(rating: Option(Float)) -> Node {
       html.span(
         [
           attr.class("font-medium tabular-nums"),
-          attr.style("color: " <> red_green_scale(r)),
+          attr.style("color: " <> rating_ink(r)),
         ],
         [html.Text(float.to_string(r))],
       )
@@ -480,18 +480,211 @@ pub fn rating_display(rating: Option(Float)) -> Node {
   }
 }
 
-pub fn red_green_scale(rating: Float) -> String {
-  let clamped = case rating <. 3.0 {
-    True -> 3.0
-    False ->
-      case rating >. 5.0 {
-        True -> 5.0
-        False -> rating
-      }
+/// Two rating distributions over shared buckets, growing outward from a
+/// centred rating axis. Colour already encodes the rating, so the two sides
+/// are told apart by direction and weight rather than hue: the left side is
+/// solid, the right ghosted. Both share one scale — normalising each side to
+/// its own maximum would flatter the comparison and lie about the shape.
+pub fn rating_butterfly(
+  title: String,
+  unit: String,
+  left_label: String,
+  right_label: String,
+  rows: List(db.BucketPair),
+) -> Node {
+  case rows {
+    [] -> html.Nothing
+    _ -> {
+      let max =
+        list.fold(rows, 0, fn(acc, row) { int.max(acc, int.max(row.1, row.2)) })
+      let left_total = list.fold(rows, 0, fn(acc, row) { acc + row.1 })
+
+      html.div([attr.class("bg-white rounded-lg border border-stone-200 p-4")], [
+        html.div([attr.class("text-xs text-stone-500")], [
+          html.Text(title),
+          html.span([attr.class("text-stone-400 ml-1")], [
+            html.Text("(" <> int.to_string(left_total) <> " " <> unit <> ")"),
+          ]),
+        ]),
+        butterfly_legend(left_label, right_label),
+        html.div(
+          [attr.class("space-y-1.5")],
+          list.map(rows, fn(row) { butterfly_row(row, max) }),
+        ),
+      ])
+    }
   }
-  let t = { clamped -. 3.0 } /. 2.0
-  let hue = float.round(t *. 120.0)
-  "hsl(" <> int.to_string(hue) <> " 70% 35%)"
+}
+
+fn butterfly_legend(left_label: String, right_label: String) -> Node {
+  let swatch = fn(class) {
+    html.span([attr.class("w-3 h-2.5 rounded-sm bg-stone-400 " <> class)], [])
+  }
+  html.div([attr.class("flex gap-4 text-[11px] text-stone-500 mt-2 mb-3")], [
+    html.span([attr.class("flex items-center gap-1.5")], [
+      swatch(""),
+      html.Text(left_label),
+    ]),
+    html.span([attr.class("flex items-center gap-1.5")], [
+      swatch("opacity-40"),
+      html.Text(right_label),
+    ]),
+  ])
+}
+
+fn butterfly_row(row: db.BucketPair, max: Int) -> Node {
+  let #(bucket, left, right) = row
+  let #(label, label_class, fill) = case bucket {
+    Some(rating) -> #(
+      float.to_string(rating),
+      "text-stone-800",
+      rating_fill(rating),
+    )
+    None -> #("\u{2014}", "text-stone-400", stone_300)
+  }
+  let label_style = case bucket {
+    Some(rating) -> attr.style("color: " <> rating_ink(rating))
+    None -> attr.class("")
+  }
+  let separated = case bucket {
+    None -> "border-t border-stone-100 pt-1.5 mt-1.5"
+    Some(_) -> ""
+  }
+
+  html.div([attr.class("flex items-center gap-1.5 " <> separated)], [
+    butterfly_count(left, "text-right"),
+    butterfly_track(left, max, fill, "justify-end", ""),
+    html.span(
+      [
+        attr.class(
+          "text-xs font-medium tabular-nums w-7 text-center shrink-0 "
+          <> label_class,
+        ),
+        label_style,
+      ],
+      [html.Text(label)],
+    ),
+    butterfly_track(right, max, fill, "", "opacity-40"),
+    butterfly_count(right, "text-left"),
+  ])
+}
+
+/// Bottles and wines nobody has scored get the one neutral fill on the chart
+const stone_300 = "#d6d3d1"
+
+fn butterfly_track(
+  count: Int,
+  max: Int,
+  fill: String,
+  align: String,
+  weight: String,
+) -> Node {
+  let pct = case max {
+    0 -> 0
+    _ -> { count * 100 } / max
+  }
+  let width = case count {
+    0 -> "0"
+    _ -> int.to_string(int.max(pct, 2)) <> "%"
+  }
+  html.div([attr.class("flex-1 h-4 bg-stone-50 rounded-sm flex " <> align)], [
+    html.div(
+      [
+        attr.class("h-full rounded-sm " <> weight),
+        attr.style("width: " <> width <> "; background-color: " <> fill <> ";"),
+      ],
+      [],
+    ),
+  ])
+}
+
+fn butterfly_count(count: Int, align: String) -> Node {
+  html.span(
+    [
+      attr.class(
+        "text-[11px] text-stone-400 tabular-nums w-7 shrink-0 " <> align,
+      ),
+    ],
+    [
+      html.Text(case count {
+        0 -> ""
+        _ -> int.to_string(count)
+      }),
+    ],
+  )
+}
+
+/// Stops along the rating axis as `#(rating, lightness, chroma, hue)` in OKLCH.
+///
+/// Ratings crowd into 3.0-5.0 and anything below 3.5 is a wine you would not
+/// buy again, so the warm half of the sweep is spent under 4.0 and everything
+/// above it reads green. The jump from 4.0 to 4.5 vaults the 90-120 degree
+/// band, where sRGB holds no bright colour at these lightnesses and yellow
+/// collapses into khaki.
+const rating_stops = [
+  #(3.0, 0.8, 0.14, 25.0),
+  #(3.5, 0.81, 0.15, 50.0),
+  #(4.0, 0.85, 0.16, 120.0),
+  #(4.5, 0.8, 0.15, 145.0),
+  #(5.0, 0.72, 0.17, 155.0),
+]
+
+/// Bar and badge fills, pale enough to sit under dark text
+pub fn rating_fill(rating: Float) -> String {
+  let #(lightness, chroma, hue) = rating_stop(rating)
+  oklch(lightness, chroma, hue)
+}
+
+/// The same hue held dark enough to read as text
+pub fn rating_ink(rating: Float) -> String {
+  let #(_, _, hue) = rating_stop(rating)
+  oklch(0.48, 0.13, hue)
+}
+
+fn rating_stop(rating: Float) -> #(Float, Float, Float) {
+  interpolate_stops(rating_stops, float.clamp(rating, min: 3.0, max: 5.0))
+}
+
+fn interpolate_stops(
+  stops: List(#(Float, Float, Float, Float)),
+  rating: Float,
+) -> #(Float, Float, Float) {
+  case stops {
+    [from, to, ..rest] -> {
+      let #(low, lightness, chroma, hue) = from
+      let #(high, next_lightness, next_chroma, next_hue) = to
+      case rating <=. high {
+        True -> {
+          let t = { rating -. low } /. { high -. low }
+          #(
+            lerp(lightness, next_lightness, t),
+            lerp(chroma, next_chroma, t),
+            lerp(hue, next_hue, t),
+          )
+        }
+        False -> interpolate_stops([to, ..rest], rating)
+      }
+    }
+    _ -> #(0.72, 0.17, 155.0)
+  }
+}
+
+fn lerp(from: Float, to: Float, t: Float) -> Float {
+  from +. { to -. from } *. t
+}
+
+fn oklch(lightness: Float, chroma: Float, hue: Float) -> String {
+  "oklch("
+  <> decimals(lightness, 3)
+  <> " "
+  <> decimals(chroma, 3)
+  <> " "
+  <> decimals(hue, 1)
+  <> ")"
+}
+
+fn decimals(value: Float, places: Int) -> String {
+  float.to_string(float.to_precision(value, places))
 }
 
 // --- Image helpers ---

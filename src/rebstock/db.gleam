@@ -4,6 +4,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/order
 import gleam/string
 import gleam/uri
 import migrant
@@ -1351,24 +1352,148 @@ pub fn count_cellar_wineries(conn: Connection, username: String) -> Int {
   )
 }
 
-/// Rating distribution: count of ratings per integer bucket (1-5)
-pub fn rating_distribution(
+/// One half-step bucket and its count. A `None` bucket holds everything with
+/// no rating on that side — bottles never tasted, wines Vivino has no score
+/// for — which is information in its own right, not a row to drop.
+pub type Bucket =
+  #(Option(Float), Int)
+
+/// The same bucket counted on two sides, for comparing one rater to another
+pub type BucketPair =
+  #(Option(Float), Int, Int)
+
+fn bucket_decoder() -> decode.Decoder(Bucket) {
+  use bucket <- decode.field(0, decode.optional(decode.float))
+  use count <- decode.field(1, decode.int)
+  decode.success(#(bucket, count))
+}
+
+/// Half steps because that is how people rate — folding 3.5 in with 3.0
+/// flattens the only part of the range that varies.
+fn half_step(rating: String) -> String {
+  "ROUND(" <> rating <> " * 2) / 2.0"
+}
+
+/// Bottles currently held, one row per wine and vintage
+const held_bottles = "SELECT wine_id, vintage, SUM(quantity) AS bottles
+   FROM cellar WHERE username = ?
+   GROUP BY wine_id, vintage HAVING bottles > 0"
+
+/// A vintage's own Vivino score beats the wine's overall one where both exist
+const vivino_rating = "COALESCE(v.vivino_rating, w.vivino_rating)"
+
+const vivino_join = "JOIN wines w ON w.id = held.wine_id
+   LEFT JOIN wines_vintages v
+     ON v.wine_id = held.wine_id AND v.year = held.vintage"
+
+/// Unrated last rather than first, which is where SQLite would put NULL
+const bucket_order = "GROUP BY bucket ORDER BY bucket IS NULL, bucket"
+
+fn bucket_query(
+  conn: Connection,
+  sql: String,
+  params: List(sqlight.Value),
+) -> List(Bucket) {
+  let assert Ok(rows) =
+    sqlight.query(sql, on: conn, with: params, expecting: bucket_decoder())
+  rows
+}
+
+/// How the user spreads their own ratings
+pub fn rating_distribution(conn: Connection, username: String) -> List(Bucket) {
+  bucket_query(conn, "SELECT " <> half_step("rating") <> " AS bucket, COUNT(*)
+     FROM ratings WHERE username = ? AND rating IS NOT NULL " <> bucket_order, [
+    sqlight.text(username),
+  ])
+}
+
+/// What Vivino's crowd made of those same wines, so the two are comparable
+pub fn vivino_distribution_of_rated(
   conn: Connection,
   username: String,
-) -> List(#(Int, Int)) {
-  let decoder = {
-    use bucket <- decode.field(0, decode.int)
-    use count <- decode.field(1, decode.int)
-    decode.success(#(bucket, count))
+) -> List(Bucket) {
+  bucket_query(
+    conn,
+    "SELECT " <> half_step(vivino_rating) <> " AS bucket, COUNT(*)
+     FROM ratings held
+     JOIN wines w ON w.id = held.wine_id
+     LEFT JOIN wines_vintages v
+       ON v.wine_id = held.wine_id AND v.year = held.vintage
+     WHERE held.username = ? AND held.rating IS NOT NULL " <> bucket_order,
+    [sqlight.text(username)],
+  )
+}
+
+/// Cellar bottles by the user's own rating, counted in bottles so a case
+/// weighs what it actually occupies. A wine rated across several vintages
+/// takes its best score; bottles never tasted fall into the `None` bucket.
+pub fn cellar_own_distribution(
+  conn: Connection,
+  username: String,
+) -> List(Bucket) {
+  bucket_query(conn, "WITH held AS (" <> held_bottles <> "), scored AS (
+       SELECT held.bottles,
+         (SELECT MAX(r.rating) FROM ratings r
+          WHERE r.wine_id = held.wine_id AND r.username = ?
+            AND r.rating IS NOT NULL) AS rating
+       FROM held
+     )
+     SELECT " <> half_step("rating") <> " AS bucket, SUM(bottles) FROM scored " <> bucket_order, [
+    sqlight.text(username),
+    sqlight.text(username),
+  ])
+}
+
+/// Cellar bottles by Vivino's rating
+pub fn cellar_vivino_distribution(
+  conn: Connection,
+  username: String,
+) -> List(Bucket) {
+  bucket_query(
+    conn,
+    "WITH held AS ("
+      <> held_bottles
+      <> ") SELECT "
+      <> half_step(vivino_rating)
+      <> " AS bucket, SUM(held.bottles)
+     FROM held "
+      <> vivino_join
+      <> " "
+      <> bucket_order,
+    [sqlight.text(username)],
+  )
+}
+
+/// Line two distributions up on a shared set of buckets, unrated last
+pub fn pair_distributions(
+  left: List(Bucket),
+  right: List(Bucket),
+) -> List(BucketPair) {
+  let buckets =
+    list.append(left, right)
+    |> list.map(fn(b) { b.0 })
+    |> list.unique
+    |> list.sort(compare_buckets)
+
+  list.map(buckets, fn(bucket) {
+    #(bucket, count_in(left, bucket), count_in(right, bucket))
+  })
+}
+
+fn count_in(buckets: List(Bucket), bucket: Option(Float)) -> Int {
+  case list.find(buckets, fn(b) { b.0 == bucket }) {
+    Ok(#(_, count)) -> count
+    Error(_) -> 0
   }
-  let assert Ok(rows) =
-    sqlight.query(
-      "SELECT CAST(rating AS INTEGER) AS bucket, COUNT(*) FROM ratings WHERE username = ? AND rating IS NOT NULL GROUP BY bucket ORDER BY bucket",
-      on: conn,
-      with: [sqlight.text(username)],
-      expecting: decoder,
-    )
-  rows
+}
+
+fn compare_buckets(a: Option(Float), b: Option(Float)) -> order.Order {
+  case a, b {
+    None, None -> order.Eq
+    None, Some(_) -> order.Gt
+    Some(_), None -> order.Lt
+    Some(x), Some(y) -> float.compare(x, y)
+  }
 }
 
 fn count_query(

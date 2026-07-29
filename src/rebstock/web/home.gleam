@@ -71,7 +71,16 @@ fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
   let rated_wines = db.count_rated_wines(conn, username)
   let rated_wineries = db.count_rated_wineries(conn, username)
   let total_wines = db.count_wines(conn)
-  let distribution = db.rating_distribution(conn, username)
+  let ratings_vs_vivino =
+    db.pair_distributions(
+      db.rating_distribution(conn, username),
+      db.vivino_distribution_of_rated(conn, username),
+    )
+  let cellar_vs_vivino =
+    db.pair_distributions(
+      db.cellar_own_distribution(conn, username),
+      db.cellar_vivino_distribution(conn, username),
+    )
 
   let heading = case is_self {
     True -> "Your Stats"
@@ -110,77 +119,27 @@ fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
         "/~" <> username <> "/ratings",
       ),
     ]),
-    case distribution {
-      [] -> html.Nothing
-      _ -> rating_distribution_bar(distribution)
+    case ratings_vs_vivino, cellar_vs_vivino {
+      [], [] -> html.Nothing
+      _, _ ->
+        html.div([attr.class("mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4")], [
+          c.rating_butterfly(
+            "Rating Distribution",
+            "ratings",
+            "You",
+            "Vivino",
+            ratings_vs_vivino,
+          ),
+          c.rating_butterfly(
+            "Cellar Quality",
+            "bottles",
+            "You",
+            "Vivino",
+            cellar_vs_vivino,
+          ),
+        ])
     },
   ])
-}
-
-fn rating_distribution_bar(distribution: List(#(Int, Int))) -> Node {
-  let total = list.fold(distribution, 0, fn(acc, pair) { acc + pair.1 })
-  let max = list.fold(distribution, 0, fn(acc, pair) { int.max(acc, pair.1) })
-
-  html.div(
-    [
-      attr.class("mt-4 bg-white rounded-lg border border-stone-200 p-4"),
-    ],
-    [
-      html.div([attr.class("text-xs text-stone-500 mb-3")], [
-        html.Text("Rating Distribution"),
-        html.span([attr.class("text-stone-400 ml-1")], [
-          html.Text("(" <> int.to_string(total) <> " ratings)"),
-        ]),
-      ]),
-      html.div(
-        [attr.class("space-y-1.5")],
-        list.map(distribution, fn(pair) {
-          let #(bucket, count) = pair
-          let pct = case max {
-            0 -> 0
-            _ -> { count * 100 } / max
-          }
-          let width = case pct {
-            0 -> "2px"
-            _ -> int.to_string(int.max(pct, 4)) <> "%"
-          }
-          html.div([attr.class("flex items-center gap-2")], [
-            html.span(
-              [
-                attr.class(
-                  "text-xs font-medium tabular-nums w-3 text-right shrink-0",
-                ),
-                attr.style("color: " <> c.red_green_scale(int.to_float(bucket))),
-              ],
-              [html.Text(int.to_string(bucket))],
-            ),
-            html.div(
-              [attr.class("flex-1 h-4 bg-stone-50 rounded-sm overflow-hidden")],
-              [
-                html.div(
-                  [
-                    attr.class("h-full rounded-sm"),
-                    attr.style(
-                      "width: "
-                      <> width
-                      <> "; background-color: "
-                      <> c.red_green_scale(int.to_float(bucket))
-                      <> ";",
-                    ),
-                  ],
-                  [],
-                ),
-              ],
-            ),
-            html.span(
-              [attr.class("text-xs text-stone-400 tabular-nums w-6 shrink-0")],
-              [html.Text(int.to_string(count))],
-            ),
-          ])
-        }),
-      ),
-    ],
-  )
 }
 
 fn activity_grid(conn: Connection, username: String) -> Node {
