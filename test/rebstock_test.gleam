@@ -74,6 +74,7 @@ pub fn home_recent_cellar_shows_entry_vintage_only_test() {
     quantity: 1,
     notes: None,
     date: None,
+    price_cents: None,
   )
   let response =
     simulate.request(http.Get, "/")

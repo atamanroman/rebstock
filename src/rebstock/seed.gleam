@@ -71,6 +71,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         quantity: 3,
         notes: Some("Picked up at the winery"),
         date: Some("2025-10-01"),
+        price_cents: None,
       )
       db.insert_cellar_entry(
         conn,
@@ -80,6 +81,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         quantity: 6,
         notes: None,
         date: Some("2026-01-05"),
+        price_cents: None,
       )
 
       // Rate all Ciclope vintages

@@ -155,6 +155,7 @@ pub type CellarEntry {
     date: Option(String),
     parent_id: Option(String),
     created_at: String,
+    price_cents: Option(Int),
   )
 }
 
@@ -267,6 +268,7 @@ fn cellar_entry_decoder() -> decode.Decoder(CellarEntry) {
   use date <- decode.field(6, decode.optional(decode.string))
   use parent_id <- decode.field(7, decode.optional(decode.string))
   use created_at <- decode.field(8, decode.string)
+  use price_cents <- decode.field(9, decode.optional(decode.int))
   decode.success(CellarEntry(
     id:,
     username:,
@@ -277,6 +279,7 @@ fn cellar_entry_decoder() -> decode.Decoder(CellarEntry) {
     date:,
     parent_id:,
     created_at:,
+    price_cents:,
   ))
 }
 
@@ -862,7 +865,12 @@ pub fn wines_by_winery(
 
 /// Wine + vintage + bottle count for cellar views
 pub type CellarWine {
-  CellarWine(wine: Wine, vintage: Option(String), bottles: Int)
+  CellarWine(
+    wine: Wine,
+    vintage: Option(String),
+    bottles: Int,
+    price_breakdown: List(#(Int, Int)),
+  )
 }
 
 const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
@@ -870,11 +878,90 @@ const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
         w.region, wy.country, w.style,
         w.personal_note, w.wine_type,
         w.vivino_id, w.vivino_rating, w.vivino_rating_count,
-        c.vintage, COALESCE(SUM(c.quantity), 0) AS bottles"
+        c.vintage, COALESCE(SUM(c.quantity), 0) AS bottles,
+        (SELECT GROUP_CONCAT(pb.bottles || 'x' || pb.price)
+         FROM (SELECT COALESCE(c2.price_cents, p2.price_cents) AS price,
+                      SUM(c2.quantity) AS bottles
+               FROM cellar c2 LEFT JOIN cellar p2 ON c2.parent_id = p2.id
+               WHERE c2.username = c.username AND c2.wine_id = w.id
+                 AND c2.vintage IS c.vintage
+                 AND COALESCE(c2.price_cents, p2.price_cents) IS NOT NULL
+               GROUP BY price HAVING bottles > 0) pb) AS price_breakdown"
 
 const cellar_wine_join = "FROM wines w
         JOIN wineries wy ON w.winery_id = wy.id
         JOIN cellar c ON c.wine_id = w.id"
+
+/// `"2x1370,1x1420"` from GROUP_CONCAT, whose order is not guaranteed,
+/// into pairs of held bottles and unit price sorted by price
+fn parse_price_breakdown(raw: Option(String)) -> List(#(Int, Int)) {
+  case raw {
+    None -> []
+    Some(concatenated) ->
+      concatenated
+      |> string.split(",")
+      |> list.filter_map(fn(pair) {
+        case string.split(pair, "x") {
+          [bottles, price] ->
+            case int.parse(bottles), int.parse(price) {
+              Ok(b), Ok(p) -> Ok(#(b, p))
+              _, _ -> Error(Nil)
+            }
+          _ -> Error(Nil)
+        }
+      })
+      |> list.sort(fn(a, b) { int.compare(a.1, b.1) })
+  }
+}
+
+/// What the bottles still in the rack cost, `None` when none of them are priced
+pub fn held_value(breakdown: List(#(Int, Int))) -> Option(Int) {
+  case breakdown {
+    [] -> None
+    _ -> Some(list.fold(breakdown, 0, fn(acc, pair) { acc + pair.0 * pair.1 }))
+  }
+}
+
+/// The same held value for entries already in hand, so a wine page that lists
+/// every entry does not ask the database a second time. A drink is charged to
+/// the purchase it draws from and a price whose bottles are all gone drops out,
+/// exactly as the breakdown subquery does it.
+pub fn entries_held_value(entries: List(CellarEntry)) -> Option(Int) {
+  held_value(entries_price_breakdown(entries))
+}
+
+fn entries_price_breakdown(entries: List(CellarEntry)) -> List(#(Int, Int)) {
+  let purchase_prices =
+    list.filter_map(entries, fn(entry) {
+      case entry.parent_id, entry.price_cents {
+        None, Some(cents) -> Ok(#(entry.id, cents))
+        _, _ -> Error(Nil)
+      }
+    })
+  let priced =
+    list.filter_map(entries, fn(entry) {
+      let source = option.unwrap(entry.parent_id, entry.id)
+      case list.key_find(purchase_prices, source) {
+        Ok(cents) -> Ok(#(cents, entry.quantity))
+        Error(_) -> Error(Nil)
+      }
+    })
+  priced
+  |> list.map(fn(pair) { pair.0 })
+  |> list.unique
+  |> list.sort(int.compare)
+  |> list.filter_map(fn(price) {
+    let bottles =
+      priced
+      |> list.filter(fn(pair) { pair.0 == price })
+      |> list.map(fn(pair) { pair.1 })
+      |> int.sum
+    case bottles > 0 {
+      True -> Ok(#(bottles, price))
+      False -> Error(Nil)
+    }
+  })
+}
 
 fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
   use id <- decode.field(0, decode.string)
@@ -893,6 +980,7 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
   use vivino_rating_count <- decode.field(13, decode.optional(decode.int))
   use vintage <- decode.field(14, decode.optional(decode.string))
   use bottles <- decode.field(15, decode.int)
+  use price_breakdown <- decode.field(16, decode.optional(decode.string))
   decode.success(CellarWine(
     wine: Wine(
       id:,
@@ -912,6 +1000,7 @@ fn cellar_wine_decoder() -> decode.Decoder(CellarWine) {
     ),
     vintage:,
     bottles:,
+    price_breakdown: parse_price_breakdown(price_breakdown),
   ))
 }
 
@@ -962,7 +1051,7 @@ pub fn cellar_entries_for_wine(
 ) -> List(CellarEntry) {
   let assert Ok(entries) =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at, c.price_cents
        FROM cellar c WHERE c.wine_id = ? ORDER BY c.created_at DESC",
       on: conn,
       with: [sqlight.text(wine_id)],
@@ -997,7 +1086,7 @@ pub fn get_cellar_entry_by_id(
 ) -> Result(CellarEntry, Nil) {
   let result =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at, c.price_cents
        FROM cellar c WHERE c.id = ?",
       on: conn,
       with: [sqlight.text(id)],
@@ -1017,12 +1106,13 @@ pub fn insert_cellar_entry(
   quantity quantity: Int,
   notes notes: Option(String),
   date date: Option(String),
+  price_cents price_cents: Option(Int),
 ) -> Nil {
   let id = ulid.generate()
   let assert Ok(_) =
     sqlight.query(
-      "INSERT INTO cellar (id, username, wine_id, vintage, quantity, notes, date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cellar (id, username, wine_id, vintage, quantity, notes, date, price_cents)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       on: conn,
       with: [
         sqlight.text(id),
@@ -1032,6 +1122,7 @@ pub fn insert_cellar_entry(
         sqlight.int(quantity),
         nullable_text(notes),
         nullable_text(date),
+        nullable_int(price_cents),
       ],
       expecting: decode.success(Nil),
     )
@@ -1074,10 +1165,11 @@ pub fn update_cellar_entry(
   quantity quantity: Int,
   notes notes: Option(String),
   date date: Option(String),
+  price_cents price_cents: Option(Int),
 ) -> Nil {
   let assert Ok(_) =
     sqlight.query(
-      "UPDATE cellar SET vintage = ?, quantity = ?, notes = ?, date = ?
+      "UPDATE cellar SET vintage = ?, quantity = ?, notes = ?, date = ?, price_cents = ?
        WHERE id = ?",
       on: conn,
       with: [
@@ -1085,6 +1177,7 @@ pub fn update_cellar_entry(
         sqlight.int(quantity),
         nullable_text(notes),
         nullable_text(date),
+        nullable_int(price_cents),
         sqlight.text(id),
       ],
       expecting: decode.success(Nil),
@@ -1197,7 +1290,7 @@ pub fn latest_cellar_entries(
 ) -> List(CellarEntry) {
   let assert Ok(entries) =
     sqlight.query(
-      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at
+      "SELECT c.id, c.username, c.wine_id, c.vintage, c.quantity, c.notes, c.date, c.parent_id, c.created_at, c.price_cents
        FROM cellar c WHERE c.username = ?
        ORDER BY c.created_at DESC LIMIT ?",
       on: conn,
@@ -1968,6 +2061,33 @@ pub fn parse_optional_float(s: String) -> Option(Float) {
           }
       }
   }
+}
+
+pub fn parse_price_cents(s: String) -> Option(Int) {
+  case parse_optional_float(s) {
+    None -> None
+    Some(euros) -> Some(float.round(euros *. 100.0))
+  }
+}
+
+/// Euro amount, for the CSV export and number inputs.
+/// `int./` truncates toward zero and `int.%` keeps the dividend's sign, so a
+/// negative amount is split into its sign and its absolute value first —
+/// otherwise both halves would carry the minus, e.g. "-5.-50".
+pub fn format_price_plain(cents: Int) -> String {
+  let sign = case cents < 0 {
+    True -> "-"
+    False -> ""
+  }
+  let whole = int.absolute_value(cents)
+  sign
+  <> int.to_string(whole / 100)
+  <> "."
+  <> string.pad_start(int.to_string(whole % 100), to: 2, with: "0")
+}
+
+pub fn format_price(cents: Int) -> String {
+  "\u{20ac}" <> format_price_plain(cents)
 }
 
 pub fn optional_non_empty(s: String) -> Option(String) {

@@ -646,7 +646,13 @@ fn other_rating_card(r: Rating) -> Node {
 
 fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
   let net = list.fold(entries, 0, fn(acc, e) { acc + e.quantity })
-  let net_label = int.to_string(net) <> " bottles"
+  let net_label =
+    int.to_string(net)
+    <> " bottles"
+    <> case db.entries_held_value(entries) {
+      None -> ""
+      Some(cents) -> " \u{00b7} " <> db.format_price(cents)
+    }
   // Sort newest first by date, then created_at
   let sorted =
     list.sort(entries, fn(a, b) {
@@ -772,6 +778,15 @@ fn cellar_entry_inline(
                 None -> entry.created_at
               }),
             ]),
+            // Only a purchase carries a price; a drink's bottle cost whatever
+            // the purchase above it says it did
+            case entry.price_cents {
+              Some(cents) ->
+                html.p([attr.class("text-xs text-stone-500 tabular-nums")], [
+                  html.Text(db.format_price(cents)),
+                ])
+              None -> html.Nothing
+            },
           ],
         ),
         // Divider

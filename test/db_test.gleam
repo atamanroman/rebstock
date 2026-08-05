@@ -511,5 +511,341 @@ pub fn db_bottle_counts_test() {
   Nil
 }
 
+pub fn parse_price_cents_test() {
+  let assert None = db.parse_price_cents("")
+  let assert None = db.parse_price_cents("  ")
+  let assert None = db.parse_price_cents("free")
+  let assert Some(1370) = db.parse_price_cents("13.70")
+  let assert Some(1370) = db.parse_price_cents("13.7")
+  let assert Some(1371) = db.parse_price_cents("13.705")
+  let assert Some(1300) = db.parse_price_cents("13")
+  Nil
+}
+
+pub fn format_price_test() {
+  let assert "\u{20ac}13.70" = db.format_price(1370)
+  let assert "\u{20ac}0.05" = db.format_price(5)
+  let assert "\u{20ac}1234.56" = db.format_price(123_456)
+  let assert "13.70" = db.format_price_plain(1370)
+  let assert "1234.56" = db.format_price_plain(123_456)
+  Nil
+}
+
+pub fn format_price_negative_test() {
+  let assert "-5.50" = db.format_price_plain(-550)
+  let assert "\u{20ac}-5.50" = db.format_price(-550)
+  Nil
+}
+
+pub fn cellar_entry_stores_price_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Priced Cab", db.Red)
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: Some(1370),
+  )
+  let assert [entry] = db.cellar_entries_for_wine(conn, wine_id)
+  let assert Some(1370) = entry.price_cents
+  db.update_cellar_entry(
+    conn,
+    id: entry.id,
+    vintage: Some("2020"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let assert [cleared] = db.cellar_entries_for_wine(conn, wine_id)
+  let assert None = cleared.price_cents
+  Nil
+}
+
+pub fn cellar_value_survives_drinking_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Tenner", db.Red)
+  db.upsert_vintage(conn, wine_id, "2021")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2021"),
+    quantity: 3,
+    notes: None,
+    date: None,
+    price_cents: Some(1000),
+  )
+  let assert [entry] = db.cellar_entries_for_wine(conn, wine_id)
+  db.insert_cellar_drink(
+    conn,
+    parent_id: entry.id,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2021"),
+    notes: None,
+    date: None,
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert 2 = cw.bottles
+  let assert Some(2000) = db.held_value(cw.price_breakdown)
+  Nil
+}
+
+pub fn cellar_price_breakdown_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Two Prices", db.White)
+  db.upsert_vintage(conn, wine_id, "2022")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2022"),
+    quantity: 1,
+    notes: None,
+    date: None,
+    price_cents: Some(1420),
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2022"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: Some(1370),
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert [#(2, 1370), #(1, 1420)] = cw.price_breakdown
+  let assert Some(4160) = db.held_value(cw.price_breakdown)
+  Nil
+}
+
+pub fn cellar_price_breakdown_drops_fully_drunk_group_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Drunk One Price", db.Red)
+  db.upsert_vintage(conn, wine_id, "2019")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2019"),
+    quantity: 1,
+    notes: None,
+    date: None,
+    price_cents: Some(2000),
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2019"),
+    quantity: 1,
+    notes: None,
+    date: None,
+    price_cents: Some(1000),
+  )
+  let assert [cheap] =
+    db.cellar_entries_for_wine(conn, wine_id)
+    |> list.filter(fn(e) { e.price_cents == Some(1000) })
+  db.insert_cellar_drink(
+    conn,
+    parent_id: cheap.id,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2019"),
+    notes: None,
+    date: None,
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert 1 = cw.bottles
+  let assert [#(1, 2000)] = cw.price_breakdown
+  Nil
+}
+
+pub fn cellar_price_breakdown_no_vintage_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "No Vintage Wine", db.Red)
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: None,
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: Some(1500),
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert 2 = cw.bottles
+  let assert [#(2, 1500)] = cw.price_breakdown
+  Nil
+}
+
+pub fn cellar_price_breakdown_mixed_priced_and_unpriced_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Mixed Pricing", db.Red)
+  db.upsert_vintage(conn, wine_id, "2018")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2018"),
+    quantity: 3,
+    notes: None,
+    date: None,
+    price_cents: Some(1100),
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2018"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert 5 = cw.bottles
+  let assert [#(3, 1100)] = cw.price_breakdown
+  Nil
+}
+
+pub fn cellar_without_price_has_no_value_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Unpriced", db.Red)
+  db.upsert_vintage(conn, wine_id, "2019")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2019"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let assert [cw] = db.cellar_wines(conn, "test", db.unfiltered)
+  let assert [] = cw.price_breakdown
+  let assert None = db.held_value(cw.price_breakdown)
+  Nil
+}
+
+pub fn entries_held_value_charges_drinks_to_their_purchase_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Entry Fold", db.Red)
+  db.upsert_vintage(conn, wine_id, "2021")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2021"),
+    quantity: 3,
+    notes: None,
+    date: None,
+    price_cents: Some(1000),
+  )
+  let assert [purchase] = db.cellar_entries_for_wine(conn, wine_id)
+  db.insert_cellar_drink(
+    conn,
+    parent_id: purchase.id,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2021"),
+    notes: None,
+    date: None,
+  )
+  let entries = db.cellar_entries_for_wine(conn, wine_id)
+  let assert Some(2000) = db.entries_held_value(entries)
+  Nil
+}
+
+pub fn entries_held_value_drops_a_fully_drunk_price_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "All Drunk", db.Red)
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 1,
+    notes: None,
+    date: None,
+    price_cents: Some(1875),
+  )
+  let assert [purchase] = db.cellar_entries_for_wine(conn, wine_id)
+  db.insert_cellar_drink(
+    conn,
+    parent_id: purchase.id,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    notes: None,
+    date: None,
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 1,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let entries = db.cellar_entries_for_wine(conn, wine_id)
+  let assert None = db.entries_held_value(entries)
+  Nil
+}
+
+pub fn entries_held_value_ignores_unpriced_entries_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Half Priced", db.Red)
+  db.upsert_vintage(conn, wine_id, "2018")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2018"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: Some(1100),
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2018"),
+    quantity: 4,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let entries = db.cellar_entries_for_wine(conn, wine_id)
+  let assert Some(2200) = db.entries_held_value(entries)
+  let unpriced = list.filter(entries, fn(e) { e.price_cents == None })
+  let assert None = db.entries_held_value(unpriced)
+  Nil
+}
+
 @external(erlang, "rebstock_test_ffi", "create_zip")
 fn create_test_zip(files: List(#(String, String))) -> BitArray

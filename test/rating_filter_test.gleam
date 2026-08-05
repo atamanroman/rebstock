@@ -110,6 +110,7 @@ fn stock(
     quantity: quantity,
     notes: None,
     date: None,
+    price_cents: None,
   )
 }
 

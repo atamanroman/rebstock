@@ -1,5 +1,5 @@
 import gleam/http
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import gleam/string
 import wisp/simulate
 
@@ -133,6 +133,56 @@ pub fn wine_detail_with_ratings_and_cellar_test() {
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Pinot Noir Reserve")
+  Nil
+}
+
+pub fn wine_detail_shows_cellar_price_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Priced Pinot", db.Red)
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: Some(1875),
+  )
+  let response =
+    simulate.request(http.Get, wine_path(wine_id, "Priced Pinot"))
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "\u{20ac}18.75")
+  let assert True = string.contains(body, "2 bottles \u{b7} \u{20ac}37.50")
+  Nil
+}
+
+pub fn wine_detail_without_price_shows_bottles_alone_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id = create_test_wine(conn, "Plain Pinot", db.Red)
+  db.upsert_vintage(conn, wine_id, "2020")
+  db.insert_cellar_entry(
+    conn,
+    username: "test",
+    wine_id: wine_id,
+    vintage: Some("2020"),
+    quantity: 2,
+    notes: None,
+    date: None,
+    price_cents: None,
+  )
+  let response =
+    simulate.request(http.Get, wine_path(wine_id, "Plain Pinot"))
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "2 bottles")
+  let assert False = string.contains(body, "\u{20ac}")
   Nil
 }
 

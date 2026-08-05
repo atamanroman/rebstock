@@ -567,6 +567,7 @@ pub fn import_cellar(
               quantity: parsed.cellar_count,
               notes: None,
               date: None,
+              price_cents: None,
             )
             ImportResult(..acc, cellar_created: acc.cellar_created + 1)
           }

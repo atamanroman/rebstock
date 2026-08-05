@@ -65,6 +65,7 @@ pub fn create_test_cellar_wine(
     quantity: quantity,
     notes: None,
     date: None,
+    price_cents: None,
   )
   let entries = db.cellar_entries_for_wine(conn, wine_id)
   let assert [entry, ..] = entries
@@ -123,6 +124,7 @@ pub fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     quantity: 6,
     notes: None,
     date: None,
+    price_cents: None,
   )
   db.insert_cellar_entry(
     conn,
@@ -132,6 +134,7 @@ pub fn seed_two_users(conn: sqlight.Connection) -> #(String, String) {
     quantity: 3,
     notes: None,
     date: None,
+    price_cents: None,
   )
   db.insert_rating(
     conn,

@@ -24,6 +24,20 @@ pub fn cellar(
   let filter = c.rating_filter(req)
   let wines = db.cellar_wines(conn, username, filter)
   let total_bottles = list.fold(wines, 0, fn(acc, cw) { acc + cw.bottles })
+  let total_value =
+    list.fold(wines, 0, fn(acc, cw) {
+      case db.held_value(cw.price_breakdown) {
+        Some(cents) -> acc + cents
+        None -> acc
+      }
+    })
+  let subtitle =
+    int.to_string(total_bottles)
+    <> " bottles"
+    <> case total_value {
+      0 -> ""
+      cents -> " \u{00b7} " <> db.format_price(cents)
+    }
   let cellar_list = db.get_list_by_slug(conn, username, "cellar")
   let is_owner = user.username == username
 
@@ -34,9 +48,7 @@ pub fn cellar(
           [attr.class("text-3xl font-light text-stone-800 tracking-tight")],
           [html.Text("Cellar")],
         ),
-        html.p([attr.class("text-stone-500 mt-1")], [
-          html.Text(int.to_string(total_bottles) <> " bottles"),
-        ]),
+        html.p([attr.class("text-stone-500 mt-1")], [html.Text(subtitle)]),
       ]),
       case is_owner {
         False -> html.Nothing
@@ -128,7 +140,7 @@ pub fn cellar_csv(conn: Connection, user: User, username: String) -> Response {
 
 fn cellar_csv_body(conn: Connection, username: String) -> Response {
   let wines = db.cellar_wines(conn, username, db.unfiltered)
-  let header = "Winery,Wine,Vintage,Country,Type,Bottles"
+  let header = "Winery,Wine,Vintage,Country,Type,Bottles,Value"
   let rows =
     list.map(wines, fn(cw) {
       [
@@ -138,6 +150,10 @@ fn cellar_csv_body(conn: Connection, username: String) -> Response {
         csv_field(c.display_country(cw.wine.country)),
         db.wine_type_to_string(cw.wine.wine_type),
         int.to_string(cw.bottles),
+        case db.held_value(cw.price_breakdown) {
+          Some(cents) -> db.format_price_plain(cents)
+          None -> ""
+        },
       ]
       |> string.join(",")
     })
@@ -206,13 +222,14 @@ pub fn handle_new(
           let quantity = form_int(form, "quantity")
           let notes = form_value(form, "notes")
           let date = form_value(form, "date")
-          case quantity < 1 {
-            True ->
+          case quantity < 1, form_price(form) {
+            True, _ ->
               form_error(
                 cellar_form(wine, vintages, None),
                 "Quantity must be at least 1",
               )
-            False -> {
+            _, Error(msg) -> form_error(cellar_form(wine, vintages, None), msg)
+            False, Ok(price_cents) -> {
               db.insert_cellar_entry(
                 conn,
                 username: user.username,
@@ -221,6 +238,7 @@ pub fn handle_new(
                 quantity: quantity,
                 notes: notes,
                 date: date,
+                price_cents: price_cents,
               )
               wisp.response(200)
               |> wisp.set_header("HX-Redirect", c.wine_url(wine))
@@ -267,10 +285,19 @@ pub fn handle_edit(
                   let quantity = form_int(form, "quantity")
                   let notes = form_value(form, "notes")
                   let date = form_value(form, "date")
-                  case quantity_error(conn, entry, quantity) {
-                    Some(msg) ->
+                  // A drink event must never carry its own price: the held-value
+                  // query reads the parent's price, so a price here would double
+                  // count while the group itself drops out of the breakdown.
+                  let price = case entry.parent_id {
+                    Some(_) -> Ok(None)
+                    None -> form_price(form)
+                  }
+                  case quantity_error(conn, entry, quantity), price {
+                    Some(msg), _ ->
                       form_error(cellar_form(wine, vintages, Some(entry)), msg)
-                    None -> {
+                    _, Error(msg) ->
+                      form_error(cellar_form(wine, vintages, Some(entry)), msg)
+                    None, Ok(price_cents) -> {
                       db.update_cellar_entry(
                         conn,
                         id: entry.id,
@@ -278,6 +305,7 @@ pub fn handle_edit(
                         quantity: quantity,
                         notes: notes,
                         date: date,
+                        price_cents: price_cents,
                       )
                       wisp.response(200)
                       |> wisp.set_header("HX-Redirect", c.wine_url(wine))
@@ -678,6 +706,37 @@ fn cellar_form(
             [],
           ),
         ]),
+        // Price per bottle (purchases only — a drink row must never carry its own price)
+        case existing {
+          Some(e) if e.parent_id != None -> html.Nothing
+          _ ->
+            form_field("Price per bottle (\u{20ac})", [
+              html.Element(
+                "input",
+                [
+                  attr.type_("number"),
+                  attr.name("price"),
+                  attr.Attr("step", "0.01"),
+                  attr.Attr("min", "0"),
+                  attr.Attr("placeholder", "13.70"),
+                  attr.class(
+                    "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
+                  ),
+                  ..case existing {
+                    Some(e) ->
+                      case e.price_cents {
+                        Some(cents) -> [
+                          attr.value(db.format_price_plain(cents)),
+                        ]
+                        None -> []
+                      }
+                    None -> []
+                  }
+                ],
+                [],
+              ),
+            ])
+        },
         // Date
         req_field("Date", [
           html.Element(
@@ -825,6 +884,23 @@ fn form_int(form: wisp.FormData, key: String) -> Int {
   }
 }
 
+const price_message = "Price must be an amount like 13.70"
+
+/// An empty field means the entry has no price. Anything else that is not a
+/// non-negative amount is a mistake worth reporting, not an instruction to
+/// forget the price that is already stored.
+fn form_price(form: wisp.FormData) -> Result(Option(Int), String) {
+  case form_value(form, "price") {
+    None -> Ok(None)
+    Some(s) ->
+      case db.parse_price_cents(s) {
+        None -> Error(price_message)
+        Some(cents) if cents < 0 -> Error(price_message)
+        parsed -> Ok(parsed)
+      }
+  }
+}
+
 fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
   c.card([
     html.div([attr.class("flex items-start justify-between mb-2")], [
@@ -856,6 +932,22 @@ fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
         None -> entry.created_at
       }),
     ]),
+    case entry.price_cents {
+      None -> html.Nothing
+      Some(cents) ->
+        html.p([attr.class("text-sm text-stone-500 mb-4")], [
+          html.Text(case entry.quantity {
+            1 -> db.format_price(cents)
+            n ->
+              db.format_price(cents)
+              <> " \u{00b7} "
+              <> db.format_price(cents * n)
+              <> " for "
+              <> int.to_string(n)
+              <> " bottles"
+          }),
+        ])
+    },
     case entry.notes {
       Some(notes) ->
         html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
@@ -870,7 +962,7 @@ fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
 
 fn cellar_wine_table(wines: List(CellarWine)) -> html.Node {
   c.table(
-    ["Winery", "Wine", "Vintage", "Country", "Type", "Cellar"],
+    ["Winery", "Wine", "Vintage", "Country", "Type", "Cellar", "Value"],
     list.index_map(wines, cellar_wine_row),
   )
 }
@@ -902,8 +994,32 @@ fn cellar_wine_row(cw: CellarWine, idx: Int) -> html.Node {
       html.td([attr.class("px-4 py-3 text-center tabular-nums")], [
         html.Text(int.to_string(cw.bottles)),
       ]),
+      value_cell(cw),
     ],
   )
+}
+
+/// Held value, with the prices behind it on hover so the answer costs no request
+fn value_cell(cw: CellarWine) -> html.Node {
+  case db.held_value(cw.price_breakdown) {
+    None -> html.td([attr.class("px-4 py-3")], [])
+    Some(cents) ->
+      html.td(
+        [
+          attr.class("px-4 py-3 text-right tabular-nums text-stone-600"),
+          attr.Attr("title", breakdown_title(cw.price_breakdown)),
+        ],
+        [html.Text(db.format_price(cents))],
+      )
+  }
+}
+
+fn breakdown_title(breakdown: List(#(Int, Int))) -> String {
+  breakdown
+  |> list.map(fn(pair) {
+    int.to_string(pair.0) <> "\u{00d7}" <> db.format_price(pair.1)
+  })
+  |> string.join(", ")
 }
 
 fn csv_field(value: String) -> String {

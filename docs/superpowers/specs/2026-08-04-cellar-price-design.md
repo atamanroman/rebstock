@@ -80,13 +80,19 @@ The vintage comparison uses `IS`, not `=`, because entries without a vintage hol
 
 A row's value is a fold over `price_breakdown`, not a second SQL column, so the value shown and the prices behind it cannot disagree.
 
-`cellar_total_value` is a separate query of the same shape without the grouping, returning `Option(Int)` for the whole cellar.
+The cellar total is a fold over the rows the page already holds, not a second query.
+The subtitle's bottle count is already a fold over the rating-filtered rows, so a query of the whole cellar would print a value that disagrees with the bottles beside it under a filter.
 
 ## Interface
 
 The cellar form gains an optional field between Quantity and Date, labelled `Price per bottle (€)`, rendered as `<input type="number" step="0.01" min="0">`.
 It appears on both the new and edit forms, prefilled when set, and runs through `parse_price_cents` in `handle_new` and `handle_edit`.
-The drink form does not have it.
+The drink form does not have it, and neither does the edit form of a drink row: a drink carries no price of its own, so offering the field there would let a second price contradict the purchase the bottle came from.
+The handler ignores a price submitted for a drink row rather than trusting the field to be absent.
+
+An empty field means the entry has no price and clears whatever was stored.
+Anything else that is not a non-negative amount is rejected with `Price must be an amount like 13.70`, the same way an impossible quantity is, because the alternative is a typo silently erasing a price the user had already recorded.
+The `min="0"` on the input only binds a browser, so the check lives in the handler.
 
 The cellar entry card shows a Price row reading `€13.70 · €27.40 for 2 bottles`, omitted when no price is set.
 
@@ -95,7 +101,13 @@ The page has no stat-card row today and does not gain one for a single number.
 
 The cellar table gains a Value column showing the row's held value, blank when unpriced.
 The cell carries a `title` attribute holding the breakdown, `2×€13.70, 1×€14.20`, so hovering answers what the bottles cost without a second request.
-Per-entry history stays on the wine page, which already lists every entry with its edit and drink actions.
+
+Per-entry history stays on the wine page, which already lists every entry with its edit and drink actions, so that list carries the price too.
+A purchase shows its unit price under the date, and the section heading reads `3 bottles · €56.25`.
+Setting a price on a page that never shows it back would leave the number unverifiable short of reopening the form.
+
+The heading's value is `entries_held_value`, a fold over the entries the page already loaded rather than a second query, charging each drink to the purchase it draws from exactly as the breakdown subquery does.
+A drink row shows no price of its own, for the same reason its edit form has no price field.
 
 ## Export
 
