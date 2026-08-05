@@ -1,5 +1,19 @@
 # Rebstock Changelog
 
+## 0.3.0
+
+Migration 00005 applies on first start and only adds a nullable column, so
+existing cellar entries stay valid without a price.
+
+- Optional price per bottle on cellar entries, shown on the entry, on the wine
+  page beside each purchase, and as held value on the cellar page and in the
+  CSV export
+- Drunk bottles are charged to the purchase they came from, so a corrected
+  price corrects every bottle drawn from it
+- Dashboard rating charts redrawn: OKLCH colour ramp, half-step buckets, and
+  your ratings set against Vivino's as a butterfly on one shared scale
+- Dashboard rating bars link to the matching filtered list
+
 ## 0.2.2
 
 - Fix dashboard "Recently Added to Cellar" and wishlist table showing all of a
