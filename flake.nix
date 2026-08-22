@@ -2,6 +2,7 @@
   description = "Rebstock - self-hosted wine inventory manager";
 
   inputs = {
+    self.submodules = true;
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
@@ -148,6 +149,23 @@
 
         inherit (pkgs) lib;
 
+        zolaSrc = pkgs.fetchFromGitHub {
+          owner = "getzola";
+          repo = "zola";
+          rev = "v0.23.2";
+          hash = "sha256-pdePZ8w+cUXA62wkCqtSBwtHNCBSmJQ0kqyOq+0k06o=";
+        };
+
+        zola = pkgs.zola.overrideAttrs {
+          version = "0.23.2";
+          src = zolaSrc;
+          doCheck = false;
+          cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+            src = zolaSrc;
+            hash = "sha256-KTDsj6mOh8x4JtUL52lLARszmvMyvC49+MlnwHYaSq4=";
+          };
+        };
+
         # Parse manifest.toml at eval time to get dependency info
         manifestToml = lib.importTOML ./manifest.toml;
         gleamToml = lib.importTOML ./gleam.toml;
@@ -181,8 +199,15 @@
           src = lib.cleanSourceWith {
             src = ./.;
             filter = path: type:
-              let name = builtins.baseNameOf path; in
-              name != "build"
+              let
+                name = builtins.baseNameOf path;
+                relative = lib.removePrefix (toString ./. + "/") (toString path);
+                siteOnly = relative == ".gitmodules"
+                  || relative == "site"
+                  || lib.hasPrefix "site/" relative;
+              in
+              !siteOnly
+              && name != "build"
               && name != "flake.nix"
               && name != "flake.lock"
               && name != ".git"
@@ -283,15 +308,34 @@
             runHook postInstall
           '';
         });
+
+        site = pkgs.stdenvNoCC.mkDerivation {
+          pname = "rebstock-site";
+          version = "0.1.0";
+          src = lib.cleanSource ./site;
+          nativeBuildInputs = [ zola ];
+
+          buildPhase = ''
+            runHook preBuild
+            zola check
+            runHook postBuild
+          '';
+
+          installPhase = ''
+            runHook preInstall
+            zola build --output-dir $out
+            runHook postInstall
+          '';
+        };
       in
       {
         packages = {
           default = rebstock;
-          rebstock = rebstock;
+          inherit rebstock site;
         };
 
         checks = {
-          inherit lint;
+          inherit lint site;
           build = rebstock;
         };
 
@@ -304,11 +348,67 @@
             pkgs.watchexec
             pkgs.just
             pkgs.lefthook
+            pkgs.nodejs
+            zola
           ];
         };
       }
     )) // {
       nixosModules.default = nixosModule;
       nixosModules.rebstock = nixosModule;
-    };
+    } // (let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+
+      deploySite = pkgs.stdenvNoCC.mkDerivation {
+        name = "deploy-rebstock-site";
+        isEffect = true;
+        secretsMap = builtins.toJSON {
+          cloudflare = "cloudflare";
+        };
+        nativeBuildInputs = [
+          pkgs.cacert
+          pkgs.jq
+          pkgs.wrangler
+        ];
+        phases = [
+          "initPhase"
+          "effectPhase"
+        ];
+
+        initPhase = ''
+          exec </dev/null
+          export HOME=/build/home
+          mkdir -p "$HOME"
+        '';
+
+        effectPhase = ''
+          export CLOUDFLARE_API_TOKEN="$(${pkgs.jq}/bin/jq -er \
+            '.cloudflare.data.api_token' "$HERCULES_CI_SECRETS_JSON")"
+          export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+          export NODE_EXTRA_CA_CERTS="$SSL_CERT_FILE"
+
+          work=$(mktemp -d)
+          mkdir "$work/public"
+          cp -R ${self.packages.x86_64-linux.site}/. "$work/public/"
+          cp ${./site/wrangler.toml} "$work/wrangler.toml"
+
+          cd "$work"
+          ${pkgs.wrangler}/bin/wrangler deploy
+        '';
+      };
+    in
+    {
+      herculesCI = { primaryRepo, ... }: {
+        onPush.default.outputs.effects.deploy =
+          if primaryRepo.branch or null == "main" then
+            { run = deploySite; }
+          else
+            {
+              dependencies = deploySite.inputDerivation // {
+                isEffect = false;
+                buildDependenciesOnly = true;
+              };
+            };
+      };
+    });
 }

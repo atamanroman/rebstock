@@ -1,0 +1,56 @@
+base_url = "https://rebstock.atamanroman.dev"
+title = "Rebstock"
+description = "self-hosted wine cellar management"
+default_language = "en"
+theme = "zap"
+compile_sass = false
+build_search_index = false
+generate_feeds = false
+minify_html = true
+
+[markdown]
+smart_punctuation = true
+
+[markdown.highlighting]
+light_theme = "github-light"
+dark_theme = "github-dark"
+
+[extra]
+keywords = "wine cellar, wine inventory, self-hosted, Gleam, SQLite, Vivino"
+footer_text = "know what is in the cellar"
+inline_icons = false
+favicon = "/favicon.svg"
+menu_links = [
+  { name = "Home", url = "$BASE_URL/" },
+  { name = "Install", url = "$BASE_URL/#install" },
+  { name = "Configure", url = "$BASE_URL/#configure" },
+  { name = "Source", url = "https://git.neonforest.org/ra/rebstock" },
+]
+
+[extra.brand]
+header_gap = "3rem"
+lines = [
+  { text = '█▀▄ █▀▀', color = "#9f1239" },
+  { text = '█▀▄ ▀▀█', color = "#9f1239" },
+  { text = '▀ ▀ ▀▀▀', color = "#9f1239" },
+]
+
+[extra.palette]
+light_background = "#fafaf9"
+light_text = "#1c1917"
+light_muted = "#44403c"
+light_link = "#9f1239"
+light_visited = "#881337"
+light_accent = "#be123c"
+light_surface = "#f5f5f4"
+light_selection = "#fecdd3"
+light_selection_text = "#1c1917"
+dark_background = "#1c1917"
+dark_text = "#fafaf9"
+dark_muted = "#d6d3d1"
+dark_link = "#fb7185"
+dark_visited = "#fda4af"
+dark_accent = "#fecdd3"
+dark_surface = "#292524"
+dark_selection = "#9f1239"
+dark_selection_text = "#ffffff"

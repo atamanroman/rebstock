@@ -42,6 +42,22 @@ lint:
 format:
     gleam format .
 
+# Run the project site locally
+site-dev:
+    cd site && zola serve --drafts
+
+# Build the project site; optionally override its base URL
+site-build base_url="":
+    cd site && zola build {{ if base_url == "" { "" } else { "--base-url=" + base_url } }}
+
+# Validate the project site and its links
+site-check:
+    cd site && zola check
+
+# Build and publish the project site to Cloudflare
+site-deploy: (site-build "https://rebstock.atamanroman.dev")
+    cd site && npx wrangler deploy
+
 # Check if all dev tools are available and install Git pre-commit lint hook
 setup-dev:
     @echo "Check available dev tools"

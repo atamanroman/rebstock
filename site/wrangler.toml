@@ -1,0 +1,10 @@
+name = "rebstock"
+compatibility_date = "2026-04-29"
+routes = [
+  { pattern = "rebstock.atamanroman.dev", custom_domain = true },
+]
+
+[assets]
+directory = "./public"
+not_found_handling = "404-page"
+html_handling = "auto-trailing-slash"
