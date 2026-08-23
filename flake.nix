@@ -313,11 +313,11 @@
           pname = "rebstock-site";
           version = "0.1.0";
           src = lib.cleanSource ./site;
-          nativeBuildInputs = [ zola ];
+          nativeBuildInputs = [ zola pkgs.cacert ];
 
           buildPhase = ''
             runHook preBuild
-            zola check
+            zola check --skip-external-links
             runHook postBuild
           '';
 

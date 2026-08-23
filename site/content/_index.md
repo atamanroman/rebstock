@@ -29,7 +29,7 @@ Add the flake and its NixOS module:
 # flake.nix
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.rebstock.url = "git+https://git.neonforest.org/ra/rebstock";
+  inputs.rebstock.url = "github:atamanroman/rebstock";
 
   outputs = { nixpkgs, rebstock, ... }: {
     nixosConfigurations.cellar = nixpkgs.lib.nixosSystem {
@@ -57,7 +57,7 @@ The module creates a hardened systemd service, stores the database and downloade
 You need Erlang, Gleam, Tailwind CSS v4, and `just`:
 
 ```console
-git clone https://git.neonforest.org/ra/rebstock.git
+git clone https://github.com/atamanroman/rebstock.git
 cd rebstock
 just setup-dev
 just build
@@ -69,7 +69,7 @@ Rebstock listens on `127.0.0.1:3000` by default. Keep `data/` persistent; it con
 
 ## Configure
 
-Start with [`config.example.json`](https://git.neonforest.org/ra/rebstock/src/branch/main/config.example.json). The default single-user mode signs every request in as the configured user:
+Start with [`config.example.json`](https://github.com/atamanroman/rebstock/blob/main/config.example.json). The default single-user mode signs every request in as the configured user:
 
 ```json
 {
@@ -100,4 +100,4 @@ For multiple users, place Rebstock behind a reverse proxy that performs authenti
 
 In forward-auth mode, never expose Rebstock's port directly: the service trusts these headers and creates unknown users automatically. Bind it to localhost or a private interface and have the proxy overwrite incoming identity headers.
 
-Read the [full documentation and source](https://git.neonforest.org/ra/rebstock).
+Read the [full documentation and source](https://github.com/atamanroman/rebstock).

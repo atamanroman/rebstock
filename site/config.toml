@@ -1,5 +1,5 @@
 base_url = "https://rebstock.atamanroman.dev"
-title = "Rebstock"
+title = "rebstock"
 description = "self-hosted wine cellar management"
 default_language = "en"
 theme = "zap"
@@ -23,12 +23,12 @@ favicon = "/favicon.svg"
 menu_links = [
   { name = "Home", url = "$BASE_URL/" },
   { name = "Install", url = "$BASE_URL/#install" },
-  { name = "Configure", url = "$BASE_URL/#configure" },
-  { name = "Source", url = "https://git.neonforest.org/ra/rebstock" },
+  { name = "Source", url = "https://github.com/atamanroman/rebstock" },
+  { name = "Projects", url = "https://www.atamanroman.dev/projects/" },
 ]
 
 [extra.brand]
-header_gap = "3rem"
+header_gap = "5rem"
 lines = [
   { text = '█▀▄ █▀▀', color = "#9f1239" },
   { text = '█▀▄ ▀▀█', color = "#9f1239" },
