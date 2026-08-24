@@ -256,6 +256,11 @@ pub fn shared_view_returns_200_test() {
     simulate.request(http.Get, "/shared/" <> id <> "/" <> wine_list.slug)
     |> router.handle_request(conn, test_config)
   let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "© 2026 Roman Ataman")
+  let assert True = string.contains(body, "rebstock.atamanroman.dev")
+  let assert True =
+    string.contains(body, "polyformproject.org/licenses/noncommercial/1.0.0/")
   Nil
 }
 

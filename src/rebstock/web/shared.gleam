@@ -117,7 +117,10 @@ body {
 }
 
 .menu-footer {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 20px;
   padding-top: 20px;
   border-top: 1px solid var(--stone-300);
   font-size: 11px;
@@ -125,6 +128,8 @@ body {
   color: var(--stone-400);
   letter-spacing: 0.04em;
 }
+
+.menu-footer a { color: inherit; }
 
 @media print {
   .wine-menu { padding: 0; }
@@ -249,6 +254,24 @@ pub fn shared_list(conn: Connection, id: String) -> Response {
   }
 }
 
+fn menu_footer() -> html.Node {
+  html.div([attr.class("menu-footer")], [
+    html.span([], [html.Text("© 2026 Roman Ataman")]),
+    html.span([], [
+      html.a([attr.href("https://rebstock.atamanroman.dev")], [
+        html.Text("rebstock.atamanroman.dev"),
+      ]),
+      html.Text(" · "),
+      html.a(
+        [
+          attr.href("https://polyformproject.org/licenses/noncommercial/1.0.0/"),
+        ],
+        [html.Text("PolyForm Noncommercial 1.0.0")],
+      ),
+    ]),
+  ])
+}
+
 fn shared_not_found() -> Response {
   let page =
     html.Html([attr.lang("en")], [
@@ -289,9 +312,7 @@ fn shared_not_found() -> Response {
               ]),
             ],
           ),
-          html.div([attr.class("menu-footer")], [
-            html.Text("\u{1f347} Rebstock"),
-          ]),
+          menu_footer(),
         ]),
       ]),
     ])
@@ -373,7 +394,7 @@ pub fn render_menu(conn: Connection, wl: db.WineList) -> Response {
             ]),
           ]),
           html.div([], sections),
-          html.div([attr.class("menu-footer")], [html.Text("🍇 Rebstock")]),
+          menu_footer(),
         ]),
       ]),
     ])

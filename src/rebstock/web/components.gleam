@@ -1148,6 +1148,35 @@ pub fn layout(title: String, content: List(Node)) -> Node {
         ),
       ],
       list.append(content, [
+        html.footer(
+          [
+            attr.class(
+              "max-w-6xl mx-auto px-4 pb-8 text-xs text-stone-500 flex flex-wrap justify-between gap-x-8 gap-y-2",
+            ),
+          ],
+          [
+            html.span([], [html.Text("© 2026 Roman Ataman")]),
+            html.span([], [
+              html.a(
+                [
+                  attr.href("https://rebstock.atamanroman.dev"),
+                  attr.class("hover:text-rose-800 transition-colors"),
+                ],
+                [html.Text("rebstock.atamanroman.dev")],
+              ),
+              html.Text(" · "),
+              html.a(
+                [
+                  attr.href(
+                    "https://polyformproject.org/licenses/noncommercial/1.0.0/",
+                  ),
+                  attr.class("hover:text-rose-800 transition-colors"),
+                ],
+                [html.Text("PolyForm Noncommercial 1.0.0")],
+              ),
+            ]),
+          ],
+        ),
         html.div([attr.id("overlay"), attr.class("hidden")], []),
       ]),
     ),

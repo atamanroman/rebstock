@@ -22,6 +22,10 @@ pub fn home_contains_rebstock_test() {
     |> router.handle_request(conn, test_config)
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Rebstock")
+  let assert True = string.contains(body, "© 2026 Roman Ataman")
+  let assert True = string.contains(body, "rebstock.atamanroman.dev")
+  let assert True =
+    string.contains(body, "polyformproject.org/licenses/noncommercial/1.0.0/")
   Nil
 }
 
