@@ -196,7 +196,8 @@ pub fn migrate(conn: Connection) -> Nil {
 }
 
 // Columns: wines fields + winery name/country from JOIN + vintages subquery
-const wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
+const wine_cols =
+  "w.id, w.created_by, w.winery_id, wy.name, w.name,
         (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
         w.region, wy.country, w.style,
         w.personal_note, w.wine_type,
@@ -873,7 +874,8 @@ pub type CellarWine {
   )
 }
 
-const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
+const cellar_wine_cols =
+  "w.id, w.created_by, w.winery_id, wy.name, w.name,
         (SELECT GROUP_CONCAT(v.year) FROM wines_vintages v WHERE v.wine_id = w.id ORDER BY v.year) AS vintages,
         w.region, wy.country, w.style,
         w.personal_note, w.wine_type,
@@ -888,7 +890,8 @@ const cellar_wine_cols = "w.id, w.created_by, w.winery_id, wy.name, w.name,
                  AND COALESCE(c2.price_cents, p2.price_cents) IS NOT NULL
                GROUP BY price HAVING bottles > 0) pb) AS price_breakdown"
 
-const cellar_wine_join = "FROM wines w
+const cellar_wine_join =
+  "FROM wines w
         JOIN wineries wy ON w.winery_id = wy.id
         JOIN cellar c ON c.wine_id = w.id"
 
@@ -1203,7 +1206,8 @@ pub fn delete_cellar_entry(conn: Connection, id: String) -> Nil {
   Nil
 }
 
-const rating_cols = "r.id, r.username, r.wine_id, r.vintage, r.rating,
+const rating_cols =
+  "r.id, r.username, r.wine_id, r.vintage, r.rating,
         r.tasting_notes, r.rated_at, r.created_at"
 
 const rating_order = " ORDER BY r.rating DESC, r.rated_at DESC"
@@ -1443,14 +1447,16 @@ fn half_step(rating: String) -> String {
 }
 
 /// Bottles currently held, one row per wine and vintage
-const held_bottles = "SELECT wine_id, vintage, SUM(quantity) AS bottles
+const held_bottles =
+  "SELECT wine_id, vintage, SUM(quantity) AS bottles
    FROM cellar WHERE username = ?
    GROUP BY wine_id, vintage HAVING bottles > 0"
 
 /// A vintage's own Vivino score beats the wine's overall one where both exist
 const vivino_rating = "COALESCE(v.vivino_rating, w.vivino_rating)"
 
-const vivino_join = "JOIN wines w ON w.id = held.wine_id
+const vivino_join =
+  "JOIN wines w ON w.id = held.wine_id
    LEFT JOIN wines_vintages v
      ON v.wine_id = held.wine_id AND v.year = held.vintage"
 
@@ -1628,7 +1634,8 @@ pub fn ratings_by_user(
 
 /// A wine the user rated across several vintages scores as its best, the same
 /// way the cellar quality chart counts it
-const own_rating_join = "LEFT JOIN (
+const own_rating_join =
+  "LEFT JOIN (
      SELECT wine_id, MAX(rating) AS rating FROM ratings
      WHERE username = ? AND rating IS NOT NULL GROUP BY wine_id
    ) mine ON mine.wine_id = w.id"

@@ -9,7 +9,8 @@ import wisp.{type Response}
 
 import rebstock/db
 
-const css = "
+const css =
+  "
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
