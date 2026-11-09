@@ -64,6 +64,27 @@ pub fn parse_vivino_id_invalid_test() {
   Nil
 }
 
+pub fn parse_vivino_id_rejects_nonpositive_ids_and_unrelated_hosts_test() {
+  let assert Error(Nil) = parse_vivino_id("0")
+  let assert Error(Nil) = parse_vivino_id("-123")
+  let assert Error(Nil) = parse_vivino_id("https://example.com/w/123")
+  let assert Error(Nil) =
+    parse_vivino_id("https://vivino.com.evil.example/w/123")
+  let assert Error(Nil) =
+    parse_vivino_id("https://www.vivino.com/w/123/../../w/456")
+  Nil
+}
+
+pub fn decode_vivino_country_objects_and_absolute_images_test() {
+  let source =
+    "{\"id\":123,\"name\":\"Wine\",\"type_id\":999,\"winery\":{\"id\":7,\"name\":\"Winery\"},\"region\":{\"name\":\"Mosel\",\"country\":{\"code\":\"de\",\"name\":\"Germany\"}},\"image\":{\"location\":\"https://images.vivino.com/label.png\"}}"
+  let assert Ok(wine) = json.parse(source, wine_detail_mobile_decoder())
+  let assert "de" = wine.country
+  let assert "Other" = wine.wine_type
+  let assert "https://images.vivino.com/label.png" = wine.thumb_url
+  Nil
+}
+
 pub fn decode_mobile_no_vintages_test() {
   let mock_json =
     "{\"id\":99999,\"name\":\"Test Wine\",\"type_id\":2,\"winery\":{\"id\":1,\"name\":\"Test Winery\"},\"statistics\":{\"ratings_average\":3.5,\"ratings_count\":100},\"image\":{\"location\":\"//images.vivino.com/thumbs/test.png\"}}"

@@ -5,21 +5,23 @@ import sqlight
 import rebstock/auth
 import rebstock/config.{type Config}
 import rebstock/db
-import rebstock/vivino
+import rebstock/seed
 
-pub const test_config: Config = config.Config(
-  host: "127.0.0.1",
-  port: 3000,
-  database_uri: ":memory:",
-  image_dir: "/tmp/rebstock-test-images",
-  auth: auth.Single("test"),
-  secret_key_base: "test-secret",
-)
+pub const test_config: Config =
+  config.Config(
+    host: "127.0.0.1",
+    port: 3000,
+    database_uri: ":memory:",
+    image_dir: "/tmp/rebstock-test-images",
+    auth: auth.Single("test"),
+    secret_key_base: "test-secret",
+    mcp: None,
+  )
 
 pub fn with_seeded_db(f: fn(sqlight.Connection) -> Nil) -> Nil {
   use conn <- sqlight.with_connection(":memory:")
   db.migrate(conn)
-  vivino.import_data(conn, "vivino_data", "test")
+  seed.seed_collection(conn, "test")
   f(conn)
 }
 

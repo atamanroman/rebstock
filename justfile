@@ -1,14 +1,13 @@
 _default:
     @just --list
 
-# Start a devserver on localhost:3000 that watches for changes (--clean to wipe ./data, --skip-import to skip Vivino seed)
+# Start a devserver on localhost:3000 that watches for changes (--clean to wipe ./data)
 dev *args:
     #!/usr/bin/env sh
     for arg in {{args}}; do
         case "$arg" in
             --clean) rm -rf ./data && echo "Cleaned ./data" ;;
             --empty) rm -rf ./data && echo "Cleaned ./data" ;;
-            --skip-import) export SKIP_IMPORT=1 ;;
         esac
     done
     watchexec --restart --exts gleam,css -- just _dev

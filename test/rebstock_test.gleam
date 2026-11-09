@@ -1,4 +1,5 @@
 import gleam/http
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
@@ -38,7 +39,7 @@ pub fn not_found_test() {
   Nil
 }
 
-pub fn home_empty_shows_import_cta_test() {
+pub fn home_empty_shows_manual_creation_test() {
   use conn <- with_empty_db
   db.ensure_user(conn, "test")
   let response =
@@ -46,8 +47,10 @@ pub fn home_empty_shows_import_cta_test() {
     |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
-  let assert True = string.contains(body, "Import Vivino Data")
-  let assert True = string.contains(body, "/~test/import")
+  let assert True = string.contains(body, "Add your first wine")
+  let assert True = string.contains(body, "/wines/new")
+  let assert False = string.contains(body, "Import Vivino Data")
+  let assert False = string.contains(body, "/~test/import")
   Nil
 }
 
@@ -98,29 +101,29 @@ pub fn nav_contains_username_dropdown_test() {
     |> router.handle_request(conn, test_config)
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "~test")
-  let assert True = string.contains(body, "/~test/import")
+  let assert True = string.contains(body, "/~test")
+  let assert False = string.contains(body, "/~test/import")
   Nil
 }
 
-pub fn import_page_test() {
+pub fn removed_import_routes_are_not_found_test() {
   use conn <- with_empty_db
   db.ensure_user(conn, "test")
-  let response =
-    simulate.request(http.Get, "/~test/import")
-    |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
-  let body = simulate.read_body(response)
-  let assert True = string.contains(body, "Import Vivino Data")
-  Nil
-}
-
-pub fn import_page_forbidden_test() {
-  use conn <- with_empty_db
-  db.ensure_user(conn, "test")
-  let response =
-    simulate.request(http.Get, "/~other/import")
-    |> router.handle_request(conn, test_config)
-  let assert 403 = response.status
+  let wine_id = create_test_wine(conn, "Linked Wine", db.Red)
+  let paths = [
+    "/~test/import",
+    "/~other/import",
+    "/wines/import/vivino",
+    "/wines/" <> wine_id <> "/linked-wine/sync",
+  ]
+  list.each(paths, fn(path) {
+    list.each([http.Get, http.Post], fn(method) {
+      let response =
+        simulate.request(method, path)
+        |> router.handle_request(conn, test_config)
+      let assert 404 = response.status
+    })
+  })
   Nil
 }
 

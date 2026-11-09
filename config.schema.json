@@ -83,6 +83,58 @@
           "additionalProperties": false
         }
       ]
+    },
+    "mcp": {
+      "description": "Optional OAuth resource-server configuration for MCP; null or absent disables MCP.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "resource": {
+              "type": "string",
+              "format": "uri",
+              "description": "Public MCP resource URL and required access-token audience."
+            },
+            "issuer": {
+              "type": "string",
+              "format": "uri",
+              "description": "Exact access-token issuer from authorization-server discovery."
+            },
+            "jwks_uri": {
+              "type": "string",
+              "format": "uri",
+              "description": "Fixed HTTPS issuer signing-key endpoint."
+            },
+            "client_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Allowed public OAuth client identifier."
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Required application-specific OAuth scope."
+            },
+            "username_claim": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Verified access-token claim identifying the Rebstock user."
+            }
+          },
+          "required": [
+            "resource",
+            "issuer",
+            "jwks_uri",
+            "client_id",
+            "scope",
+            "username_claim"
+          ],
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "required": ["auth"],

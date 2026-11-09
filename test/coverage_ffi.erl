@@ -5,7 +5,7 @@ modules() ->
     [rebstock, rebstock@auth, rebstock@config, rebstock@db,
      rebstock@router, rebstock@seed, rebstock@ulid, rebstock@vivino,
      rebstock@web@cellar, rebstock@web@components, rebstock@web@home,
-     rebstock@web@imports, rebstock@web@lists, rebstock@web@ratings,
+     rebstock@web@lists, rebstock@web@ratings,
      rebstock@web@shared, rebstock@web@wineries, rebstock@web@wines,
      rebstock@web@wishlist].
 

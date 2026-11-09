@@ -30,7 +30,7 @@ First release of Rebstock, a self-hosted wine cellar management app.
 
 <img src="./docs/assets/cellar-print.png" alt="Screenshof of the cellar print view" width="600">
     
-- Vivino export import (drag-and-drop zip upload)
+- MCP tools for agent-assisted imports and Vivino rating refreshes
 - Simple auth (single user or forward auth via [reverse proxy](#Authentication))
 
 Rebstock is the German name for (grape)vine.
@@ -49,6 +49,9 @@ It also the app to manage the bottles I have in stock 🎉
 
 See [config.example.json](./config.example.json).
 The referenced JSON schema serves as documentation.
+
+For MCP imports, rating refreshes, and Codex browser login through Authelia, see [MCP tools](./docs/mcp.md) and [OAuth setup](./docs/mcp-auth.md).
+MCP is disabled by default and authenticates separately from the web interface.
 
 ### Authentication
 
@@ -192,8 +195,8 @@ $ ./build/erlang-shipment/entrypoint.sh run --config /foo/bar/my.config
 
 ## Development
 
-`just dev` will start the service on [localhost:3000](http://localhost:3000) and import my last Vivino export from [./vivino_data](./vivino_data) to seed the DB.
-You can get your own export from Vivino at [vivino.com/settings -> Account Management -> Export your data](https://www.vivino.com/settings).
+`just dev` starts the service on [localhost:3000](http://localhost:3000) and seeds an empty database with deterministic demo wines.
+Use the MCP tools to import your own export or purchase documents.
 
 `just setup-dev` will check if all dev tools are available and install Git pre-commit format hook.
 

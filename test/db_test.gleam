@@ -4,15 +4,20 @@ import gleam/string
 
 import rebstock/db
 import rebstock/seed
-import rebstock/vivino
 import test_helpers.{
   create_test_wine, seed_two_users, with_empty_db, with_seeded_db,
 }
 
-pub fn import_and_count_test() {
+pub fn demo_seed_has_varied_wine_types_and_multiple_vintages_test() {
   use conn <- with_seeded_db
-  let count = db.count_wines(conn)
-  let assert True = count > 0
+  let wines = db.list_wines(conn, "test")
+  let assert 6 = list.length(wines)
+  let assert 6 =
+    list.length(list.unique(list.map(wines, fn(w) { w.wine_type })))
+  let assert True =
+    list.any(wines, fn(w) { list.length(db.vintages_for_wine(conn, w.id)) == 3 })
+  let assert 6 = db.count_cellar_wines(conn, "test")
+  let assert 6 = db.count_rated_wines(conn, "test")
   Nil
 }
 
@@ -176,15 +181,6 @@ pub fn upsert_wine_different_vivino_ids_merge_test() {
   Nil
 }
 
-pub fn vivino_import_no_duplicate_wines_test() {
-  use conn <- with_seeded_db
-  let wines = db.list_wines(conn, "test")
-  let wine_names = list.map(wines, fn(w) { w.winery_name <> " " <> w.name })
-  let unique = list.unique(wine_names)
-  let assert True = list.length(wine_names) == list.length(unique)
-  Nil
-}
-
 pub fn country_to_iso_test() {
   let assert Some("FR") = db.country_to_iso("France")
   let assert Some("IT") = db.country_to_iso("Italy")
@@ -193,34 +189,6 @@ pub fn country_to_iso_test() {
   let assert Some("US") = db.country_to_iso("United States")
   let assert Some("CZ") = db.country_to_iso("Czech Republic")
   let assert None = db.country_to_iso("")
-  Nil
-}
-
-pub fn import_from_zip_test() {
-  use conn <- with_empty_db
-  let wine_list_csv =
-    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Scan Date,Scan Location,User Rating,User Review,Personal Note,Wine Type,Drinking Window,Vivino Link\nTest Winery,Test Riesling,2021,Mosel,Germany,,4.2,,,3.5,,Great wine,White,,https://www.vivino.com/wines/12345\n"
-  let cellar_csv =
-    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Rating Count,Wine Type,Vivino Link,Cellar Count\nTest Winery,Test Riesling,2021,Mosel,Germany,,4.2,100,White,https://www.vivino.com/wines/12345,3\n"
-  let zip_bytes =
-    create_test_zip([
-      #("full_wine_list.csv", wine_list_csv),
-      #("cellar.csv", cellar_csv),
-    ])
-  let assert Ok(result) = vivino.import_from_zip(conn, zip_bytes, "test")
-  let assert True = result.wines_created >= 1
-  let assert True = result.cellar_created >= 1
-  let assert 1 = db.count_wines(conn)
-  Nil
-}
-
-pub fn import_from_zip_missing_wine_list_test() {
-  use conn <- with_empty_db
-  let cellar_csv =
-    "Winery,Wine,Vintage,Region,Country,Style,Average Rating,Rating Count,Wine Type,Vivino Link,Cellar Count\n"
-  let zip_bytes = create_test_zip([#("cellar.csv", cellar_csv)])
-  let assert Error("Zip must contain full_wine_list.csv") =
-    vivino.import_from_zip(conn, zip_bytes, "test")
   Nil
 }
 
@@ -846,6 +814,3 @@ pub fn entries_held_value_ignores_unpriced_entries_test() {
   let assert None = db.entries_held_value(unpriced)
   Nil
 }
-
-@external(erlang, "rebstock_test_ffi", "create_zip")
-fn create_test_zip(files: List(#(String, String))) -> BitArray

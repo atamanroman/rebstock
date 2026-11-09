@@ -15,7 +15,7 @@ pub fn home(conn: Connection, user: User) -> Response {
   case db.count_wines(conn) {
     0 ->
       c.page("Rebstock", user, conn, [
-        welcome_empty_state(user.username),
+        welcome_empty_state(),
       ])
     _ ->
       c.page("Rebstock", user, conn, [
@@ -25,7 +25,7 @@ pub fn home(conn: Connection, user: User) -> Response {
   }
 }
 
-fn welcome_empty_state(username: String) -> Node {
+fn welcome_empty_state() -> Node {
   html.div([attr.class("text-center pt-16 pb-24")], [
     html.div([attr.class("text-6xl mb-6")], [html.Text("\u{1f347}")]),
     html.h1(
@@ -33,20 +33,17 @@ fn welcome_empty_state(username: String) -> Node {
       [html.Text("Welcome to Rebstock")],
     ),
     html.p([attr.class("text-stone-500 mb-8")], [
-      html.Text("Import your Vivino data to get started"),
+      html.Text("Start your collection with a bottle."),
     ]),
     html.a(
       [
-        attr.href("/~" <> username <> "/import"),
+        attr.href("/wines/new"),
         attr.class(
           "inline-block px-6 py-3 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors font-medium",
         ),
       ],
-      [html.Text("Import Vivino Data")],
+      [html.Text("Add your first wine")],
     ),
-    html.p([attr.class("text-sm text-stone-400 mt-6")], [
-      html.Text("You can also add wines manually later"),
-    ]),
   ])
 }
 

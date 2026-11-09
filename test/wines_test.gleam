@@ -21,6 +21,8 @@ pub fn wines_page_test() {
   let assert 200 = response.status
   let body = simulate.read_body(response)
   let assert True = string.contains(body, "Wines")
+  let assert True = string.contains(body, "/wines/new")
+  let assert False = string.contains(body, "/wines/import/vivino")
   Nil
 }
 
@@ -30,6 +32,17 @@ pub fn wine_detail_not_found_test() {
     simulate.request(http.Get, "/wines/nonexistent")
     |> router.handle_request(conn, test_config)
   let assert 404 = response.status
+  Nil
+}
+
+pub fn wine_named_sync_keeps_its_detail_route_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id = create_test_wine(conn, "Sync", db.Red)
+  let response =
+    simulate.request(http.Get, wine_path(id, "Sync"))
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
   Nil
 }
 
@@ -278,5 +291,33 @@ pub fn edit_winery_post_test() {
   let assert True = response.status == 303 || response.status == 200
   let assert Ok(updated) = db.get_winery(conn, winery.id)
   let assert "Renamed Estate" = updated.name
+  Nil
+}
+
+pub fn linked_wine_keeps_vivino_link_without_sync_action_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let wine_id =
+    db.upsert_wine(
+      conn,
+      created_by: "test",
+      winery: "Linked Estate",
+      name: "Linked Wine",
+      vintage: None,
+      region: None,
+      country: None,
+      style: None,
+      personal_note: None,
+      wine_type: db.Red,
+      vivino_id: Some("123"),
+    )
+  let response =
+    simulate.request(http.Get, wine_path(wine_id, "Linked Wine"))
+    |> router.handle_request(conn, test_config)
+  let assert 200 = response.status
+  let body = simulate.read_body(response)
+  let assert True = string.contains(body, "https://www.vivino.com/w/123")
+  let assert False = string.contains(body, "Sync from Vivino")
+  let assert False = string.contains(body, "/sync")
   Nil
 }

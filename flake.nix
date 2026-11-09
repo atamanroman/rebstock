@@ -48,6 +48,39 @@
               description = "Path to config.json. If null, a default config is generated.";
             };
 
+            mcp = lib.mkOption {
+              type = lib.types.nullOr (lib.types.submodule {
+                options = {
+                  resource = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Public MCP resource URL and access-token audience.";
+                  };
+                  issuer = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Exact OAuth access-token issuer.";
+                  };
+                  jwksUri = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Fixed HTTPS issuer signing-key endpoint.";
+                  };
+                  clientId = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Allowed public OAuth client identifier.";
+                  };
+                  scope = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Required application-specific OAuth scope.";
+                  };
+                  usernameClaim = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Verified access-token claim identifying the Rebstock user.";
+                  };
+                };
+              });
+              default = null;
+              description = "MCP OAuth configuration; null disables MCP independently of web authentication.";
+            };
+
             auth = lib.mkOption {
               type = lib.types.submodule {
                 options = {
@@ -108,6 +141,14 @@
                         port = cfg.port;
                         database_uri = "file:${cfg.dataDir}/rebstock.db";
                         image_dir = "${cfg.dataDir}/images";
+                        mcp = if cfg.mcp == null then null else {
+                          resource = cfg.mcp.resource;
+                          issuer = cfg.mcp.issuer;
+                          jwks_uri = cfg.mcp.jwksUri;
+                          client_id = cfg.mcp.clientId;
+                          scope = cfg.mcp.scope;
+                          username_claim = cfg.mcp.usernameClaim;
+                        };
                         auth =
                           if cfg.auth.mode == "single" then {
                             single = { user = cfg.auth.user; };

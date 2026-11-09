@@ -1,6 +1,10 @@
 {
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@tailwindcss/cli": "^4.2.2",
     "tailwindcss": "^4.2.2"
+  },
+  "scripts": {
+    "test:mcp": "node --test --test-concurrency=1 test/mcp/*.test.mjs"
   }
 }

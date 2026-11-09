@@ -8,10 +8,10 @@ import wisp.{type Request, type Response}
 import rebstock/auth
 import rebstock/config.{type Config}
 import rebstock/db
+import rebstock/mcp
 import rebstock/web/cellar
 import rebstock/web/components as c
 import rebstock/web/home
-import rebstock/web/imports
 import rebstock/web/lists
 import rebstock/web/ratings
 import rebstock/web/shared
@@ -55,6 +55,20 @@ pub fn handle_request(
   conn: Connection,
   config: Config,
 ) -> Response {
+  case wisp.path_segments(req) {
+    ["mcp"] -> mcp.handle(req, conn, config)
+    [".well-known", "oauth-protected-resource"]
+    | [".well-known", "oauth-protected-resource", "mcp"] ->
+      mcp.metadata(req, config)
+    _ -> handle_web_request(req, conn, config)
+  }
+}
+
+fn handle_web_request(
+  req: Request,
+  conn: Connection,
+  config: Config,
+) -> Response {
   use req <- wisp.handle_head(req)
   use <- require_same_origin(req)
   let assert Ok(priv) = application.priv_directory("rebstock")
@@ -90,23 +104,12 @@ pub fn handle_request(
             http.Post -> wines.create_wine(req, conn, user, config.image_dir)
             _ -> wines.wines(conn, user)
           }
-        ["wines", "import", "vivino"] ->
-          case req.method {
-            http.Post -> wines.vivino_import(req, conn, user, config.image_dir)
-            _ -> wines.vivino_search(req, conn, user)
-          }
         ["wines", "new"] -> wines.new_wine_form(req, conn, user)
         ["wines", id, _, "edit"] ->
           case req.method {
             http.Post ->
               wines.handle_edit_wine(req, conn, id, user, config.image_dir)
             _ -> wines.edit_wine_form(req, conn, id, user)
-          }
-        ["wines", id, _, "sync"] ->
-          case req.method {
-            http.Post ->
-              wines.vivino_sync_apply(req, conn, id, user, config.image_dir)
-            _ -> wines.vivino_sync_preview(conn, id, user)
           }
         ["wines", id, _, "ratings", "new"] ->
           ratings.handle_new(req, conn, id, user)
@@ -146,8 +149,6 @@ pub fn handle_request(
         ["~" <> username, "cellar", "export.csv"] ->
           cellar.cellar_csv(conn, user, username)
         ["~" <> username, "wishlist"] -> wishlist.wishlist(conn, user, username)
-        ["~" <> username, "import"] ->
-          imports.import_page(req, conn, user, username)
         ["~" <> username, "ratings"] ->
           ratings.my_ratings(req, conn, user, username)
         ["~" <> username, "lists"] ->

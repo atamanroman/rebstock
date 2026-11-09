@@ -14,6 +14,7 @@ Wine cellar management app. Gleam on BEAM/Erlang.
 
 ```
 src/rebstock/          Core modules (db, auth, config, router, seed, ulid, vivino)
+src/rebstock/mcp/      OAuth, protocol, import, read, and rating-sync tools
 src/rebstock/web/      Page handlers (home, wines, wineries, cellar, ratings, wishlist, components)
 src/css/app.css        Tailwind source
 priv/static/           Built assets (CSS)
@@ -28,6 +29,7 @@ just build             # Build CSS + Gleam
 just test              # Run tests
 just lint              # Format check + build with --warnings-as-errors
 just format            # Format Gleam code
+npm run test:mcp       # Official MCP client + OAuth on a disposable database
 ```
 
 ## Build Rules
@@ -47,6 +49,9 @@ just format            # Format Gleam code
 - **Routing:** pattern matching in `router.gleam`, user-scoped routes under `~username/`
 - **Components:** shared helpers in `web/components.gleam` (stat cards, tables, overlays, badges, rating display)
 - **Date defaults:** inline `<script>` with `valueAsDate = new Date()` (no date library)
+- **MCP:** `/mcp` uses OAuth access tokens independently of web auth; batch imports preview by default and use stable source references for retry safety.
+- **MCP writes:** use dedicated SQLite connections and atomic transactions, never the web handler's shared connection.
+- **Vivino:** the small adapter fetches explicit IDs; MCP rating sync preserves wine metadata and personal data.
 
 ## Style Guide
 

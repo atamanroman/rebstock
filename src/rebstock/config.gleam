@@ -8,6 +8,7 @@ import gleam/option.{None, Some}
 import simplifile
 
 import rebstock/auth.{type AuthMode, Forward, Single}
+import rebstock/mcp/oauth
 import wisp
 
 pub type Config {
@@ -17,6 +18,7 @@ pub type Config {
     database_uri: String,
     image_dir: String,
     auth: AuthMode,
+    mcp: option.Option(oauth.Config),
     secret_key_base: String,
   )
 }
@@ -28,6 +30,7 @@ pub fn default() -> Config {
     database_uri: "file:./data/rebstock.db",
     image_dir: "./data/images",
     auth: Single("admin"),
+    mcp: None,
     secret_key_base: "",
   )
 }
@@ -116,12 +119,18 @@ fn config_decoder(d: Config) -> decode.Decoder(Config) {
     decode.string,
   )
   use auth <- decode.field("auth", auth_decoder())
+  use mcp <- decode.optional_field(
+    "mcp",
+    None,
+    decode.optional(oauth.decoder()),
+  )
   decode.success(Config(
     host:,
     port:,
     database_uri:,
     image_dir:,
     auth:,
+    mcp:,
     secret_key_base:,
   ))
 }

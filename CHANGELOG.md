@@ -1,5 +1,25 @@
 # Rebstock Changelog
 
+## Unreleased
+
+Migration 00006 creates an import-reference ledger while preserving existing wines, cellar entries, ratings, and lists.
+MCP is disabled by default and requires OAuth configuration, an Authelia client registration, and reverse-proxy routing; see [OAuth setup](docs/mcp-auth.md).
+
+- Redesign the application with the Journal visual style: serif headings, warm paper backgrounds, ruled sections, compact statistics, and consistent text actions across the dashboard, collections, detail pages, and forms.
+- Improve mobile layouts with wrapping navigation, labeled table rows, readable form controls, larger touch targets, and dialogs that scroll within short viewports.
+- Rework dialogs with keyboard focus trapping, Escape dismissal, browser history support, inline validation, and protection against duplicate submissions while preserving native forms without JavaScript.
+- Upgrade vendored htmx to 4.0.0 and update navigation, form submissions, overlays, and the drink-to-rating flow to its request and history contracts.
+- Add Chromium and WebKit browser regression tests for responsive layouts, accessibility, keyboard navigation, validation, error recovery, and forms without JavaScript.
+- Add eight MCP tools for wine search and details, cellar entries, personal ratings, wishlist entries, batch imports, Vivino lookup, and community-rating refreshes.
+- Import initial exports and invoices through structured batches with previews, atomic writes, and stable source references that prevent duplicate bottles and reviews on retries.
+- Support Authelia browser authorization through a pre-registered public Codex client with PKCE and access-token validation independent of web authentication.
+- Refresh Vivino community ratings for selected wines and exact known vintages without replacing wine metadata, personal ratings, images, or bottles.
+- Remove the Vivino ZIP upload, single-wine import and metadata-sync screens, CSV/ZIP import code, and obsolete upload scripts.
+- Seed an empty development collection directly with six demo wines, vintages, bottles, prices, ratings, wishlist entries, and demo activity for Alice instead of reading a Vivino export.
+- Remove the `just dev --skip-import` option.
+- Add an official MCP client socket suite covering imports, authorization, ownership, and a simulated OAuth browser callback with PKCE.
+- Update the [MCP guide](docs/mcp.md) and invoice-importing skill for the new workflow.
+
 ## 0.3.0
 
 Migration 00005 applies on first start and only adds a nullable column, so

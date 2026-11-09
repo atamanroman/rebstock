@@ -362,7 +362,8 @@ fn iso_to_country(code: String) -> String {
 
 // --- Form helpers ---
 
-pub const input_class = "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
+pub const input_class =
+  "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
 
 pub fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
   html.div([], [
@@ -1395,12 +1396,12 @@ fn site_header(user: User, conn: sqlight.Connection) -> Node {
                 [
                   html.a(
                     [
-                      attr.href("/~" <> user.username <> "/import"),
+                      attr.href("/~" <> user.username),
                       attr.class(
                         "block px-4 py-2 text-sm text-stone-600 hover:bg-amber-50 hover:text-stone-800 transition-colors",
                       ),
                     ],
-                    [html.Text("Import")],
+                    [html.Text("Your profile")],
                   ),
                 ],
               ),

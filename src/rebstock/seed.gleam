@@ -1,13 +1,115 @@
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import sqlight.{type Connection}
 
 import rebstock/db
+
+pub fn seed_collection(conn: Connection, username: String) -> Nil {
+  db.ensure_user(conn, username)
+  let wines = [
+    #(
+      "Ciclope",
+      db.Red,
+      "IT",
+      ["2011", "2012", "2013"],
+      Some(4.5),
+      Some(4.2),
+      3,
+    ),
+    #("Riesling", db.White, "DE", ["2020", "2021"], Some(3.2), Some(4.0), 6),
+    #("Rosato", db.Rose, "IT", ["2022"], Some(4.0), Some(3.7), 2),
+    #("Brut", db.Sparkling, "FR", [], None, None, 4),
+    #("Late Harvest", db.Dessert, "DE", ["2019"], Some(4.7), Some(4.6), 1),
+    #("Amber", db.Orange, "GE", ["2021"], Some(3.9), None, 2),
+  ]
+  list.each(wines, fn(wine) {
+    let #(name, wine_type, country, vintages, rating, vivino_rating, bottles) =
+      wine
+    seed_wine(
+      conn,
+      username,
+      name,
+      wine_type,
+      country,
+      vintages,
+      rating,
+      vivino_rating,
+      bottles,
+    )
+  })
+}
+
+fn seed_wine(
+  conn: Connection,
+  username: String,
+  name: String,
+  wine_type: db.WineType,
+  country: String,
+  vintages: List(String),
+  rating: Option(Float),
+  vivino_rating: Option(Float),
+  bottles: Int,
+) -> Nil {
+  let vintage = vintages |> list.first |> option.from_result
+  let wine_id =
+    db.upsert_wine(
+      conn,
+      created_by: username,
+      winery: "Demo " <> db.wine_type_label(wine_type) <> " Estate",
+      name: name,
+      vintage: vintage,
+      region: None,
+      country: Some(country),
+      style: None,
+      personal_note: None,
+      wine_type: wine_type,
+      vivino_id: None,
+    )
+  list.each(vintages, fn(year) { db.upsert_vintage(conn, wine_id, year) })
+  case vivino_rating {
+    Some(score) -> {
+      db.set_wine_vivino_rating(conn, wine_id, score, Some(120))
+      list.each(vintages, fn(year) {
+        db.set_vintage_vivino_rating(conn, wine_id, year, score, Some(40))
+      })
+    }
+    None -> Nil
+  }
+  db.insert_rating(
+    conn,
+    username: username,
+    wine_id: wine_id,
+    vintage: vintage,
+    rating: rating,
+    tasting_notes: Some("Sample tasting note"),
+    rated_at: Some("2026-01-15"),
+  )
+  db.insert_cellar_entry(
+    conn,
+    username: username,
+    wine_id: wine_id,
+    vintage: vintage,
+    quantity: bottles,
+    notes: Some("Sample cellar purchase"),
+    date: Some("2026-01-10"),
+    price_cents: Some(1500),
+  )
+  case wine_type {
+    db.White | db.Sparkling -> {
+      let wishlist = db.get_user_wishlist(conn, username)
+      db.add_wine_to_list(conn, wishlist.id, wine_id, vintage, None)
+    }
+    _ -> Nil
+  }
+}
 
 pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
   db.ensure_user(conn, "alice")
 
   let wines = db.list_wines(conn, main_user)
+  let vintage_for = fn(wine: db.Wine) {
+    db.vintages_for_wine(conn, wine.id) |> list.first |> option.from_result
+  }
 
   // Rate some of the main user's wines as alice
   case wines {
@@ -16,7 +118,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w1.id,
-        vintage: w1.vintages,
+        vintage: vintage_for(w1),
         rating: Some(4.2),
         tasting_notes: Some(
           "Rich and complex, dark fruit with a hint of leather. Long finish.",
@@ -27,7 +129,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w2.id,
-        vintage: w2.vintages,
+        vintage: vintage_for(w2),
         rating: Some(3.8),
         tasting_notes: Some("Pleasant but not outstanding. Good acidity."),
         rated_at: Some("2025-12-01"),
@@ -36,7 +138,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w3.id,
-        vintage: w3.vintages,
+        vintage: vintage_for(w3),
         rating: Some(4.7),
         tasting_notes: Some(
           "Exceptional. Layers of blackberry, cedar, and spice. One of the best I've had this year.",
@@ -56,7 +158,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w5.id,
-        vintage: w5.vintages,
+        vintage: vintage_for(w5),
         rating: Some(4.0),
         tasting_notes: Some("Solid everyday wine. Cherry and vanilla notes."),
         rated_at: Some("2026-03-05"),
@@ -67,7 +169,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w1.id,
-        vintage: w1.vintages,
+        vintage: vintage_for(w1),
         quantity: 3,
         notes: Some("Picked up at the winery"),
         date: Some("2025-10-01"),
@@ -77,7 +179,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         conn,
         username: "alice",
         wine_id: w3.id,
-        vintage: w3.vintages,
+        vintage: vintage_for(w3),
         quantity: 6,
         notes: None,
         date: Some("2026-01-05"),
@@ -134,7 +236,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
         None,
         Some("Recommended by a friend"),
       )
-      db.add_wine_to_list(conn, alice_wishlist.id, w5.id, w5.vintages, None)
+      db.add_wine_to_list(conn, alice_wishlist.id, w5.id, vintage_for(w5), None)
     }
     _ -> {
       // Not enough wines to seed, add a few ratings on whatever exists
@@ -143,7 +245,7 @@ pub fn seed_alice(conn: Connection, main_user: String) -> Nil {
           conn,
           username: "alice",
           wine_id: w.id,
-          vintage: w.vintages,
+          vintage: vintage_for(w),
           rating: Some(4.0),
           tasting_notes: Some("Nice wine."),
           rated_at: Some("2026-01-01"),
