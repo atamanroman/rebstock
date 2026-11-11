@@ -2,8 +2,8 @@
 *.ez
 *.db
 /build
+# Ignore legacy local tooling binaries; the app no longer uses them.
 /tailwindcss
-/priv/static/css/app.css
 erl_crash.dump
 config.json
 /rebstock.db-shm
@@ -15,3 +15,7 @@ __pycache__/
 /.worktrees
 data/
 /site/public
+
+/node_modules/
+/test-results/
+/playwright-report/

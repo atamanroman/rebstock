@@ -13,12 +13,7 @@ dev *args:
     watchexec --restart --exts gleam,css -- just _dev
 
 _dev:
-    tailwindcss -i src/css/app.css -o priv/static/css/app.css --content './src/**/*.gleam,./src/**/*.css'
     gleam dev
-
-# Generate the minified tailwind CSS bundle
-css:
-    tailwindcss -i src/css/app.css -o priv/static/css/app.css --content './src/**/*.gleam,./src/**/*.css' --minify
 
 # Run tests
 test:
@@ -29,7 +24,7 @@ cover:
     gleam build && erl -pa build/dev/erlang/*/ebin -noshell -eval "coverage_ffi:run_with_coverage()"
 
 # Build everything
-build: css
+build:
     gleam build
 
 # Lint the Gleam code
@@ -61,9 +56,7 @@ site-deploy: (site-build "https://rebstock.atamanroman.dev")
 setup-dev:
     @echo "Check available dev tools"
     @type gleam > /dev/null 2>&1 && printf 'gleam\t\t\t\t[✓]\n' || printf 'gleam\t\t\t\t[-]\n'
-    @type tailwindcss > /dev/null 2>&1 && printf 'tailwindcss (standalone)\t[✓]\n' || printf 'tailwindcss (standalone)\t[-]\n'
     @type npm > /dev/null 2>&1 && printf 'npm\t\t\t\t[✓]\n' || printf 'npm\t\t\t\t[-]\n'
-    @npm exec tailwindcss -- -h > /dev/null 2>&1 && printf 'tailwindcss (npm)\t\t[✓]\n' || printf 'tailwindcss (npm)\t\t[-]\n'
     @type lefthook > /dev/null 2>&1 && printf 'lefthook*\t\t\t[✓]\n' || printf 'lefthook*\t\t\t[-]\n'
     @type watchexec > /dev/null 2>&1 && printf 'watchexec*\t\t\t[✓]\n' || printf 'watchexec*\t\t\t[-]\n'
     @type nix > /dev/null 2>&1 && printf 'nix** \t\t\t\t[✓]\n' || printf 'nix** \t\t\t\t[-]\n'
@@ -73,5 +66,5 @@ setup-dev:
     @echo "Install pre-commit hook"
     @type lefthook > /dev/null 2>&1 && lefthook install || echo "lefthook is not installed!"
     @echo
-    @echo "Install tailwindcss and @tailwindcss/cli"
-    @type tailwindcss > /dev/null 2>&1 && echo 'tailwindcss standalone is available, skip `npm ci`' || (type npm > /dev/null 2>&1 && npm ci || echo 'npm is not installed!')
+    @echo "Install browser/MCP test dependencies (not needed to build the app)"
+    @type npm > /dev/null 2>&1 && npm ci || echo 'npm is not installed!'

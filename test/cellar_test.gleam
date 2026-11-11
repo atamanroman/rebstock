@@ -91,7 +91,7 @@ pub fn cellar_new_entry_test() {
       #("date", "2026-01-01"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   Nil
 }
 
@@ -115,7 +115,7 @@ pub fn cellar_edit_entry_test() {
       #("date", "2026-02-01"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   Nil
 }
 
@@ -133,12 +133,12 @@ pub fn cellar_drink_and_delete_test() {
     simulate.request(http.Post, base <> "/drink")
     |> simulate.form_body([#("notes", "Delicious"), #("date", "2026-03-01")])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert 5 = db.cellar_bottle_count(conn, "test", wine_id)
   let response =
     simulate.request(http.Post, base <> "/delete")
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert 0 = db.cellar_bottle_count(conn, "test", wine_id)
   Nil
 }
@@ -183,7 +183,7 @@ pub fn cellar_drink_edit_ignores_price_test() {
       #("price", "30.00"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert Ok(reloaded) = db.get_cellar_entry_by_id(conn, drink.id)
   let assert None = reloaded.price_cents
   Nil
@@ -232,7 +232,7 @@ pub fn cellar_entry_price_round_trip_test() {
       #("price", "13.70"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert Ok(entry) = db.get_cellar_entry_by_id(conn, entry_id)
   let assert Some(1370) = entry.price_cents
 
@@ -296,7 +296,7 @@ pub fn cellar_entry_negative_price_keeps_stored_price_test() {
   let #(wine_id, entry_id) = priced_entry(conn, "Discounted Pinot", 2000)
   let response =
     edit_with_price(conn, wine_id, "Discounted Pinot", entry_id, "-5.50")
-  let assert 200 = response.status
+  let assert 422 = response.status
   let assert True =
     string.contains(simulate.read_body(response), "Price must be an amount")
   let assert Ok(entry) = db.get_cellar_entry_by_id(conn, entry_id)
@@ -310,7 +310,7 @@ pub fn cellar_entry_unreadable_price_keeps_stored_price_test() {
   let #(wine_id, entry_id) = priced_entry(conn, "Mistyped Merlot", 2000)
   let response =
     edit_with_price(conn, wine_id, "Mistyped Merlot", entry_id, "13.70 EUR")
-  let assert 200 = response.status
+  let assert 422 = response.status
   let assert True =
     string.contains(simulate.read_body(response), "Price must be an amount")
   let assert Ok(entry) = db.get_cellar_entry_by_id(conn, entry_id)
@@ -323,7 +323,7 @@ pub fn cellar_entry_blank_price_clears_stored_price_test() {
   db.ensure_user(conn, "test")
   let #(wine_id, entry_id) = priced_entry(conn, "Forgotten Gamay", 2000)
   let response = edit_with_price(conn, wine_id, "Forgotten Gamay", entry_id, "")
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert Ok(entry) = db.get_cellar_entry_by_id(conn, entry_id)
   let assert None = entry.price_cents
   Nil
@@ -347,7 +347,7 @@ pub fn cellar_new_entry_unreadable_price_is_not_stored_test() {
       #("price", "abc"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 422 = response.status
   let assert True =
     string.contains(simulate.read_body(response), "Price must be an amount")
   let assert [] = db.cellar_entries_for_wine(conn, wine_id)

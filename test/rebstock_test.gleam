@@ -61,7 +61,7 @@ pub fn home_with_data_shows_stats_test() {
     |> router.handle_request(conn, test_config)
   let assert 200 = response.status
   let body = simulate.read_body(response)
-  let assert True = string.contains(body, "Your Stats")
+  let assert True = string.contains(body, "Your collection")
   let assert False = string.contains(body, "Welcome to Rebstock")
   Nil
 }

@@ -8,7 +8,7 @@ import sqlight.{type Connection}
 import wisp.{type Request, type Response}
 
 import rebstock/auth.{type User}
-import rebstock/db.{type WineList}
+import rebstock/db.{type Wine, type WineList}
 import rebstock/web/components as c
 import rebstock/web/shared
 import rebstock/web/wines
@@ -33,7 +33,7 @@ pub fn lists_index(conn: Connection, user: User, username: String) -> Response {
   }
 
   c.page(title <> " \u{2014} Rebstock", user, conn, [
-    html.div([attr.class("flex items-end justify-between mb-6")], [
+    html.div([attr.class("page-toolbar flex items-end justify-between mb-6")], [
       html.div([], [
         html.h1(
           [attr.class("text-3xl font-light text-stone-800 tracking-tight")],
@@ -50,15 +50,15 @@ pub fn lists_index(conn: Connection, user: User, username: String) -> Response {
             [
               attr.href("/~" <> username <> "/lists/new"),
               attr.class(
-                "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+                "button px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
               ),
             ],
             [html.Text("New List")],
           )
       },
     ]),
-    html.div(
-      [attr.class("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4")],
+    c.item_list(
+      "list-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",
       list.map(user_lists, fn(wl) { list_card(wl, username) }),
     ),
   ])
@@ -82,7 +82,7 @@ fn list_card(wl: WineList, username: String) -> html.Node {
     [
       html.div([attr.class("flex items-start justify-between mb-2")], [
         html.div([attr.class("flex-1 min-w-0")], [
-          html.div([attr.class("font-medium text-stone-800 truncate")], [
+          html.h2([attr.class("font-medium text-stone-800")], [
             html.Text(wl.name),
           ]),
           case wl.description {
@@ -234,7 +234,7 @@ fn list_form_fields(
           [
             attr.type_("submit"),
             attr.class(
-              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+              "button px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
             ),
           ],
           [html.Text(submit_label)],
@@ -342,7 +342,7 @@ fn render_list_detail(
 
   c.page(wl.name <> " \u{2014} Rebstock", user, conn, [
     c.back_link("/~" <> username <> "/lists", "Lists"),
-    html.div([attr.class("flex items-end justify-between mb-6")], [
+    html.div([attr.class("page-toolbar flex items-end justify-between mb-6")], [
       html.div([], [
         html.h1(
           [attr.class("text-3xl font-light text-stone-800 tracking-tight")],
@@ -353,7 +353,7 @@ fn render_list_detail(
           case wl.description {
             None -> html.Nothing
             Some(d) ->
-              html.p([attr.class("text-stone-400 text-sm")], [html.Text(d)])
+              html.p([attr.class("text-stone-500 text-sm")], [html.Text(d)])
           },
         ]),
       ]),
@@ -379,7 +379,7 @@ fn render_list_detail(
                 attr.href("/~" <> username <> "/lists/" <> wl.id <> "/print"),
                 attr.Attr("target", "_blank"),
                 attr.class(
-                  "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                  "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                 ),
               ],
               [html.Text("Print view")],
@@ -391,7 +391,7 @@ fn render_list_detail(
                   [
                     attr.href("/~" <> username <> "/lists/" <> wl.id <> "/edit"),
                     attr.class(
-                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                      "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                     ),
                   ],
                   [html.Text("Edit")],
@@ -400,7 +400,10 @@ fn render_list_detail(
           ])
       },
     ]),
-    list_wines_table(wines, username, wl, is_owner, wl.show_bottles),
+    c.table_filter("list-table", "Filter list…"),
+    html.div([attr.id("list-table")], [
+      list_wines_table(wines, username, wl, is_owner, wl.show_bottles),
+    ]),
   ])
 }
 
@@ -471,6 +474,7 @@ pub fn share_control(
             [
               attr.href(full_share_url),
               attr.Attr("target", "_blank"),
+              attr.Attr("aria-label", "Open shared wine list"),
               attr.class(
                 btn
                 <> " border-l border-stone-300 text-stone-600 hover:bg-stone-50",
@@ -509,7 +513,7 @@ pub fn bottles_toggle_form(wl: WineList, action: String) -> html.Node {
       [
         attr.type_("submit"),
         attr.class(
-          "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+          "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
         ),
       ],
       [html.Text(label)],
@@ -644,6 +648,7 @@ pub fn add_wine(
     True -> {
       case db.get_list(conn, list_id) {
         Error(_) -> c.not_found(user, conn)
+        Ok(wl) if wl.username != username -> wisp.response(403)
         Ok(wl) -> {
           case wl.list_type {
             db.CellarList | db.RatedList -> wisp.response(403)
@@ -687,6 +692,7 @@ pub fn remove_wine(
     True -> {
       case db.get_list(conn, list_id) {
         Error(_) -> c.not_found(user, conn)
+        Ok(wl) if wl.username != username -> wisp.response(403)
         Ok(wl) -> {
           case wl.list_type {
             db.CellarList | db.RatedList -> wisp.response(403)
@@ -715,6 +721,7 @@ pub fn toggle_wine(
     True -> {
       case db.get_list(conn, list_id) {
         Error(_) -> wisp.response(404)
+        Ok(wl) if wl.username != username -> wisp.response(403)
         Ok(wl) -> {
           case wl.list_type {
             db.CellarList | db.RatedList -> wisp.response(403)
@@ -745,7 +752,10 @@ pub fn toggle_wine(
                           vintage,
                           username,
                         )
-                      c.render_fragment(node)
+                      case c.is_fragment(req) {
+                        True -> c.render_fragment(node)
+                        False -> wisp.redirect(c.wine_url(wine))
+                      }
                     }
                   }
                 }
@@ -799,9 +809,8 @@ fn list_wine_row(
     [
       attr.id("wine-" <> wine.id),
       attr.class(c.clickable_row_class(idx) <> " target-highlight"),
-      attr.Attr("hx-get", c.wine_url(wine) <> "/overlay"),
-      attr.Attr("hx-target", "#overlay"),
-      attr.Attr("hx-swap", "outerHTML"),
+      c.row_onclick(c.wine_url(wine)),
+      c.row_onauxclick(c.wine_url(wine)),
     ],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [
@@ -839,7 +848,7 @@ fn list_wine_row(
         False -> html.Nothing
         True ->
           html.td([attr.class("px-4 py-3")], [
-            remove_wine_form(username, wl.id, wine.id),
+            remove_wine_form(username, wl.id, wine, lw.vintage),
           ])
       },
     ],
@@ -849,7 +858,8 @@ fn list_wine_row(
 fn remove_wine_form(
   username: String,
   list_id: String,
-  wine_id: String,
+  wine: Wine,
+  vintage: Option(String),
 ) -> html.Node {
   html.Element(
     "form",
@@ -857,7 +867,7 @@ fn remove_wine_form(
       attr.method("post"),
       attr.Attr(
         "action",
-        "/~" <> username <> "/lists/" <> list_id <> "/wines/" <> wine_id,
+        "/~" <> username <> "/lists/" <> list_id <> "/wines/" <> wine.id,
       ),
       attr.Attr("onclick", "event.stopPropagation()"),
     ],
@@ -871,8 +881,18 @@ fn remove_wine_form(
         "button",
         [
           attr.type_("submit"),
+          attr.Attr(
+            "aria-label",
+            "Remove "
+              <> wine.name
+              <> case vintage {
+              Some(v) -> " (" <> c.display_vintage(Some(v)) <> ")"
+              None -> ""
+            }
+              <> " from list",
+          ),
           attr.class(
-            "text-xs text-stone-400 hover:text-rose-700 transition-colors",
+            "text-xs text-stone-500 hover:text-rose-700 transition-colors",
           ),
         ],
         [html.Text("Remove")],

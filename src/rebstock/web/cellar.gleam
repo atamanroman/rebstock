@@ -42,7 +42,7 @@ pub fn cellar(
   let is_owner = user.username == username
 
   c.page("Cellar \u{2014} Rebstock", user, conn, [
-    html.div([attr.class("flex items-end justify-between mb-6")], [
+    html.div([attr.class("page-toolbar flex items-end justify-between mb-6")], [
       html.div([], [
         html.h1(
           [attr.class("text-3xl font-light text-stone-800 tracking-tight")],
@@ -59,7 +59,7 @@ pub fn cellar(
                 [
                   attr.href("/~" <> username <> "/cellar/export.csv"),
                   attr.class(
-                    "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                    "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                   ),
                 ],
                 [html.Text("Export CSV")],
@@ -78,7 +78,7 @@ pub fn cellar(
                   [
                     attr.href("/~" <> username <> "/cellar/export.csv"),
                     attr.class(
-                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                      "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                     ),
                   ],
                   [html.Text("Export CSV")],
@@ -90,7 +90,7 @@ pub fn cellar(
                     ),
                     attr.Attr("target", "_blank"),
                     attr.class(
-                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                      "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
                     ),
                   ],
                   [html.Text("Print")],
@@ -208,12 +208,12 @@ pub fn handle_new(
       let vintages = db.vintages_for_wine(conn, wine.id)
       case req.method {
         http.Get ->
-          case is_htmx(req) {
-            True -> c.overlay_wrapper(cellar_form(wine, vintages, None))
+          case c.is_fragment(req) {
+            True -> c.overlay_wrapper(cellar_form(wine, vintages, None, True))
             False ->
               c.page("Add to Cellar \u{2014} Rebstock", user, conn, [
                 c.back_link(c.wine_url(wine), wine.name),
-                cellar_form(wine, vintages, None),
+                cellar_form(wine, vintages, None, False),
               ])
           }
         http.Post -> {
@@ -224,11 +224,25 @@ pub fn handle_new(
           let date = form_value(form, "date")
           case quantity < 1, form_price(form) {
             True, _ ->
-              form_error(
-                cellar_form(wine, vintages, None),
+              c.form_error(
+                req,
+                conn,
+                user,
+                cellar_form(wine, vintages, None, c.is_fragment(req)),
+                form.values,
+                ["quantity"],
                 "Quantity must be at least 1",
               )
-            _, Error(msg) -> form_error(cellar_form(wine, vintages, None), msg)
+            _, Error(msg) ->
+              c.form_error(
+                req,
+                conn,
+                user,
+                cellar_form(wine, vintages, None, c.is_fragment(req)),
+                form.values,
+                ["price"],
+                msg,
+              )
             False, Ok(price_cents) -> {
               db.insert_cellar_entry(
                 conn,
@@ -240,8 +254,7 @@ pub fn handle_new(
                 date: date,
                 price_cents: price_cents,
               )
-              wisp.response(200)
-              |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+              c.redirect(req, c.wine_url(wine))
             }
           }
         }
@@ -270,13 +283,18 @@ pub fn handle_edit(
               let vintages = db.vintages_for_wine(conn, wine.id)
               case req.method {
                 http.Get ->
-                  case is_htmx(req) {
+                  case c.is_fragment(req) {
                     True ->
-                      c.overlay_wrapper(cellar_form(wine, vintages, Some(entry)))
+                      c.overlay_wrapper(cellar_form(
+                        wine,
+                        vintages,
+                        Some(entry),
+                        True,
+                      ))
                     False ->
                       c.page("Edit Cellar Entry \u{2014} Rebstock", user, conn, [
                         c.back_link(c.wine_url(wine), wine.name),
-                        cellar_form(wine, vintages, Some(entry)),
+                        cellar_form(wine, vintages, Some(entry), False),
                       ])
                   }
                 http.Post -> {
@@ -294,9 +312,35 @@ pub fn handle_edit(
                   }
                   case quantity_error(conn, entry, quantity), price {
                     Some(msg), _ ->
-                      form_error(cellar_form(wine, vintages, Some(entry)), msg)
+                      c.form_error(
+                        req,
+                        conn,
+                        user,
+                        cellar_form(
+                          wine,
+                          vintages,
+                          Some(entry),
+                          c.is_fragment(req),
+                        ),
+                        form.values,
+                        ["quantity"],
+                        msg,
+                      )
                     _, Error(msg) ->
-                      form_error(cellar_form(wine, vintages, Some(entry)), msg)
+                      c.form_error(
+                        req,
+                        conn,
+                        user,
+                        cellar_form(
+                          wine,
+                          vintages,
+                          Some(entry),
+                          c.is_fragment(req),
+                        ),
+                        form.values,
+                        ["price"],
+                        msg,
+                      )
                     None, Ok(price_cents) -> {
                       db.update_cellar_entry(
                         conn,
@@ -307,8 +351,7 @@ pub fn handle_edit(
                         date: date,
                         price_cents: price_cents,
                       )
-                      wisp.response(200)
-                      |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                      c.redirect(req, c.wine_url(wine))
                     }
                   }
                 }
@@ -338,12 +381,12 @@ pub fn handle_drink(
             Ok(wine) ->
               case req.method {
                 http.Get ->
-                  case is_htmx(req) {
-                    True -> c.overlay_wrapper(drink_form(wine, entry))
+                  case c.is_fragment(req) {
+                    True -> c.overlay_wrapper(drink_form(wine, entry, True))
                     False ->
                       c.page("Drink \u{2014} Rebstock", user, conn, [
                         c.back_link(c.wine_url(wine), wine.name),
-                        drink_form(wine, entry),
+                        drink_form(wine, entry, False),
                       ])
                   }
                 http.Post -> {
@@ -356,8 +399,13 @@ pub fn handle_drink(
                   }
                   case entry_remaining(conn, entry) < 1 {
                     True ->
-                      form_error(
-                        drink_form(wine, entry),
+                      c.form_error(
+                        req,
+                        conn,
+                        user,
+                        drink_form(wine, entry, c.is_fragment(req)),
+                        form.values,
+                        [],
                         "No bottles left in this entry",
                       )
                     False -> {
@@ -373,14 +421,21 @@ pub fn handle_drink(
                       case rate {
                         True -> {
                           let rating_url = c.wine_url(wine) <> "/ratings/new"
-                          ratings.new_rating_overlay(wine, conn, date)
-                          |> wisp.set_header("HX-Push-Url", rating_url)
-                          |> wisp.set_header("HX-Retarget", "#overlay")
-                          |> wisp.set_header("HX-Reswap", "outerHTML")
+                          case c.is_fragment(req) {
+                            True ->
+                              ratings.new_rating_overlay(wine, conn, date)
+                              |> wisp.set_header("HX-Replace-Url", rating_url)
+                              |> wisp.set_header("HX-Retarget", "#overlay")
+                              |> wisp.set_header("HX-Reswap", "outerHTML")
+                            False ->
+                              wisp.redirect(
+                                rating_url
+                                <> "?rated_at="
+                                <> option.unwrap(date, ""),
+                              )
+                          }
                         }
-                        False ->
-                          wisp.response(200)
-                          |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                        False -> c.redirect(req, c.wine_url(wine))
                       }
                     }
                   }
@@ -411,33 +466,13 @@ pub fn handle_delete(
                 Error(_) -> c.not_found(user, conn)
                 Ok(wine) -> {
                   db.delete_cellar_entry(conn, id)
-                  wisp.response(200)
-                  |> wisp.set_header("HX-Redirect", c.wine_url(wine))
+                  c.redirect(req, c.wine_url(wine))
                 }
               }
           }
       }
     _ -> wisp.method_not_allowed([http.Post])
   }
-}
-
-/// Re-render an overlay form with an error message on invalid input.
-fn form_error(form: html.Node, message: String) -> Response {
-  c.overlay_wrapper(
-    html.div([], [
-      html.div(
-        [
-          attr.class(
-            "mb-4 p-3 rounded-lg border bg-red-50 border-red-200 text-red-700 text-sm",
-          ),
-        ],
-        [html.Text(message)],
-      ),
-      form,
-    ]),
-  )
-  |> wisp.set_header("HX-Retarget", "#overlay")
-  |> wisp.set_header("HX-Reswap", "outerHTML")
 }
 
 /// Bottles left in a purchase entry after subtracting its drink events.
@@ -495,7 +530,7 @@ fn quantity_error(
   }
 }
 
-fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
+fn drink_form(wine: Wine, entry: CellarEntry, fragment: Bool) -> html.Node {
   let action = c.wine_url(wine) <> "/cellar/" <> entry.id <> "/drink"
   let subtitle =
     wine.name
@@ -505,10 +540,8 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
       Some(_) -> " \u{00b7} " <> c.display_vintage(entry.vintage)
       None -> ""
     }
-  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
-    html.h2([attr.class("text-xl font-light text-stone-800 mb-4")], [
-      html.Text("Drink a Bottle"),
-    ]),
+  html.div([attr.class("form-card card")], [
+    c.form_title("Drink a Bottle", fragment),
     html.p([attr.class("text-sm text-stone-500 mb-4")], [
       html.Text(subtitle),
     ]),
@@ -517,18 +550,22 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
       [
         attr.Attr("method", "POST"),
         attr.Attr("action", action),
-        attr.Attr("hx-post", action),
+        attr.Attr("hx-action", action),
+        attr.Attr("hx-target", "closest .form-card"),
+        attr.Attr("hx-swap", "outerHTML"),
+        attr.Attr("hx-disable", "find button[type=submit]"),
+        attr.Attr("hx-sync", "this:drop"),
         attr.class("space-y-4"),
       ],
       [
         // Date (defaults to today)
-        req_field("Date", [
+        c.form_field("cellar-date", "Date", True, [
           html.Element(
             "input",
             [
               attr.type_("date"),
               attr.name("date"),
-              attr.id("drink-date"),
+              attr.id("cellar-date"),
               attr.Attr("required", "required"),
               attr.class(
                 "w-full border border-stone-300 rounded-md px-3 py-2 text-sm",
@@ -538,15 +575,16 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
           ),
           html.Element("script", [], [
             html.Text(
-              "document.getElementById('drink-date').valueAsDate=new Date()",
+              "var d=document.getElementById('cellar-date');if(!d.value)d.valueAsDate=new Date()",
             ),
           ]),
         ]),
         // Notes
-        form_field("Notes", [
+        c.form_field("cellar-notes", "Notes", False, [
           html.Element(
             "textarea",
             [
+              attr.id("cellar-notes"),
               attr.name("notes"),
               attr.Attr("rows", "2"),
               attr.Attr("placeholder", "Occasion, pairing..."),
@@ -584,7 +622,7 @@ fn drink_form(wine: Wine, entry: CellarEntry) -> html.Node {
           [
             attr.type_("submit"),
             attr.class(
-              "w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
+              "button w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
             ),
           ],
           [html.Text("Drink")],
@@ -598,6 +636,7 @@ fn cellar_form(
   wine: Wine,
   vintages: List(String),
   existing: Option(CellarEntry),
+  fragment: Bool,
 ) -> html.Node {
   let wine_base = c.wine_url(wine)
   let action = case existing {
@@ -609,10 +648,8 @@ fn cellar_form(
     None -> "Add to Cellar"
   }
   let subtitle = wine.name <> " \u{2014} " <> c.display_winery(wine.winery_name)
-  html.div([attr.class("bg-white rounded-lg border border-stone-200 p-6")], [
-    html.h2([attr.class("text-xl font-light text-stone-800 mb-4")], [
-      html.Text(title),
-    ]),
+  html.div([attr.class("form-card card")], [
+    c.form_title(title, fragment),
     html.p([attr.class("text-sm text-stone-500 mb-4")], [
       html.Text(subtitle),
     ]),
@@ -621,7 +658,11 @@ fn cellar_form(
       [
         attr.Attr("method", "POST"),
         attr.Attr("action", action),
-        attr.Attr("hx-post", action),
+        attr.Attr("hx-action", action),
+        attr.Attr("hx-target", "closest .form-card"),
+        attr.Attr("hx-swap", "outerHTML"),
+        attr.Attr("hx-disable", "find button[type=submit]"),
+        attr.Attr("hx-sync", "this:drop"),
         attr.class("space-y-4"),
       ],
       [
@@ -641,60 +682,57 @@ fn cellar_form(
                   [] -> ""
                 }
             }
-            req_field("Vintage", [
+            c.form_field("cellar-vintage", "Vintage", False, [
               html.Element(
-                "input",
+                "select",
                 [
-                  attr.type_("hidden"),
+                  attr.id("cellar-vintage"),
                   attr.name("vintage"),
-                  attr.id("vintage-input"),
-                  attr.value(cur_vintage),
+                  attr.class(c.input_class),
                 ],
-                [],
-              ),
-              html.div(
-                [attr.class("flex flex-wrap gap-2")],
-                list.map(vintages, fn(v) {
-                  let active = v == cur_vintage
-                  let active_cls =
-                    "px-3 py-1 rounded-full text-sm bg-rose-800 text-white"
-                  let idle_cls =
-                    "px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors cursor-pointer"
+                [
                   html.Element(
-                    "button",
+                    "option",
                     [
-                      attr.type_("button"),
-                      attr.class(case active {
-                        True -> active_cls
-                        False -> idle_cls
-                      }),
-                      attr.Attr(
-                        "onclick",
-                        "document.getElementById('vintage-input').value='"
-                          <> v
-                          <> "';this.parentElement.querySelectorAll('button').forEach(function(b){b.className='"
-                          <> idle_cls
-                          <> "'});this.className='"
-                          <> active_cls
-                          <> "'",
-                      ),
+                      attr.value(""),
+                      ..case cur_vintage == "" {
+                        True -> [attr.Attr("selected", "")]
+                        False -> []
+                      }
                     ],
-                    [html.Text(v)],
-                  )
-                }),
+                    [html.Text("No vintage / N.V.")],
+                  ),
+                  ..list.map(vintages, fn(v) {
+                    html.Element(
+                      "option",
+                      [
+                        attr.value(v),
+                        ..case v == cur_vintage {
+                          True -> [attr.Attr("selected", "")]
+                          False -> []
+                        }
+                      ],
+                      [html.Text(v)],
+                    )
+                  })
+                ],
               ),
             ])
           }
         },
         // Quantity
-        req_field("Quantity", [
+        c.form_field("cellar-quantity", "Quantity", True, [
           html.Element(
             "input",
             [
               attr.type_("number"),
+              attr.id("cellar-quantity"),
               attr.name("quantity"),
               attr.Attr("required", "required"),
-              attr.Attr("min", "0"),
+              case existing {
+                Some(e) if e.parent_id != None -> attr.Attr("max", "-1")
+                _ -> attr.Attr("min", "1")
+              },
               attr.value(case existing {
                 Some(e) -> int.to_string(e.quantity)
                 None -> "1"
@@ -710,11 +748,12 @@ fn cellar_form(
         case existing {
           Some(e) if e.parent_id != None -> html.Nothing
           _ ->
-            form_field("Price per bottle (\u{20ac})", [
+            c.form_field("cellar-price", "Price per bottle (\u{20ac})", False, [
               html.Element(
                 "input",
                 [
                   attr.type_("number"),
+                  attr.id("cellar-price"),
                   attr.name("price"),
                   attr.Attr("step", "0.01"),
                   attr.Attr("min", "0"),
@@ -738,7 +777,7 @@ fn cellar_form(
             ])
         },
         // Date
-        req_field("Date", [
+        c.form_field("cellar-date", "Date", True, [
           html.Element(
             "input",
             [
@@ -765,16 +804,17 @@ fn cellar_form(
             None ->
               html.Element("script", [], [
                 html.Text(
-                  "document.getElementById('cellar-date').valueAsDate=new Date()",
+                  "var d=document.getElementById('cellar-date');if(!d.value)d.valueAsDate=new Date()",
                 ),
               ])
           },
         ]),
         // Notes
-        form_field("Notes", [
+        c.form_field("cellar-notes", "Notes", False, [
           html.Element(
             "textarea",
             [
+              attr.id("cellar-notes"),
               attr.name("notes"),
               attr.Attr("rows", "3"),
               attr.Attr("placeholder", "Notes..."),
@@ -798,7 +838,7 @@ fn cellar_form(
           [
             attr.type_("submit"),
             attr.class(
-              "w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
+              "button w-full px-4 py-2 bg-rose-800 text-white rounded-md text-sm font-medium hover:bg-rose-900 transition-colors",
             ),
           ],
           [
@@ -813,13 +853,17 @@ fn cellar_form(
           Some(e) -> {
             let delete_url = wine_base <> "/cellar/" <> e.id <> "/delete"
             html.div([attr.class("text-center pt-2")], [
-              html.a(
+              html.button(
                 [
-                  attr.href(delete_url),
+                  attr.type_("submit"),
+                  attr.Attr("formaction", delete_url),
+                  attr.Attr("formnovalidate", ""),
                   attr.class(
-                    "text-xs text-stone-400 hover:text-red-600 transition-colors cursor-pointer",
+                    "text-xs text-stone-500 hover:text-red-600 transition-colors cursor-pointer",
                   ),
                   attr.Attr("hx-post", delete_url),
+                  attr.Attr("hx-disable", "this"),
+                  attr.Attr("hx-sync", "closest form:drop"),
                   attr.Attr("hx-confirm", "Delete this entry?"),
                 ],
                 [html.Text("Delete this entry")],
@@ -830,38 +874,6 @@ fn cellar_form(
         },
       ],
     ),
-  ])
-}
-
-fn is_htmx(req: Request) -> Bool {
-  case list.key_find(req.headers, "hx-request") {
-    Ok(_) -> True
-    Error(_) -> False
-  }
-}
-
-fn req_field(label: String, children: List(html.Node)) -> html.Node {
-  html.div([], [
-    html.Element(
-      "label",
-      [attr.class("block text-sm font-medium text-stone-600 mb-1")],
-      [
-        html.Text(label),
-        html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")]),
-      ],
-    ),
-    ..children
-  ])
-}
-
-fn form_field(label: String, children: List(html.Node)) -> html.Node {
-  html.div([], [
-    html.Element(
-      "label",
-      [attr.class("block text-sm font-medium text-stone-600 mb-1")],
-      [html.Text(label)],
-    ),
-    ..children
   ])
 }
 
@@ -902,7 +914,7 @@ fn form_price(form: wisp.FormData) -> Result(Option(Int), String) {
 }
 
 fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
-  c.card([
+  html.div([attr.class("detail-content")], [
     html.div([attr.class("flex items-start justify-between mb-2")], [
       html.div([], [
         html.h1([attr.class("text-2xl font-light text-stone-800")], [
@@ -950,7 +962,8 @@ fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
     },
     case entry.notes {
       Some(notes) ->
-        html.div([attr.class("mt-4 pt-4 border-t border-stone-100")], [
+        html.div([], [
+          html.hr([attr.class("section-divider section-divider-compact")]),
           html.p([attr.class("text-stone-700 whitespace-pre-line")], [
             html.Text(notes),
           ]),
@@ -962,7 +975,7 @@ fn cellar_entry_card(entry: CellarEntry, wine: Wine) -> html.Node {
 
 fn cellar_wine_table(wines: List(CellarWine)) -> html.Node {
   c.table(
-    ["Winery", "Wine", "Vintage", "Country", "Type", "Cellar", "Value"],
+    ["Winery", "Wine", "Vintage", "Country", "Type", "Bottles", "Value"],
     list.index_map(wines, cellar_wine_row),
   )
 }

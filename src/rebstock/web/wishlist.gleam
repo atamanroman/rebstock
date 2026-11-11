@@ -14,9 +14,14 @@ pub fn wishlist(conn: Connection, user: User, username: String) -> Response {
   let wines = db.list_wines_for_list(conn, wl.id)
   let count = int.to_string(list.length(wines))
 
-  c.page("Wishlist \u{2014} Rebstock", user, conn, [
-    c.page_header("Wishlist", count <> " wines"),
-    wishlist_table(wines),
+  let title = case username == user.username {
+    True -> "Your Wishlist"
+    False -> username <> "'s Wishlist"
+  }
+  c.page(title <> " \u{2014} Rebstock", user, conn, [
+    c.page_header(title, count <> " wines"),
+    c.table_filter("wishlist-table", "Filter wishlist…"),
+    html.div([attr.id("wishlist-table")], [wishlist_table(wines)]),
   ])
 }
 
@@ -43,7 +48,7 @@ pub fn wishlist_entry_overlay(conn: Connection, id: String) -> Response {
 }
 
 fn wishlist_wine_card(wine: Wine) -> html.Node {
-  c.card([
+  html.div([attr.class("detail-content")], [
     html.div([attr.class("flex items-start justify-between mb-2")], [
       html.div([], [
         html.h1([attr.class("text-2xl font-light text-stone-800")], [
@@ -73,9 +78,8 @@ fn wishlist_row(lw: ListWine, idx: Int) -> html.Node {
     [
       attr.id("wine-" <> wine.id),
       attr.class(c.clickable_row_class(idx) <> " target-highlight"),
-      attr.Attr("hx-get", "/wishlist/" <> wine.id <> "/overlay"),
-      attr.Attr("hx-target", "#overlay"),
-      attr.Attr("hx-swap", "outerHTML"),
+      c.row_onclick(c.wine_url(wine)),
+      c.row_onauxclick(c.wine_url(wine)),
     ],
     [
       html.td([attr.class("px-4 py-3 text-stone-700")], [

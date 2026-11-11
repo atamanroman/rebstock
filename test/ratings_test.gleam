@@ -82,7 +82,7 @@ pub fn create_and_delete_rating_test() {
       #("rated_at", "2026-01-01"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert [r, ..] = user_ratings(db.ratings_for_wine(conn, wine.id), "test")
   let response =
     simulate.request(http.Post, base <> "/ratings/" <> r.id <> "/edit")
@@ -92,13 +92,13 @@ pub fn create_and_delete_rating_test() {
       #("rated_at", "2026-01-02"),
     ])
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert Ok(updated) = db.get_rating_by_id(conn, r.id)
   let assert Some(3.0) = updated.rating
   let response =
     simulate.request(http.Post, base <> "/ratings/" <> r.id <> "/delete")
     |> router.handle_request(conn, test_config)
-  let assert 200 = response.status
+  let assert 303 = response.status
   let assert Error(_) = db.get_rating_by_id(conn, r.id)
   Nil
 }

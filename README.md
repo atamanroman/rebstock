@@ -41,7 +41,7 @@ It also the app to manage the bottles I have in stock 🎉
 
 - Gleam with Wisp/Mist
 - SQLite
-- Tailwind CSS and HTMX
+- Plain CSS (no build step) and HTMX
 - just as taskrunner
 - nix for deployment
 

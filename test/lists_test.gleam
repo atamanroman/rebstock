@@ -395,3 +395,55 @@ pub fn wishlist_entry_not_found_test() {
   let assert 404 = response.status
   Nil
 }
+
+pub fn remove_requires_post_and_checks_actual_list_owner_test() {
+  use conn <- with_empty_db
+  let #(wine_id, _) = seed_two_users(conn)
+  let id = db.create_list(conn, "alice", "Private dinner", None, False)
+  db.add_wine_to_list(conn, id, wine_id, None, None)
+  let base = "/~test/lists/" <> id <> "/wines"
+  let get =
+    simulate.request(http.Get, base <> "/" <> wine_id)
+    |> router.handle_request(conn, test_config)
+  let assert 405 = get.status
+  let remove =
+    simulate.request(http.Post, base <> "/" <> wine_id)
+    |> router.handle_request(conn, test_config)
+  let assert 403 = remove.status
+  let toggle =
+    simulate.request(http.Post, base <> "/toggle")
+    |> simulate.form_body([#("wine_id", wine_id)])
+    |> router.handle_request(conn, test_config)
+  let assert 403 = toggle.status
+  let add =
+    simulate.request(http.Post, base)
+    |> simulate.form_body([#("wine_id", wine_id)])
+    |> router.handle_request(conn, test_config)
+  let assert 403 = add.status
+  let assert True = db.is_wine_in_list(conn, id, wine_id)
+  Nil
+}
+
+pub fn toggle_returns_accessible_fragment_or_native_redirect_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  let id = db.create_list(conn, "test", "Dinner", None, False)
+  let wine_id = create_test_wine(conn, "Riesling", db.White)
+  let url = "/~test/lists/" <> id <> "/wines/toggle"
+  let fragment =
+    simulate.request(http.Post, url)
+    |> simulate.header("hx-request", "true")
+    |> simulate.form_body([#("wine_id", wine_id)])
+    |> router.handle_request(conn, test_config)
+  let assert 200 = fragment.status
+  let body = simulate.read_body(fragment)
+  let assert False = string.contains(body, "aria-pressed=")
+  let assert True = string.contains(body, "aria-label=\"Remove from Dinner\"")
+  let native =
+    simulate.request(http.Post, url)
+    |> simulate.form_body([#("wine_id", wine_id)])
+    |> router.handle_request(conn, test_config)
+  let assert 303 = native.status
+  let assert False = db.is_wine_in_list(conn, id, wine_id)
+  Nil
+}

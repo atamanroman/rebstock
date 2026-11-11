@@ -1,10 +1,11 @@
 {
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "@tailwindcss/cli": "^4.2.2",
-    "tailwindcss": "^4.2.2"
+    "@playwright/test": "^1.58.2",
+    "axe-core": "4.11.1"
   },
   "scripts": {
+    "test:browser": "just build && playwright test",
     "test:mcp": "node --test --test-concurrency=1 test/mcp/*.test.mjs"
   }
 }

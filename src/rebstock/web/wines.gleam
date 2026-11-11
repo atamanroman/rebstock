@@ -19,14 +19,14 @@ pub fn wines(conn: Connection, user: User) -> Response {
   let count = int.to_string(list.length(wines))
 
   c.page("All Wines \u{2014} Rebstock", user, conn, [
-    html.div([attr.class("flex items-end justify-between mb-6")], [
+    html.div([attr.class("page-toolbar flex items-end justify-between mb-6")], [
       c.page_header("All Wines", count <> " total"),
       html.div([attr.class("flex gap-2")], [
         html.a(
           [
             attr.href("/wines/new"),
             attr.class(
-              "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+              "button px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
             ),
           ],
           [html.Text("Add Wine")],
@@ -76,7 +76,7 @@ pub fn wine_detail(
 
       c.page(wine.name <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wines", "All wines"),
-        c.card([
+        html.div([attr.class("detail-content")], [
           wine_header(wine, user, user_lists, in_list_ids, selected),
           ..wine_body(
             wine,
@@ -108,61 +108,64 @@ fn wine_header(
       c.wine_image(wine.id, "hidden sm:flex w-28 h-28 shrink-0 rounded-lg"),
       // Wine details
       html.div([attr.class("flex-1 min-w-0")], [
-        html.div([attr.class("flex items-start justify-between mb-2")], [
-          html.div([attr.class("flex items-center gap-2")], [
-            html.h1([attr.class("text-2xl font-light text-stone-800")], [
-              html.Text(wine.name),
+        html.div(
+          [attr.class("wine-heading flex items-start justify-between mb-2")],
+          [
+            html.div([attr.class("flex items-center gap-2")], [
+              html.h1([attr.class("text-2xl font-light text-stone-800")], [
+                html.Text(wine.name),
+              ]),
+              c.wine_type_badge(wine.wine_type),
             ]),
-            c.wine_type_badge(wine.wine_type),
-          ]),
-          html.div([attr.class("flex items-center gap-2")], [
-            case user_lists {
-              [] -> html.Nothing
-              _ ->
-                html.Element("details", [attr.class("relative")], [
-                  html.Element(
-                    "summary",
-                    [
-                      attr.class(
-                        "cursor-pointer text-xs text-stone-400 hover:text-rose-800 transition-colors list-none",
-                      ),
-                    ],
-                    [html.Text("Add to List")],
-                  ),
-                  html.div(
-                    [
-                      attr.class(
-                        "absolute right-0 top-6 bg-white border border-stone-200 rounded-lg shadow-lg py-2 px-3 min-w-[180px] z-20",
-                      ),
-                    ],
-                    list.map(user_lists, fn(l) {
-                      let checked = list.contains(in_list_ids, l.id)
-                      list_checkbox_row(
-                        wine,
-                        l,
-                        checked,
-                        selected_vintage,
-                        user.username,
-                      )
-                    }),
-                  ),
-                ])
-            },
-            case wine.created_by == user.username {
-              False -> html.Nothing
-              True ->
-                html.a(
-                  [
-                    attr.href(c.wine_url(wine) <> "/edit"),
-                    attr.class(
-                      "text-xs text-stone-400 hover:text-rose-800 transition-colors",
+            html.div([attr.class("flex items-center gap-2")], [
+              case user_lists {
+                [] -> html.Nothing
+                _ ->
+                  html.Element("details", [attr.class("relative list-menu")], [
+                    html.Element(
+                      "summary",
+                      [
+                        attr.class(
+                          "cursor-pointer text-xs text-stone-500 hover:text-rose-800 transition-colors list-none",
+                        ),
+                      ],
+                      [html.Text("Add to List")],
                     ),
-                  ],
-                  [html.Text("Edit")],
-                )
-            },
-          ]),
-        ]),
+                    html.div(
+                      [
+                        attr.class(
+                          "absolute right-0 top-6 bg-white border border-stone-200 rounded-lg shadow-lg py-2 px-3 min-w-[180px] z-20",
+                        ),
+                      ],
+                      list.map(user_lists, fn(l) {
+                        let checked = list.contains(in_list_ids, l.id)
+                        list_checkbox_row(
+                          wine,
+                          l,
+                          checked,
+                          selected_vintage,
+                          user.username,
+                        )
+                      }),
+                    ),
+                  ])
+              },
+              case wine.created_by == user.username {
+                False -> html.Nothing
+                True ->
+                  html.a(
+                    [
+                      attr.href(c.wine_url(wine) <> "/edit"),
+                      attr.class(
+                        "text-xs text-stone-500 hover:text-rose-800 transition-colors",
+                      ),
+                    ],
+                    [html.Text("Edit")],
+                  )
+              },
+            ]),
+          ],
+        ),
         html.p([attr.class("text-stone-500")], [
           c.link(c.winery_url(wine.winery_id, wine.winery_name), [
             html.Text(c.display_winery(wine.winery_name)),
@@ -187,43 +190,58 @@ pub fn list_checkbox_row(
 ) -> Node {
   let vintage_val = option.unwrap(vintage, "")
   let row_id = "list-row-" <> l.id
-  html.div(
-    [attr.id(row_id), attr.class("flex items-center justify-between gap-2")],
+  html.Element(
+    "form",
     [
-      html.a(
-        [
-          attr.href("/~" <> username <> "/lists/" <> l.id),
-          attr.class(
-            "text-sm text-stone-600 hover:text-rose-800 transition-colors",
-          ),
-        ],
-        [html.Text(l.name)],
+      attr.id(row_id),
+      attr.method("post"),
+      attr.Attr(
+        "action",
+        "/~" <> username <> "/lists/" <> l.id <> "/wines/toggle",
+      ),
+      attr.Attr(
+        "hx-action",
+        "/~" <> username <> "/lists/" <> l.id <> "/wines/toggle",
+      ),
+      attr.Attr("hx-target", "this"),
+      attr.Attr("hx-swap", "outerHTML"),
+      attr.Attr("hx-disable", "find button"),
+      attr.Attr("hx-sync", "this:drop"),
+      attr.class("list-membership"),
+    ],
+    [
+      html.Element(
+        "input",
+        [attr.type_("hidden"), attr.name("wine_id"), attr.value(wine.id)],
+        [],
       ),
       html.Element(
         "input",
-        [
-          attr.type_("checkbox"),
-          attr.class("accent-rose-800 cursor-pointer"),
-          attr.Attr(
-            "hx-post",
-            "/~" <> username <> "/lists/" <> l.id <> "/wines/toggle",
-          ),
-          attr.Attr(
-            "hx-vals",
-            "{\"wine_id\":\""
-              <> wine.id
-              <> "\",\"vintage\":\""
-              <> vintage_val
-              <> "\"}",
-          ),
-          attr.Attr("hx-target", "#" <> row_id),
-          attr.Attr("hx-swap", "outerHTML"),
-          ..case checked {
-            True -> [attr.Attr("checked", "")]
-            False -> []
-          }
-        ],
+        [attr.type_("hidden"), attr.name("vintage"), attr.value(vintage_val)],
         [],
+      ),
+      html.a([attr.href("/~" <> username <> "/lists/" <> l.id)], [
+        html.Text(l.name),
+      ]),
+      html.button(
+        [
+          attr.type_("submit"),
+          attr.Attr(
+            "aria-label",
+            case checked {
+              True -> "Remove from "
+              False -> "Add to "
+            }
+              <> l.name,
+          ),
+          attr.class("list-toggle"),
+        ],
+        [
+          html.Text(case checked {
+            True -> "Remove"
+            False -> "Add"
+          }),
+        ],
       ),
     ],
   )
@@ -238,16 +256,22 @@ fn vintage_pills(
     [] -> html.Nothing
     _ -> {
       let base = c.wine_url(wine)
-      html.div([attr.class("flex flex-wrap gap-2 mt-4")], [
-        vintage_pill("All", base, selected == None),
-        ..list.map(options, fn(v) {
-          let label = case v {
-            "NV" -> "N.V."
-            year -> year
-          }
-          vintage_pill(label, base <> "?vintage=" <> v, selected == Some(v))
-        })
-      ])
+      html.nav(
+        [
+          attr.class("flex flex-wrap gap-2 mt-4"),
+          attr.Attr("aria-label", "Filter by vintage"),
+        ],
+        [
+          vintage_pill("All", base, selected == None),
+          ..list.map(options, fn(v) {
+            let label = case v {
+              "NV" -> "N.V."
+              year -> year
+            }
+            vintage_pill(label, base <> "?vintage=" <> v, selected == Some(v))
+          })
+        ],
+      )
     }
   }
 }
@@ -256,9 +280,19 @@ fn vintage_pill(label: String, href: String, active: Bool) -> Node {
   let classes = case active {
     True -> "px-3 py-1 rounded-full text-sm bg-rose-800 text-white"
     False ->
-      "px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
+      "button px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors"
   }
-  html.a([attr.href(href), attr.class(classes)], [html.Text(label)])
+  html.a(
+    [
+      attr.href(href),
+      attr.class(classes),
+      ..case active {
+        True -> [attr.Attr("aria-current", "true")]
+        False -> []
+      }
+    ],
+    [html.Text(label)],
+  )
 }
 
 fn stat_boxes(
@@ -267,7 +301,7 @@ fn stat_boxes(
   others: List(Rating),
 ) -> Node {
   let #(vivino_rating, vivino_count) = vivino
-  html.div([attr.class("grid grid-cols-3 gap-3 mt-4")], [
+  html.dl([attr.class("wine-stats grid grid-cols-3 gap-3 mt-4")], [
     stat_box("Vivino", vivino_rating, case vivino_count {
       Some(n) -> int.to_string(n) <> " ratings"
       None -> ""
@@ -289,16 +323,14 @@ fn count_label(ratings: List(Rating)) -> String {
 fn stat_box(label: String, avg: Option(Float), count_text: String) -> Node {
   html.div(
     [
-      attr.class(
-        "p-3 bg-stone-50 rounded-lg border border-stone-100 text-center",
-      ),
+      attr.class("wine-stat p-3 text-center"),
     ],
     [
-      html.div([attr.class("text-lg font-light")], [c.rating_display(avg)]),
-      html.div([attr.class("text-xs text-stone-400 mt-0.5")], [
-        html.Text(label),
+      html.dt([attr.class("text-xs text-stone-500")], [html.Text(label)]),
+      html.dd([], [
+        html.div([attr.class("text-lg font-light")], [c.rating_display(avg)]),
+        html.div([attr.class("text-xs text-stone-500")], [html.Text(count_text)]),
       ]),
-      html.div([attr.class("text-xs text-stone-400")], [html.Text(count_text)]),
     ],
   )
 }
@@ -378,8 +410,8 @@ fn wine_body(
     })
 
   [
-    html.div([attr.class("mt-8")], [
-      section_label("Ratings"),
+    html.section([attr.class("mt-8")], [
+      section_label("Ratings", 2),
       vintage_pills(wine, vintage_opts, selected),
       html.div([attr.class("pl-4 ml-1 border-l-2 border-stone-200")], [
         stat_boxes(vivino_stat, fm, fo),
@@ -394,9 +426,9 @@ fn wine_body(
 }
 
 fn my_ratings_section(ratings: List(Rating), wine: Wine) -> Node {
-  html.div([attr.class("mt-6")], [
+  html.section([attr.class("mt-6")], [
     html.div([attr.class("flex items-baseline justify-between mb-3")], [
-      section_label("You"),
+      section_label("You", 3),
       rate_button(wine, case ratings {
         [] -> "Rate this wine"
         _ -> "Add rating"
@@ -405,8 +437,8 @@ fn my_ratings_section(ratings: List(Rating), wine: Wine) -> Node {
     case ratings {
       [] -> html.Nothing
       _ ->
-        html.div(
-          [attr.class("space-y-2")],
+        c.item_list(
+          "space-y-2",
           list.map(ratings, fn(r) { my_rating_card(r, wine) }),
         )
     },
@@ -417,12 +449,9 @@ fn others_ratings_section(ratings: List(Rating)) -> Node {
   case ratings {
     [] -> html.Nothing
     _ ->
-      html.div([attr.class("mt-8")], [
-        section_label("Others"),
-        html.div(
-          [attr.class("space-y-2")],
-          list.map(ratings, other_rating_card),
-        ),
+      html.section([attr.class("mt-8")], [
+        section_label("Others", 3),
+        c.item_list("space-y-2", list.map(ratings, other_rating_card)),
       ])
   }
 }
@@ -431,8 +460,8 @@ fn personal_note_section(wine: Wine) -> Node {
   case wine.personal_note {
     None -> html.Nothing
     Some(note) ->
-      html.div([attr.class("mt-8")], [
-        section_label("Personal Note"),
+      html.section([attr.class("mt-8")], [
+        section_label("Personal Note", 2),
         html.p([attr.class("text-stone-700")], [html.Text(note)]),
       ])
   }
@@ -480,7 +509,7 @@ fn rate_button(wine: Wine, label: String) -> Node {
     [
       attr.href(url),
       attr.class(
-        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+        "wine-action text-sm text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
       ),
       attr.Attr("hx-get", url),
       attr.Attr("hx-push-url", url),
@@ -496,8 +525,15 @@ fn edit_button(rating: Rating, wine: Wine) -> Node {
   html.a(
     [
       attr.href(url),
+      attr.Attr(
+        "aria-label",
+        "Edit rating for "
+          <> wine.name
+          <> ", "
+          <> c.format_date(option.unwrap(rating.rated_at, rating.created_at)),
+      ),
       attr.class(
-        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+        "wine-action text-sm text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
       ),
       attr.Attr("hx-get", url),
       attr.Attr("hx-push-url", url),
@@ -508,11 +544,12 @@ fn edit_button(rating: Rating, wine: Wine) -> Node {
   )
 }
 
-fn section_label(text: String) -> Node {
-  html.h3(
+fn section_label(text: String, level: Int) -> Node {
+  html.Element(
+    "h" <> int.to_string(level),
     [
       attr.class(
-        "text-sm font-medium uppercase tracking-wider text-stone-400 mb-3",
+        "text-sm font-medium uppercase tracking-wider text-stone-500 mb-3",
       ),
     ],
     [html.Text(text)],
@@ -527,8 +564,7 @@ fn my_rating_card(r: Rating, wine: Wine) -> Node {
       ),
     ],
     [
-      // Edit top-right
-      html.div([attr.class("absolute top-2 right-2 flex gap-2")], [
+      html.div([attr.class("flex justify-end gap-3 mb-2")], [
         edit_button(r, wine),
       ]),
       html.div([attr.class("flex gap-4")], [
@@ -536,14 +572,14 @@ fn my_rating_card(r: Rating, wine: Wine) -> Node {
         html.div(
           [attr.class("shrink-0 flex flex-col items-center justify-center")],
           [
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               html.Text(case r.vintage {
                 Some(_) -> c.display_vintage(r.vintage)
                 None -> ""
               }),
             ]),
             html.div([attr.class("text-3xl")], [c.rating_display(r.rating)]),
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               c.date_node(case r.rated_at {
                 Some(date) -> date
                 None -> r.created_at
@@ -551,17 +587,15 @@ fn my_rating_card(r: Rating, wine: Wine) -> Node {
             ]),
           ],
         ),
-        // Divider
-        html.div([attr.class("w-px bg-stone-200 self-stretch")], []),
         // Right: tasting notes
-        html.div([attr.class("flex-1 min-w-0")], [
+        html.div([attr.class("entry-notes flex-1 min-w-0")], [
           case r.tasting_notes {
             Some(notes) ->
               html.p([attr.class("text-stone-700 whitespace-pre-line")], [
                 html.Text(notes),
               ])
             None ->
-              html.p([attr.class("text-stone-400 italic text-sm")], [
+              html.p([attr.class("text-stone-500 italic text-sm")], [
                 html.Text("No tasting notes"),
               ])
           },
@@ -582,14 +616,14 @@ fn other_rating_card(r: Rating) -> Node {
         html.div(
           [attr.class("shrink-0 flex flex-col items-center justify-center")],
           [
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               html.Text(case r.vintage {
                 Some(_) -> c.display_vintage(r.vintage)
                 None -> ""
               }),
             ]),
             html.div([attr.class("text-3xl")], [c.rating_display(r.rating)]),
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               c.date_node(case r.rated_at {
                 Some(date) -> date
                 None -> r.created_at
@@ -597,21 +631,22 @@ fn other_rating_card(r: Rating) -> Node {
             ]),
           ],
         ),
-        // Divider
-        html.div([attr.class("w-px bg-stone-200 self-stretch")], []),
         // Right: quoted notes + attribution
-        html.div([attr.class("flex-1 min-w-0")], [
+        html.div([attr.class("entry-notes flex-1 min-w-0")], [
           case r.tasting_notes {
             Some(notes) ->
-              html.p([attr.class("text-stone-700 italic whitespace-pre-line")], [
-                html.Text("\u{201c}" <> notes <> "\u{201d}"),
-              ])
+              html.blockquote(
+                [attr.class("text-stone-700 italic whitespace-pre-line")],
+                [
+                  html.p([], [html.Text(notes)]),
+                ],
+              )
             None ->
-              html.p([attr.class("text-stone-400 italic text-sm")], [
+              html.p([attr.class("text-stone-500 italic text-sm")], [
                 html.Text("No tasting notes"),
               ])
           },
-          html.p([attr.class("text-xs text-stone-400 mt-1")], [
+          html.p([attr.class("text-xs text-stone-500 mt-1")], [
             html.Text("\u{2014} "),
             c.link("/~" <> r.username <> "/ratings", [
               html.Text(r.username),
@@ -644,15 +679,15 @@ fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
   // Compute remaining per parent for drink button visibility
   let parent_remaining = compute_parent_remaining(entries)
 
-  html.div([attr.class("mt-8")], [
+  html.section([attr.class("mt-8")], [
     html.div([attr.class("flex items-baseline justify-between mb-3")], [
       html.div([attr.class("flex items-baseline gap-2")], [
-        section_label("Cellar"),
+        section_label("Cellar", 2),
         html.span(
           [
             attr.class(case net < 0 {
               True -> "text-xs text-red-500"
-              False -> "text-xs text-stone-400"
+              False -> "text-xs text-stone-500"
             }),
           ],
           [html.Text(net_label)],
@@ -662,12 +697,12 @@ fn cellar_section(entries: List(CellarEntry), wine: Wine) -> Node {
     ]),
     case sorted {
       [] ->
-        html.p([attr.class("text-sm text-stone-400 italic")], [
+        html.p([attr.class("text-sm text-stone-500 italic")], [
           html.Text("No cellar entries"),
         ])
       _ ->
-        html.div(
-          [attr.class("space-y-2")],
+        c.item_list(
+          "space-y-2",
           list.map(sorted, fn(e) {
             cellar_entry_inline(e, wine, parent_remaining)
           }),
@@ -699,7 +734,7 @@ fn cellar_entry_inline(
     False -> int.to_string(entry.quantity) <> "\u{00d7}"
   }
   let qty_class = case is_drink {
-    True -> "text-2xl font-light text-stone-400 tabular-nums"
+    True -> "text-2xl font-light text-stone-500 tabular-nums"
     False -> "text-3xl font-light text-stone-800 tabular-nums"
   }
 
@@ -711,49 +746,49 @@ fn cellar_entry_inline(
       ),
     ],
     [
-      // Action links top-right
-      html.div(
-        [attr.class("absolute top-2 right-2 flex gap-2")],
-        case is_drink {
-          False -> {
-            let remaining = case list.key_find(parent_remaining, entry.id) {
-              Ok(r) -> r
-              Error(_) -> entry.quantity
-            }
-            list.flatten([
-              case remaining > 0 {
-                True -> [drink_button(entry, wine)]
-                False -> []
-              },
-              [
-                cellar_action_link(
-                  c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
-                  "Edit",
-                ),
-              ],
-            ])
+      html.div([attr.class("flex justify-end gap-3 mb-2")], case is_drink {
+        False -> {
+          let remaining = case list.key_find(parent_remaining, entry.id) {
+            Ok(r) -> r
+            Error(_) -> entry.quantity
           }
-          True -> [
-            cellar_action_link(
-              c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
-              "Edit",
-            ),
-          ]
-        },
-      ),
+          list.flatten([
+            case remaining > 0 {
+              True -> [drink_button(entry, wine)]
+              False -> []
+            },
+            [
+              cellar_action_link(
+                c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
+                "Edit",
+                entry,
+                wine,
+              ),
+            ],
+          ])
+        }
+        True -> [
+          cellar_action_link(
+            c.wine_url(wine) <> "/cellar/" <> entry.id <> "/edit",
+            "Edit",
+            entry,
+            wine,
+          ),
+        ]
+      }),
       html.div([attr.class("flex gap-4")], [
         // Left: quantity, vintage, date
         html.div(
           [attr.class("shrink-0 flex flex-col items-center justify-center")],
           [
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               html.Text(case entry.vintage {
                 Some(_) -> c.display_vintage(entry.vintage)
                 None -> ""
               }),
             ]),
             html.div([attr.class(qty_class)], [html.Text(qty_text)]),
-            html.p([attr.class("text-xs text-stone-400")], [
+            html.p([attr.class("text-xs text-stone-500")], [
               c.date_node(case entry.date {
                 Some(d) -> d
                 None -> entry.created_at
@@ -770,17 +805,15 @@ fn cellar_entry_inline(
             },
           ],
         ),
-        // Divider
-        html.div([attr.class("w-px bg-stone-200 self-stretch")], []),
         // Right: notes
-        html.div([attr.class("flex-1 min-w-0")], [
+        html.div([attr.class("entry-notes flex-1 min-w-0")], [
           case entry.notes {
             Some(notes) ->
               html.p([attr.class("text-stone-700 whitespace-pre-line")], [
                 html.Text(notes),
               ])
             None ->
-              html.p([attr.class("text-stone-400 italic text-sm")], [
+              html.p([attr.class("text-stone-500 italic text-sm")], [
                 html.Text(case is_drink {
                   True -> "Drank a bottle"
                   False -> "No notes"
@@ -799,7 +832,7 @@ fn add_cellar_button(wine: Wine) -> Node {
     [
       attr.href(url),
       attr.class(
-        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+        "wine-action text-sm text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
       ),
       attr.Attr("hx-get", url),
       attr.Attr("hx-push-url", url),
@@ -815,8 +848,15 @@ fn drink_button(entry: CellarEntry, wine: Wine) -> Node {
   html.a(
     [
       attr.href(url),
+      attr.Attr(
+        "aria-label",
+        "Drink cellar entry for "
+          <> wine.name
+          <> ", "
+          <> c.format_date(option.unwrap(entry.date, entry.created_at)),
+      ),
       attr.class(
-        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+        "wine-action text-sm text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
       ),
       attr.Attr("hx-get", url),
       attr.Attr("hx-push-url", url),
@@ -827,12 +867,25 @@ fn drink_button(entry: CellarEntry, wine: Wine) -> Node {
   )
 }
 
-fn cellar_action_link(url: String, label: String) -> Node {
+fn cellar_action_link(
+  url: String,
+  label: String,
+  entry: CellarEntry,
+  wine: Wine,
+) -> Node {
   html.a(
     [
       attr.href(url),
+      attr.Attr(
+        "aria-label",
+        label
+          <> " cellar entry for "
+          <> wine.name
+          <> ", "
+          <> c.format_date(option.unwrap(entry.date, entry.created_at)),
+      ),
       attr.class(
-        "text-xs text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
+        "wine-action text-sm text-rose-800 hover:text-rose-900 transition-colors cursor-pointer",
       ),
       attr.Attr("hx-get", url),
       attr.Attr("hx-push-url", url),
@@ -1134,11 +1187,12 @@ fn wine_form(
       attr.class("space-y-4"),
     ],
     [
-      c.form_field("Name", True, [
+      c.form_field("name", "Name", True, [
         html.Element(
           "input",
           [
             attr.type_("text"),
+            attr.id("name"),
             attr.name("name"),
             attr.Attr("required", ""),
             attr.Attr("autofocus", ""),
@@ -1149,26 +1203,37 @@ fn wine_form(
         ),
       ]),
       html.div([attr.class("space-y-1")], [
-        html.label([attr.class("block text-sm text-stone-600")], [
+        html.label([attr.Attr("for", "wine-image"), attr.class("field-label")], [
           html.Text("Label Photo"),
         ]),
         html.input([
           attr.type_("file"),
+          attr.id("wine-image"),
           attr.name("image"),
+          attr.Attr("aria-describedby", "wine-image-help"),
           attr.Attr("accept", "image/*"),
           attr.class(
             "block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-stone-300 file:text-sm file:text-stone-700 file:bg-white hover:file:bg-stone-50",
           ),
         ]),
-        html.p([attr.class("text-xs text-stone-400 mt-1")], [
-          html.Text("Portrait orientation, ideally 300\u{00d7}400px or larger"),
-        ]),
+        html.p(
+          [
+            attr.id("wine-image-help"),
+            attr.class("text-xs text-stone-500 mt-1"),
+          ],
+          [
+            html.Text(
+              "Portrait orientation, ideally 300\u{00d7}400px or larger",
+            ),
+          ],
+        ),
       ]),
-      c.form_field("Winery", True, [
+      c.form_field("winery", "Winery", True, [
         html.Element(
           "input",
           [
             attr.type_("text"),
+            attr.id("winery"),
             attr.name("winery"),
             attr.Attr("required", ""),
             attr.Attr("list", "winery-list"),
@@ -1185,12 +1250,13 @@ fn wine_form(
           }),
         ),
       ]),
-      html.div([attr.class("grid grid-cols-2 gap-4")], [
-        c.form_field("Region", False, [
+      html.div([attr.class("grid grid-cols-1 sm:grid-cols-2 gap-4")], [
+        c.form_field("region", "Region", False, [
           html.Element(
             "input",
             [
               attr.type_("text"),
+              attr.id("region"),
               attr.name("region"),
               attr.value(ov(fn(w) { w.region }, prefill.region)),
               attr.class(c.input_class),
@@ -1198,7 +1264,7 @@ fn wine_form(
             [],
           ),
         ]),
-        c.form_field("Country", False, [
+        c.form_field("country", "Country", False, [
           c.country_input(
             "country",
             case existing {
@@ -1213,12 +1279,13 @@ fn wine_form(
           ),
         ]),
       ]),
-      html.div([attr.class("grid grid-cols-2 gap-4")], [
-        c.form_field("Style", False, [
+      html.div([attr.class("grid grid-cols-1 sm:grid-cols-2 gap-4")], [
+        c.form_field("style", "Style", False, [
           html.Element(
             "input",
             [
               attr.type_("text"),
+              attr.id("style"),
               attr.name("style"),
               attr.value(ov(fn(w) { w.style }, prefill.style)),
               attr.class(c.input_class),
@@ -1229,11 +1296,12 @@ fn wine_form(
         case existing {
           Some(_) -> html.Nothing
           None ->
-            c.form_field("Vintage", False, [
+            c.form_field("vintage", "Vintage", False, [
               html.Element(
                 "input",
                 [
                   attr.type_("text"),
+                  attr.id("vintage"),
                   attr.name("vintage"),
                   attr.value(prefill.vintage),
                   attr.Attr("placeholder", "e.g. 2020"),
@@ -1244,10 +1312,14 @@ fn wine_form(
             ])
         },
       ]),
-      c.form_field("Type", True, [
+      c.form_field("wine_type", "Type", True, [
         html.Element(
           "select",
-          [attr.name("wine_type"), attr.class(c.input_class)],
+          [
+            attr.id("wine_type"),
+            attr.name("wine_type"),
+            attr.class(c.input_class),
+          ],
           list.map(db.all_wine_types, fn(wt) {
             let val = db.wine_type_to_string(wt)
             let attrs = [attr.value(val)]
@@ -1259,10 +1331,11 @@ fn wine_form(
           }),
         ),
       ]),
-      c.form_field("Personal Note", False, [
+      c.form_field("personal_note", "Personal Note", False, [
         html.Element(
           "textarea",
           [
+            attr.id("personal_note"),
             attr.name("personal_note"),
             attr.Attr("rows", "3"),
             attr.class(c.input_class <> " resize-none"),
@@ -1270,11 +1343,12 @@ fn wine_form(
           [html.Text(ov(fn(w) { w.personal_note }, ""))],
         ),
       ]),
-      c.form_field("Vivino ID", False, [
+      c.form_field("vivino_id", "Vivino ID", False, [
         html.Element(
           "input",
           [
             attr.type_("text"),
+            attr.id("vivino_id"),
             attr.name("vivino_id"),
             attr.value(ov(fn(w) { w.vivino_id }, prefill.vivino_id)),
             attr.Attr("placeholder", "Vivino URL or ID"),
@@ -1289,7 +1363,7 @@ fn wine_form(
           [
             attr.type_("submit"),
             attr.class(
-              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+              "button px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
             ),
           ],
           [html.Text(submit_label)],

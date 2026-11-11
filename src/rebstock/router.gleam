@@ -80,7 +80,7 @@ fn handle_web_request(
   )
 
   // Public routes (no auth required)
-  case wisp.path_segments(req) {
+  let response = case wisp.path_segments(req) {
     ["shared", id, _slug] -> shared.shared_list(conn, id)
     _ -> {
       let user = auth.get_user(req, config.auth)
@@ -170,7 +170,10 @@ fn handle_web_request(
         ["~" <> username, "lists", id, "wines"] ->
           lists.add_wine(req, conn, user, username, id)
         ["~" <> username, "lists", id, "wines", wine_id] ->
-          lists.remove_wine(conn, user, username, id, wine_id)
+          case req.method {
+            http.Post -> lists.remove_wine(conn, user, username, id, wine_id)
+            _ -> wisp.method_not_allowed([http.Post])
+          }
         ["~" <> username, "lists", id] ->
           lists.list_detail(req, conn, user, username, id)
         ["ratings", id, "overlay"] -> ratings.rating_overlay(conn, id)
@@ -183,4 +186,9 @@ fn handle_web_request(
       }
     }
   }
+  response
+  |> wisp.set_header(
+    "Vary",
+    "HX-Request, HX-Request-Type, HX-History-Restore-Request",
+  )
 }

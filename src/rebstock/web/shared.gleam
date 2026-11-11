@@ -24,6 +24,7 @@ body {
   margin: 0 auto;
   padding: 48px 40px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .menu-header {
@@ -51,7 +52,7 @@ body {
 .menu-meta {
   font-size: 11px;
   font-family: system-ui, sans-serif;
-  color: var(--stone-400);
+  color: var(--stone-600);
   margin-top: 8px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -72,6 +73,7 @@ body {
   border-bottom: 2px solid;
 }
 
+.wine-items { list-style: none; }
 .wine-entry { margin-bottom: 14px; }
 
 .wine-row {
@@ -80,7 +82,7 @@ body {
   align-items: baseline;
 }
 
-.wine-name-col { flex: 1; }
+.wine-name-col { flex: 1; min-width: 0; }
 
 .wine-name {
   font-size: 18px;
@@ -96,7 +98,7 @@ body {
 
 .wine-region {
   font-size: 13px;
-  color: var(--stone-400);
+  color: var(--stone-600);
   font-style: italic;
   font-weight: 300;
 }
@@ -104,7 +106,7 @@ body {
 .wine-bottles {
   font-size: 12px;
   font-family: system-ui, sans-serif;
-  color: var(--stone-400);
+  color: var(--stone-600);
   margin-left: 16px;
   min-width: 24px;
   text-align: right;
@@ -126,11 +128,15 @@ body {
   border-top: 1px solid var(--stone-300);
   font-size: 11px;
   font-family: system-ui, sans-serif;
-  color: var(--stone-400);
+  color: var(--stone-600);
   letter-spacing: 0.04em;
 }
 
 .menu-footer a { color: inherit; }
+
+@media screen and (max-width: 480px) {
+  .wine-menu { padding: 24px 16px; }
+}
 
 @media print {
   .wine-menu { padding: 0; }
@@ -174,15 +180,18 @@ type WineEntry {
 fn render_section(wt: db.WineType, entries: List(WineEntry)) -> html.Node {
   let label = db.wine_type_label(wt)
   let color = wine_type_color(wt)
-  html.div([attr.class("wine-section")], [
-    html.div(
+  html.section([attr.class("wine-section")], [
+    html.h2(
       [
         attr.class("section-header"),
         attr.Attr("style", "color: " <> color <> "; border-color: " <> color),
       ],
       [html.Text(label)],
     ),
-    html.div([], list.map(entries, render_entry)),
+    html.ul(
+      [attr.class("wine-items"), attr.Attr("role", "list")],
+      list.map(entries, render_entry),
+    ),
   ])
 }
 
@@ -202,7 +211,7 @@ fn render_entry(e: WineEntry) -> html.Node {
         html.Text("(" <> int.to_string(b) <> ")"),
       ])
   }
-  html.div([attr.class("wine-entry")], [
+  html.li([attr.class("wine-entry")], [
     html.div([attr.class("wine-row")], [
       html.div([attr.class("wine-name-col")], [
         html.span([attr.class("wine-name")], [html.Text(e.wine.name)]),
@@ -256,7 +265,7 @@ pub fn shared_list(conn: Connection, id: String) -> Response {
 }
 
 fn menu_footer() -> html.Node {
-  html.div([attr.class("menu-footer")], [
+  html.footer([attr.class("menu-footer")], [
     html.span([], [html.Text("© 2026 Roman Ataman")]),
     html.span([], [
       html.a([attr.href("https://rebstock.atamanroman.dev")], [
@@ -287,7 +296,7 @@ fn shared_not_found() -> Response {
       ]),
       html.Body([], [
         html.div([attr.class("wine-menu")], [
-          html.div(
+          html.main(
             [
               attr.Attr(
                 "style",
@@ -296,7 +305,10 @@ fn shared_not_found() -> Response {
             ],
             [
               html.div(
-                [attr.Attr("style", "font-size: 48px; margin-bottom: 16px;")],
+                [
+                  attr.Attr("style", "font-size: 48px; margin-bottom: 16px;"),
+                  attr.Attr("aria-hidden", "true"),
+                ],
                 [html.Text("\u{1f377}")],
               ),
               html.h1(
@@ -342,8 +354,7 @@ pub fn render_menu(conn: Connection, wl: db.WineList) -> Response {
     Some(d) -> html.p([attr.class("menu-description")], [html.Text(d)])
   }
 
-  let favicon =
-    "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍇</text></svg>"
+  let favicon = "/static/grapevine.svg"
 
   let page =
     html.Html([attr.lang("en")], [
@@ -381,20 +392,22 @@ pub fn render_menu(conn: Connection, wl: db.WineList) -> Response {
       ]),
       html.Body([], [
         html.div([attr.class("wine-menu")], [
-          html.div([attr.class("menu-header")], [
-            html.h1([attr.class("menu-title")], [html.Text(wl.name)]),
-            description_node,
-            html.p([attr.class("menu-meta")], [
-              html.Text(
-                "Curated by "
-                <> wl.username
-                <> " · "
-                <> int.to_string(total)
-                <> " wines",
-              ),
+          html.main([], [
+            html.header([attr.class("menu-header")], [
+              html.h1([attr.class("menu-title")], [html.Text(wl.name)]),
+              description_node,
+              html.p([attr.class("menu-meta")], [
+                html.Text(
+                  "Curated by "
+                  <> wl.username
+                  <> " · "
+                  <> int.to_string(total)
+                  <> " wines",
+                ),
+              ]),
             ]),
+            ..sections
           ]),
-          html.div([], sections),
           menu_footer(),
         ]),
       ]),

@@ -1,0 +1,60 @@
+@import url("./colors.css");
+@import url("./layout.css");
+@import url("./ui.css");
+
+/* Small browser baseline. Stylesheets are served directly, without a compiler. */
+* { box-sizing: border-box; }
+html { width: 100%; overflow-y: auto; }
+body { margin: 0; }
+h1, h2, h3, p, pre, figure, blockquote, dl, dd { margin: 0; }
+.item-list { list-style: none; margin: 0; padding: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+a { color: inherit; text-decoration: none; }
+a:hover { text-underline-offset: .2em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; background: transparent; padding: 0; }
+button, a, input, select, textarea, summary { touch-action: manipulation; }
+input, select, textarea { border: 1px solid var(--stone-300); border-radius: 3px; background: white; padding: .6rem .75rem; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--ui-accent); padding: 0; }
+input[type="range"] { padding: 0; border: 0; }
+textarea { resize: vertical; }
+input::placeholder, textarea::placeholder { color: #6b6662; opacity: 1; }
+input[type="file"] { border: 0; padding: .5rem 0; }
+input::file-selector-button { min-height: 44px; margin-right: 1rem; padding: .5rem 1rem; background: white; border: 1px solid var(--stone-300); border-radius: 3px; font: inherit; cursor: pointer; }
+img, svg { display: block; max-width: 100%; }
+table { border-collapse: collapse; }
+.section-divider { border: 0; border-top: 1px solid var(--ui-rule); margin: 2rem 0; }
+.section-divider-compact { margin-block: 1rem; }
+[hidden] { display: none !important; }
+details > summary { cursor: pointer; }
+.target-highlight:target { outline: 2px solid var(--ui-accent); outline-offset: 4px; scroll-margin-top: 5rem; }
+details.user-menu > summary { list-style: none; }
+details.user-menu > summary::-webkit-details-marker { display: none; }
+details.user-menu > summary::after { content: ' ▾'; margin-left: .4rem; }
+details.user-menu[open] > summary::after { content: ' ▴'; }
+
+/* Public/printed wine menus stay independent of the application layout. */
+.cellar-print-page { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; background: white; font-size: 11pt; }
+.cellar-print-page .print-header { display: block; text-align: center; margin-bottom: 1.5em; padding-bottom: .75em; border-bottom: 1px solid #a8a29e; }
+.cellar-print-page .print-header svg { display: inline-block; }
+.cellar-print-page table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.cellar-print-page th { text-align: left; font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; padding: .3em .5em; color: #57534e; border-bottom: 2px solid #44403c; }
+.cellar-print-page td { padding: .35em .5em; color: #1c1917; box-shadow: inset 0 -1px 0 #e7e5e4; }
+.cellar-print-page a { color: inherit; text-decoration: none; }
+.cellar-print-page .cellar-type-heading { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #57534e; margin: 1.5em 0 2em; padding-bottom: .2em; border-bottom: 1px solid #a8a29e; }
+.cellar-print-page .cellar-type-heading:first-child { margin-top: 0; }
+
+@media print {
+  html, body { width: auto; overflow: visible; background: white; font-size: 11pt; }
+  @page { margin: 1.5cm 2cm; }
+  body > header, .print\:hidden { display: none !important; }
+  .print-header { display: block !important; text-align: center; margin-bottom: 1.5em; padding-bottom: .75em; border-bottom: 1px solid #a8a29e; }
+  .print-header svg { display: inline-block; }
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  th { font-size: 8pt; letter-spacing: .08em; padding: .3em .5em !important; color: #57534e; border-bottom: 2px solid #44403c !important; }
+  tbody tr { background: none !important; break-inside: avoid; }
+  td { padding: .35em .5em !important; color: #1c1917; border-bottom: none !important; box-shadow: inset 0 -1px 0 #e7e5e4; print-color-adjust: exact; }
+  a { color: inherit !important; text-decoration: none !important; }
+  .cellar-type-heading { font-size: 9pt; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #57534e; margin: 1.5em 0 2em; padding-bottom: .2em; border-bottom: 1px solid #a8a29e; }
+  .wine-type::before { display: none; }
+}

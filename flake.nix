@@ -253,7 +253,6 @@
               && name != "flake.lock"
               && name != ".git"
               && name != ".claude"
-              && name != "tailwindcss"
               && name != "result"
               && !lib.hasSuffix ".db" name
               && !lib.hasSuffix ".db-shm" name
@@ -264,7 +263,6 @@
             pkgs.gleam
             pkgs.erlang
             (pkgs.rebar3WithPlugins { plugins = [ pkgs.beamPackages.pc ]; })
-            pkgs.tailwindcss_4
             pkgs.makeWrapper
             pkgs.rsync
           ];
@@ -288,14 +286,6 @@
 
             export HOME=$TMPDIR
             export REBAR_CACHE_DIR="$TMPDIR/.rebar-cache"
-
-            # Build CSS with tailwindcss
-            mkdir -p priv/static/css
-            tailwindcss \
-              -i src/css/app.css \
-              -o priv/static/css/app.css \
-              --content './src/**/*.gleam,./src/**/*.css' \
-              --minify
 
             gleam export erlang-shipment
 
@@ -385,7 +375,6 @@
             pkgs.gleam
             pkgs.erlang
             pkgs.rebar3
-            pkgs.tailwindcss
             pkgs.watchexec
             pkgs.just
             pkgs.lefthook

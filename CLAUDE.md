@@ -6,7 +6,7 @@ Wine cellar management app. Gleam on BEAM/Erlang.
 
 - **Language:** Gleam (target: erlang)
 - **Web:** wisp (HTTP) + nakai (HTML templating) + htmx (interactivity)
-- **CSS:** Tailwind CSS v4 (standalone binary or npm)
+- **CSS:** Plain CSS, served directly from `priv/static/css/` (no build step)
 - **Database:** SQLite via sqlight (WAL mode), migrations via migrant
 - **Auth:** Simple username-based auth (see `auth.gleam`)
 
@@ -16,8 +16,8 @@ Wine cellar management app. Gleam on BEAM/Erlang.
 src/rebstock/          Core modules (db, auth, config, router, seed, ulid, vivino)
 src/rebstock/mcp/      OAuth, protocol, import, read, and rating-sync tools
 src/rebstock/web/      Page handlers (home, wines, wineries, cellar, ratings, wishlist, components)
-src/css/app.css        Tailwind source
-priv/static/           Built assets (CSS)
+priv/static/css/      Plain CSS source (app, ui, layout helpers, shared colors)
+priv/static/js/       Vendored htmx and UI enhancements
 priv/migrations/       SQL migrations (00001_, 00002_, ...)
 ```
 
@@ -25,7 +25,7 @@ priv/migrations/       SQL migrations (00001_, 00002_, ...)
 
 ```sh
 just dev               # Dev server with file watching (port 3000)
-just build             # Build CSS + Gleam
+just build             # Build Gleam (CSS is served directly)
 just test              # Run tests
 just lint              # Format check + build with --warnings-as-errors
 just format            # Format Gleam code
@@ -55,7 +55,9 @@ npm run test:mcp       # Official MCP client + OAuth on a disposable database
 
 ## Style Guide
 
-- Stone/amber/rose color palette throughout
-- Wine type badges: red (`bg-red-900`), white (`bg-amber-50`), rose (`bg-pink-50`), sparkling, dessert, fortified
-- Rating colors: HSL scale red (3.0) to green (5.0) via `red_green_scale`
+- Ledger is the sole UI: white, system typography, thin rules, muted burgundy accent.
+- Shared component CSS lives in `priv/static/css/ui.css`; local helpers in `layout.css`.
+- No CSS framework or compiler; see `docs/ui.md`.
+- Wine types use colored dots with explicit labels, not pills.
+- Rating colors: OKLCH scale red (3.0) to green (5.0) via `rating_fill` / `rating_ink`
 - "Your X" for logged-in user, "$username's X" for other profiles

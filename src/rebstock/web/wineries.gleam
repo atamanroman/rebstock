@@ -16,13 +16,13 @@ pub fn wineries(conn: Connection, user: User) -> Response {
   let count = int.to_string(list.length(winery_list))
 
   c.page("Wineries \u{2014} Rebstock", user, conn, [
-    html.div([attr.class("flex items-end justify-between mb-6")], [
+    html.div([attr.class("page-toolbar flex items-end justify-between mb-6")], [
       c.page_header("Wineries", count <> " total"),
       html.a(
         [
           attr.href("/wineries/new"),
           attr.class(
-            "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+            "button px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
           ),
         ],
         [html.Text("Add Winery")],
@@ -46,33 +46,36 @@ pub fn winery_detail(conn: Connection, id: String, user: User) -> Response {
       let display = c.display_winery(winery.name)
       c.page(display <> " \u{2014} Rebstock", user, conn, [
         c.back_link("/wineries", "All wineries"),
-        html.div([attr.class("flex items-end justify-between mb-6")], [
-          c.page_header(display, int.to_string(winery.wine_count) <> " wines"),
-          html.div([attr.class("flex items-center gap-2")], [
-            html.a(
-              [
-                attr.href("/wines/new?winery=" <> winery.name),
-                attr.class(
-                  "px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
-                ),
-              ],
-              [html.Text("Add Wine")],
-            ),
-            case winery.created_by == user.username {
-              False -> html.Nothing
-              True ->
-                html.a(
-                  [
-                    attr.href("/wineries/" <> winery.id <> "/edit"),
-                    attr.class(
-                      "px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
-                    ),
-                  ],
-                  [html.Text("Edit")],
-                )
-            },
-          ]),
-        ]),
+        html.div(
+          [attr.class("page-toolbar flex items-end justify-between mb-6")],
+          [
+            c.page_header(display, int.to_string(winery.wine_count) <> " wines"),
+            html.div([attr.class("flex items-center gap-2")], [
+              html.a(
+                [
+                  attr.href("/wines/new?winery=" <> winery.name),
+                  attr.class(
+                    "button px-4 py-2 bg-rose-800 text-white rounded-lg text-sm hover:bg-rose-900 transition-colors",
+                  ),
+                ],
+                [html.Text("Add Wine")],
+              ),
+              case winery.created_by == user.username {
+                False -> html.Nothing
+                True ->
+                  html.a(
+                    [
+                      attr.href("/wineries/" <> winery.id <> "/edit"),
+                      attr.class(
+                        "button px-3 py-1.5 text-sm border border-stone-300 rounded-md text-stone-600 hover:bg-stone-50 transition-colors",
+                      ),
+                    ],
+                    [html.Text("Edit")],
+                  )
+              },
+            ]),
+          ],
+        ),
         wines.wine_table(winery_wines),
       ])
     }
@@ -175,11 +178,12 @@ fn winery_form(
       attr.class("space-y-4"),
     ],
     [
-      c.form_field("Name", True, [
+      c.form_field("name", "Name", True, [
         html.Element(
           "input",
           [
             attr.type_("text"),
+            attr.id("name"),
             attr.name("name"),
             attr.Attr("required", ""),
             attr.Attr("autofocus", ""),
@@ -189,14 +193,15 @@ fn winery_form(
           [],
         ),
       ]),
-      c.form_field("Country", False, [
+      c.form_field("country", "Country", False, [
         c.country_input("country", country_val, c.input_class),
       ]),
-      c.form_field("Vivino ID", False, [
+      c.form_field("vivino_id", "Vivino ID", False, [
         html.Element(
           "input",
           [
             attr.type_("text"),
+            attr.id("vivino_id"),
             attr.name("vivino_id"),
             attr.value(vivino_id_val),
             attr.Attr("placeholder", "e.g. 12345"),
@@ -211,7 +216,7 @@ fn winery_form(
           [
             attr.type_("submit"),
             attr.class(
-              "px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+              "button px-4 py-2 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
             ),
           ],
           [html.Text(submit_label)],

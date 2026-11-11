@@ -1,9 +1,12 @@
 import gleam/float
 import gleam/http
 import gleam/http/request
+import gleam/http/response
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import nakai
 import nakai/attr
@@ -38,7 +41,7 @@ pub fn base_url(req: Request) -> String {
 
 // --- Links ---
 
-/// Standard entity link with wine-red hover
+/// Standard entity link
 pub fn link(href: String, children: List(Node)) -> Node {
   html.a(
     [
@@ -79,7 +82,8 @@ pub fn nav_link(label: String, href: String) -> Node {
   html.a(
     [
       attr.href(href),
-      attr.class("text-stone-500 hover:text-rose-800 transition-colors"),
+      attr.class("nav-link"),
+      attr.Attr("hx-boost", "true"),
     ],
     [html.Text(label)],
   )
@@ -362,23 +366,29 @@ fn iso_to_country(code: String) -> String {
 
 // --- Form helpers ---
 
-pub const input_class =
-  "w-full px-3 py-2 border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-800/20 focus:border-rose-800"
+pub const input_class = "form-control"
 
-pub fn form_field(label: String, required: Bool, children: List(Node)) -> Node {
+pub fn form_field(
+  id: String,
+  label: String,
+  required: Bool,
+  children: List(Node),
+) -> Node {
   html.div([], [
-    html.Element(
-      "label",
-      [attr.class("block text-sm font-medium text-stone-700 mb-1")],
-      [
-        html.Text(label),
-        case required {
-          False -> html.Nothing
-          True ->
-            html.span([attr.class("text-rose-600 ml-0.5")], [html.Text("*")])
-        },
-      ],
-    ),
+    html.Element("label", [attr.Attr("for", id), attr.class("field-label")], [
+      html.Text(label),
+      case required {
+        False -> html.Nothing
+        True ->
+          html.span(
+            [
+              attr.class("text-rose-600 ml-0.5"),
+              attr.Attr("aria-hidden", "true"),
+            ],
+            [html.Text("*")],
+          )
+      },
+    ]),
     ..children
   ])
 }
@@ -392,7 +402,7 @@ pub fn country_input(
     Some(c) -> string.uppercase(string.trim(c))
     None -> ""
   }
-  html.Element("select", [attr.name(name), attr.class(class)], [
+  html.Element("select", [attr.id(name), attr.name(name), attr.class(class)], [
     html.Element("option", [attr.value("")], [html.Text("\u{2014}")]),
     ..list.map(countries, fn(entry) {
       let #(code, label) = entry
@@ -407,7 +417,7 @@ pub fn country_input(
 }
 
 pub fn format_date(iso: String) -> String {
-  case string.split(iso, " ") {
+  case string.split(string.replace(iso, "T", " "), " ") {
     [date, ..] -> {
       case string.split(date, "-") {
         [y, m, d] -> d <> "." <> m <> "." <> y
@@ -419,9 +429,13 @@ pub fn format_date(iso: String) -> String {
 }
 
 pub fn date_node(iso: String) -> Node {
-  html.span([attr.Attr("title", iso)], [
-    html.Text(format_date(iso)),
-  ])
+  let date =
+    iso
+    |> string.replace("T", " ")
+    |> string.split(" ")
+    |> list.first
+    |> result.unwrap(iso)
+  html.time([attr.Attr("datetime", date)], [html.Text(format_date(iso))])
 }
 
 // --- Wine type ---
@@ -440,28 +454,17 @@ pub fn wine_type_label(wt: db.WineType) -> String {
 }
 
 pub fn wine_type_badge(wine_type: db.WineType) -> Node {
-  let #(classes, text) = case wine_type {
-    db.Red -> #("bg-red-900 text-red-100 border-red-800", "Red")
-    db.White -> #("bg-amber-50/60 text-amber-800 border-amber-200", "White")
-    db.Rose -> #("bg-pink-50 text-pink-700 border-pink-200", "Rosé")
-    db.Orange -> #("bg-orange-50 text-orange-700 border-orange-200", "Orange")
-    db.Sparkling -> #(
-      "bg-stone-50 text-stone-700 border-stone-200",
-      "Sparkling",
-    )
-    db.Dessert -> #("bg-amber-100 text-amber-900 border-amber-300", "Dessert")
-    db.Sake -> #("bg-stone-100 text-stone-700 border-stone-300", "Sake")
-    db.Other -> #("bg-stone-50 text-stone-700 border-stone-200", "Other")
+  let class = case wine_type {
+    db.Red -> "wine-type wine-type-red"
+    db.White -> "wine-type wine-type-white"
+    db.Rose -> "wine-type wine-type-rose"
+    db.Orange -> "wine-type wine-type-orange"
+    db.Sparkling -> "wine-type wine-type-sparkling"
+    db.Dessert -> "wine-type wine-type-dessert"
+    db.Sake -> "wine-type wine-type-sake"
+    db.Other -> "wine-type"
   }
-  html.span(
-    [
-      attr.class(
-        "inline-block px-2 py-0.5 rounded border text-xs font-medium "
-        <> classes,
-      ),
-    ],
-    [html.Text(text)],
-  )
+  html.span([attr.class(class)], [html.Text(wine_type_label(wine_type))])
 }
 
 // --- Rating display ---
@@ -630,12 +633,12 @@ fn filter_chip(label: String, clear_href: String) -> Node {
     [
       attr.href(clear_href),
       attr.class(
-        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors",
+        "button inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors",
       ),
     ],
     [
       html.Text(label),
-      html.span([attr.class("text-stone-400")], [html.Text("\u{00d7}")]),
+      html.span([attr.class("text-stone-500")], [html.Text("\u{00d7}")]),
     ],
   )
 }
@@ -659,10 +662,10 @@ pub fn rating_butterfly(
         list.fold(rows, 0, fn(acc, row) { int.max(acc, int.max(row.1, row.2)) })
       let left_total = list.fold(rows, 0, fn(acc, row) { acc + row.1 })
 
-      html.div([attr.class("bg-white rounded-lg border border-stone-200 p-4")], [
-        html.div([attr.class("text-xs text-stone-500")], [
+      html.figure([attr.class("rating-chart")], [
+        html.figcaption([attr.class("text-xs text-stone-500")], [
           html.Text(title),
-          html.span([attr.class("text-stone-400 ml-1")], [
+          html.span([attr.class("text-stone-500 ml-1")], [
             html.Text("(" <> int.to_string(left_total) <> " " <> unit <> ")"),
           ]),
         ]),
@@ -671,9 +674,45 @@ pub fn rating_butterfly(
           [attr.class("space-y-1.5")],
           list.map(rows, fn(row) { butterfly_row(row, max, unit, left, right) }),
         ),
+        butterfly_table(title, unit, left, right, rows),
       ])
     }
   }
+}
+
+fn butterfly_table(
+  title: String,
+  unit: String,
+  left: ButterflySide,
+  right: ButterflySide,
+  rows: List(db.BucketPair),
+) -> Node {
+  html.table([attr.class("sr-only")], [
+    html.caption([], [html.Text(title <> " — " <> unit)]),
+    html.thead([], [
+      html.tr(
+        [],
+        list.map(["Rating", left.label, right.label], fn(label) {
+          html.th([attr.Attr("scope", "col")], [html.Text(label)])
+        }),
+      ),
+    ]),
+    html.tbody(
+      [],
+      list.map(rows, fn(row) {
+        let #(bucket, left_count, right_count) = row
+        let label = case bucket {
+          Some(rating) -> float.to_string(rating)
+          None -> "Unrated"
+        }
+        html.tr([], [
+          html.th([attr.Attr("scope", "row")], [html.Text(label)]),
+          html.td([], [html.Text(int.to_string(left_count))]),
+          html.td([], [html.Text(int.to_string(right_count))]),
+        ])
+      }),
+    ),
+  ])
 }
 
 /// One wing of the butterfly: how it is named, and the filtered list a bar
@@ -684,7 +723,13 @@ pub type ButterflySide {
 
 fn butterfly_legend(left_label: String, right_label: String) -> Node {
   let swatch = fn(class) {
-    html.span([attr.class("w-3 h-2.5 rounded-sm bg-stone-400 " <> class)], [])
+    html.span(
+      [
+        attr.class("w-3 h-2.5 rounded-sm bg-stone-400 " <> class),
+        attr.Attr("aria-hidden", "true"),
+      ],
+      [],
+    )
   }
   html.div([attr.class("flex gap-4 text-[11px] text-stone-500 mt-2 mb-3")], [
     html.span([attr.class("flex items-center gap-1.5")], [
@@ -712,7 +757,7 @@ fn butterfly_row(
       "text-stone-800",
       rating_fill(rating),
     )
-    None -> #("\u{2014}", "text-stone-400", stone_300)
+    None -> #("\u{2014}", "text-stone-500", stone_300)
   }
   let label_style = case bucket {
     Some(rating) -> attr.style("color: " <> rating_ink(rating))
@@ -782,6 +827,7 @@ fn butterfly_wing(
         [
           attr.href(href),
           attr.Attr("title", title),
+          attr.Attr("aria-label", title),
           attr.class(layout <> " hover:opacity-70 transition-opacity"),
         ],
         children,
@@ -822,7 +868,7 @@ fn butterfly_count(count: Int, align: String) -> Node {
   html.span(
     [
       attr.class(
-        "text-[11px] text-stone-400 tabular-nums w-7 shrink-0 " <> align,
+        "text-[11px] text-stone-500 tabular-nums w-7 shrink-0 " <> align,
       ),
     ],
     [
@@ -928,7 +974,7 @@ pub fn wine_image(wine_id: String, class: String) -> Node {
       ],
       [
         html.UnsafeInlineHtml(
-          "<svg class=\"w-full h-full\" viewBox=\"0 0 80 220\" fill=\"#2d5a27\" xmlns=\"http://www.w3.org/2000/svg\">"
+          "<svg aria-hidden=\"true\" class=\"w-full h-full\" viewBox=\"0 0 80 220\" fill=\"#2d5a27\" xmlns=\"http://www.w3.org/2000/svg\">"
           <> "<path d=\"M30,0 L30,4 L26,4 L26,8 L30,8 L30,38 C30,52 10,62 10,80 L10,206 C10,214 16,220 24,220 L56,220 C64,220 70,214 70,206 L70,80 C70,62 50,52 50,38 L50,8 L54,8 L54,4 L50,4 L50,0 Z\"/>"
           <> "</svg>",
         ),
@@ -940,26 +986,68 @@ pub fn wine_image(wine_id: String, class: String) -> Node {
 // --- Card helpers ---
 
 pub fn card(content: List(Node)) -> Node {
-  html.div(
-    [attr.class("bg-white rounded-lg border border-stone-200 p-6")],
-    content,
-  )
+  html.div([attr.class("card")], content)
 }
 
 // --- Table helpers ---
 
 pub fn table(headers: List(String), rows: List(Node)) -> Node {
-  html.div([attr.class("overflow-x-auto rounded-lg border border-stone-200")], [
-    html.table([attr.class("w-full text-sm")], [
-      html.thead([], [
-        html.tr(
-          [attr.class("bg-stone-50 border-b border-stone-200")],
-          list.map(headers, th),
+  html.div(
+    [
+      attr.class("data-table"),
+    ],
+    [
+      html.table([attr.class("w-full text-sm"), attr.Attr("role", "table")], [
+        html.thead([attr.Attr("role", "rowgroup")], [
+          html.tr(
+            [
+              attr.class("bg-stone-50 border-b border-stone-200"),
+              attr.Attr("role", "row"),
+            ],
+            list.map(headers, th),
+          ),
+        ]),
+        html.tbody(
+          [attr.Attr("role", "rowgroup")],
+          list.map(rows, fn(row) {
+            case row {
+              html.Element("tr", attrs, cells) ->
+                html.tr(
+                  [attr.Attr("role", "row"), ..attrs],
+                  list.index_map(
+                    list.filter(cells, fn(cell) { cell != html.Nothing }),
+                    fn(cell, index) {
+                      case cell {
+                        html.Element("td", attrs, content) -> {
+                          let label =
+                            headers
+                            |> list.drop(index)
+                            |> list.first
+                            |> result.unwrap("")
+                          html.td(
+                            [
+                              attr.Attr("data-label", label),
+                              attr.Attr("role", "cell"),
+                              ..attrs
+                            ],
+                            content,
+                          )
+                        }
+                        _ -> cell
+                      }
+                    },
+                  ),
+                )
+              _ -> row
+            }
+          }),
         ),
       ]),
-      html.tbody([], rows),
-    ]),
-  ])
+      html.p([attr.class("table-empty"), attr.Attr("role", "status")], [
+        html.Text("No entries to show. Clear your filters or add an entry."),
+      ]),
+    ],
+  )
 }
 
 /// Client-side text filter input for the table inside `#target_id`.
@@ -970,15 +1058,10 @@ pub fn table_filter(target_id: String, placeholder: String) -> Node {
     [
       attr.type_("search"),
       attr.Attr("placeholder", placeholder),
-      attr.class(
-        "w-full sm:w-72 border border-stone-300 rounded-lg px-3 py-2 text-sm mb-4",
-      ),
-      attr.Attr(
-        "oninput",
-        "var q=this.value.toLowerCase();var i=0;document.querySelectorAll('#"
-          <> target_id
-          <> " tbody tr').forEach(function(r){var show=r.textContent.toLowerCase().indexOf(q)!==-1;r.style.display=show?'':'none';if(show){r.classList.remove('bg-white','bg-stone-50/30');r.classList.add(i%2?'bg-stone-50/30':'bg-white');i++}})",
-      ),
+      attr.Attr("aria-label", placeholder),
+      attr.class("table-search"),
+      attr.Attr("data-table-filter", target_id),
+      attr.Attr("hidden", ""),
     ],
     [],
   )
@@ -987,24 +1070,27 @@ pub fn table_filter(target_id: String, placeholder: String) -> Node {
 fn th(label: String) -> Node {
   html.th(
     [
+      attr.Attr("scope", "col"),
+      attr.Attr("role", "columnheader"),
       attr.class(
         "px-4 py-3 text-left font-medium text-stone-600 text-xs uppercase tracking-wider",
       ),
     ],
-    [html.Text(label)],
+    [
+      case label {
+        "" -> html.span([attr.class("sr-only")], [html.Text("Actions")])
+        _ -> html.Text(label)
+      },
+    ],
   )
 }
 
-pub fn row_class(idx: Int) -> String {
-  let bg = case idx % 2 {
-    0 -> "bg-white"
-    _ -> "bg-stone-50/30"
-  }
-  bg <> " border-b border-stone-100 hover:bg-amber-50/50 transition-colors"
+pub fn row_class(_idx: Int) -> String {
+  "table-row"
 }
 
 pub fn clickable_row_class(idx: Int) -> String {
-  row_class(idx) <> " cursor-pointer"
+  row_class(idx) <> " clickable-row"
 }
 
 /// Navigate on row click; ctrl/cmd/middle click opens a new tab like
@@ -1012,61 +1098,68 @@ pub fn clickable_row_class(idx: Int) -> String {
 pub fn row_onclick(url: String) -> attr.Attr {
   attr.Attr(
     "onclick",
-    "if(event.ctrlKey||event.metaKey){window.open('"
+    "if(!event.target.closest('a,button,input,select,textarea,label,summary,form')){if(event.ctrlKey||event.metaKey){window.open('"
       <> url
       <> "','_blank')}else{window.location='"
       <> url
-      <> "'}",
+      <> "'}}",
   )
 }
 
 pub fn row_onauxclick(url: String) -> attr.Attr {
   attr.Attr(
     "onauxclick",
-    "if(event.button===1){window.open('" <> url <> "','_blank')}",
+    "if(event.button===1&&!event.target.closest('a,button,input,select,textarea,label,summary,form')){window.open('"
+      <> url
+      <> "','_blank')}",
   )
 }
 
 // --- Section helpers (home page cards) ---
 
 pub fn section_header(title: String, link_href: String) -> Node {
-  html.div([attr.class("flex items-baseline justify-between mb-3")], [
-    html.h2([attr.class("text-lg font-medium text-stone-800")], [
-      html.Text(title),
-    ]),
-    html.a(
-      [
-        attr.href(link_href),
-        attr.class(
-          "text-xs text-stone-400 hover:text-stone-600 transition-colors",
-        ),
-      ],
-      [html.Text("View all \u{2192}")],
-    ),
-  ])
-}
-
-pub fn stat_card(label: String, value: String, href: String) -> Node {
-  html.a(
+  html.div(
+    [attr.class("section-heading flex items-baseline justify-between mb-3")],
     [
-      attr.href(href),
-      attr.class(
-        "block p-6 bg-white rounded-lg border border-stone-200 hover:border-amber-300 transition-colors",
+      html.h2([attr.class("text-lg font-medium text-stone-800")], [
+        html.Text(title),
+      ]),
+      html.a(
+        [
+          attr.href(link_href),
+          attr.Attr("aria-label", "View all: " <> title),
+          attr.class(
+            "text-xs text-stone-500 hover:text-stone-600 transition-colors",
+          ),
+        ],
+        [html.Text("View all \u{2192}")],
       ),
-    ],
-    [
-      html.div([attr.class("text-2xl font-light text-stone-800")], [
-        html.Text(value),
-      ]),
-      html.div([attr.class("text-sm text-stone-500 mt-1")], [
-        html.Text(label),
-      ]),
     ],
   )
 }
 
+pub fn stat_card(label: String, value: String, href: String) -> Node {
+  html.div([attr.class("stat-card")], [
+    html.dt([], [html.a([attr.href(href)], [html.Text(label)])]),
+    html.dd([], [html.Text(value)]),
+  ])
+}
+
+/// A collection with native list semantics, including in Safari with no markers.
+pub fn item_list(class: String, items: List(Node)) -> Node {
+  html.ul(
+    [attr.class("item-list " <> class), attr.Attr("role", "list")],
+    list.filter_map(items, fn(item) {
+      case item {
+        html.Nothing -> Error(Nil)
+        _ -> Ok(html.li([], [item]))
+      }
+    }),
+  )
+}
+
 pub fn page_header(title: String, subtitle: String) -> Node {
-  html.div([attr.class("mb-6")], [
+  html.div([attr.class("page-heading mb-6")], [
     html.h1([attr.class("text-3xl font-light text-stone-800 tracking-tight")], [
       html.Text(title),
     ]),
@@ -1075,19 +1168,19 @@ pub fn page_header(title: String, subtitle: String) -> Node {
 }
 
 pub fn detail_grid(items: List(#(String, String))) -> Node {
-  html.div(
-    [attr.class("grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4")],
+  html.dl(
+    [attr.class("detail-grid")],
     list.filter_map(items, fn(item) {
       case item.1 {
         "" -> Error(Nil)
         val ->
           Ok(
             html.div([], [
-              html.div(
-                [attr.class("text-xs uppercase tracking-wider text-stone-400")],
+              html.dt(
+                [attr.class("text-xs uppercase tracking-wider text-stone-500")],
                 [html.Text(item.0)],
               ),
-              html.div([attr.class("text-stone-700 mt-0.5")], [html.Text(val)]),
+              html.dd([attr.class("text-stone-700 mt-0.5")], [html.Text(val)]),
             ]),
           )
       }
@@ -1100,88 +1193,119 @@ pub fn detail_grid(items: List(#(String, String))) -> Node {
 pub fn page(
   title: String,
   user: User,
-  conn: sqlight.Connection,
+  _conn: sqlight.Connection,
   content: List(Node),
 ) -> Response {
   layout(title, [
-    site_header(user, conn),
-    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12")], content),
+    site_header(user),
+    html.main(
+      [attr.id("main"), attr.class("site-main"), attr.Attr("tabindex", "-1")],
+      content,
+    ),
   ])
   |> render
 }
 
-pub fn layout(title: String, content: List(Node)) -> Node {
-  html.Html([attr.lang("en"), attr.class("antialiased")], [
-    html.Head([
-      html.meta([attr.charset("utf-8")]),
-      html.meta([
-        attr.name("viewport"),
-        attr.content("width=device-width, initial-scale=1"),
-      ]),
-      html.title(title),
-      html.link([
-        attr.rel("stylesheet"),
-        attr.href("/static/css/app.css"),
-      ]),
-      html.link([
-        attr.rel("icon"),
-        attr.href(
-          "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍇</text></svg>",
-        ),
-      ]),
-      html.Element("script", [attr.src("/static/js/htmx.min.js")], []),
-      html.Element("script", [], [
-        html.Text(
-          "document.addEventListener('click',function(e){document.querySelectorAll('details[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})})",
-        ),
-      ]),
-    ]),
-    html.Body(
-      [
-        attr.class("bg-stone-100 text-stone-900 min-h-screen font-sans"),
-        attr.Attr(
-          "hx-on::after-swap",
-          "if(event.detail.target.id==='overlay'){document.addEventListener('keydown',function h(e){if(e.key==='Escape'){var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';if(o.dataset.pushed){history.back();delete o.dataset.pushed}document.removeEventListener('keydown',h)}})}",
-        ),
-        attr.Attr(
-          "hx-on::pushed-into-history",
-          "var o=document.getElementById('overlay');if(o)o.dataset.pushed='1'",
-        ),
-      ],
-      list.append(content, [
-        html.footer(
-          [
-            attr.class(
-              "max-w-6xl mx-auto px-4 pb-8 text-xs text-stone-500 flex flex-wrap justify-between gap-x-8 gap-y-2",
-            ),
-          ],
-          [
-            html.span([], [html.Text("© 2026 Roman Ataman")]),
-            html.span([], [
-              html.a(
-                [
-                  attr.href("https://rebstock.atamanroman.dev"),
-                  attr.class("hover:text-rose-800 transition-colors"),
-                ],
-                [html.Text("rebstock.atamanroman.dev")],
-              ),
-              html.Text(" · "),
-              html.a(
-                [
-                  attr.href(
-                    "https://polyformproject.org/licenses/noncommercial/1.0.0/",
-                  ),
-                  attr.class("hover:text-rose-800 transition-colors"),
-                ],
-                [html.Text("PolyForm Noncommercial 1.0.0")],
-              ),
-            ]),
-          ],
-        ),
-        html.div([attr.id("overlay"), attr.class("hidden")], []),
-      ]),
-    ),
+/// Form titles express their rendering context, independently of visual styles.
+pub fn form_title(title: String, fragment: Bool) -> Node {
+  let tag = case fragment {
+    True -> "h2"
+    False -> "h1"
+  }
+  html.Element(tag, [attr.class("text-xl font-light text-stone-800 mb-4")], [
+    html.Text(title),
   ])
+}
+
+pub fn layout(title: String, content: List(Node)) -> Node {
+  html.Html(
+    [
+      attr.lang("en"),
+      attr.Attr("data-ui", "ledger"),
+    ],
+    [
+      html.Head([
+        html.meta([attr.charset("utf-8")]),
+        html.meta([
+          attr.name("viewport"),
+          attr.content(
+            "width=device-width, initial-scale=1, viewport-fit=cover",
+          ),
+        ]),
+        html.title(title),
+        html.link([
+          attr.rel("stylesheet"),
+          attr.href("/static/css/app.css"),
+        ]),
+        html.link([
+          attr.rel("icon"),
+          attr.href("/static/grapevine.svg"),
+        ]),
+        html.meta([
+          attr.name("htmx-config"),
+          attr.content("{\"noSwap\":[204,304,400,401,403,404,409,\"5xx\"]}"),
+        ]),
+        html.Element("script", [attr.src("/static/js/htmx.min.js")], []),
+        html.Element("script", [attr.src("/static/js/ui.js")], []),
+      ]),
+      html.Body(
+        [
+          attr.class("app-body"),
+        ],
+        list.append(
+          [
+            html.a([attr.href("#main"), attr.class("skip-link")], [
+              html.Text("Skip to content"),
+            ]),
+            ..content
+          ],
+          [
+            html.footer(
+              [
+                attr.class("site-footer"),
+              ],
+              [
+                html.hr([
+                  attr.class("section-divider"),
+                  attr.Attr("aria-hidden", "true"),
+                ]),
+                html.span([], [html.Text("© 2026 Roman Ataman")]),
+                html.span([], [
+                  html.a(
+                    [
+                      attr.href("https://rebstock.atamanroman.dev"),
+                      attr.class("hover:text-rose-800 transition-colors"),
+                    ],
+                    [html.Text("rebstock.atamanroman.dev")],
+                  ),
+                  html.Text(" · "),
+                  html.a(
+                    [
+                      attr.href(
+                        "https://polyformproject.org/licenses/noncommercial/1.0.0/",
+                      ),
+                      attr.class("hover:text-rose-800 transition-colors"),
+                    ],
+                    [html.Text("PolyForm Noncommercial 1.0.0")],
+                  ),
+                ]),
+              ],
+            ),
+            html.p(
+              [
+                attr.id("request-status"),
+                attr.class("request-status"),
+                attr.Attr("role", "alert"),
+                attr.Attr("hidden", ""),
+              ],
+              [],
+            ),
+            html.div([attr.id("overlay"), attr.class("hidden")], []),
+          ],
+        ),
+      ),
+    ],
+  )
 }
 
 pub fn render(node: Node) -> Response {
@@ -1196,219 +1320,349 @@ pub fn render_fragment(node: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-pub fn not_found(user: User, conn: sqlight.Connection) -> Response {
+pub fn not_found(user: User, _conn: sqlight.Connection) -> Response {
   layout("Not Found", [
-    site_header(user, conn),
-    html.div([attr.class("max-w-6xl mx-auto px-4 pb-12 text-center pt-24")], [
-      html.Element(
-        "svg",
-        [
-          attr.class("mx-auto mb-6 text-stone-300"),
-          attr.Attr("width", "120"),
-          attr.Attr("height", "120"),
-          attr.Attr("viewBox", "0 0 120 120"),
-          attr.Attr("fill", "none"),
-          attr.Attr("stroke", "currentColor"),
-          attr.Attr("stroke-width", "2"),
-          attr.Attr("stroke-linecap", "round"),
-          attr.Attr("stroke-linejoin", "round"),
-        ],
-        [
-          // Wine glass bowl (empty)
-          html.Element(
-            "path",
-            [
-              attr.Attr(
-                "d",
-                "M38 20 C38 20 35 50 42 62 C46 68 54 72 60 72 C66 72 74 68 78 62 C85 50 82 20 82 20",
-              ),
-            ],
-            [],
+    site_header(user),
+    html.main(
+      [
+        attr.id("main"),
+        attr.class("site-main text-center pt-24"),
+        attr.Attr("tabindex", "-1"),
+      ],
+      [
+        html.Element(
+          "svg",
+          [
+            attr.class("mx-auto mb-6 text-stone-300"),
+            attr.Attr("aria-hidden", "true"),
+            attr.Attr("width", "120"),
+            attr.Attr("height", "120"),
+            attr.Attr("viewBox", "0 0 120 120"),
+            attr.Attr("fill", "none"),
+            attr.Attr("stroke", "currentColor"),
+            attr.Attr("stroke-width", "2"),
+            attr.Attr("stroke-linecap", "round"),
+            attr.Attr("stroke-linejoin", "round"),
+          ],
+          [
+            // Wine glass bowl (empty)
+            html.Element(
+              "path",
+              [
+                attr.Attr(
+                  "d",
+                  "M38 20 C38 20 35 50 42 62 C46 68 54 72 60 72 C66 72 74 68 78 62 C85 50 82 20 82 20",
+                ),
+              ],
+              [],
+            ),
+            // Rim
+            html.Element(
+              "line",
+              [
+                attr.Attr("x1", "34"),
+                attr.Attr("y1", "20"),
+                attr.Attr("x2", "86"),
+                attr.Attr("y2", "20"),
+              ],
+              [],
+            ),
+            // Stem
+            html.Element(
+              "line",
+              [
+                attr.Attr("x1", "60"),
+                attr.Attr("y1", "72"),
+                attr.Attr("x2", "60"),
+                attr.Attr("y2", "95"),
+              ],
+              [],
+            ),
+            // Base
+            html.Element(
+              "line",
+              [
+                attr.Attr("x1", "44"),
+                attr.Attr("y1", "95"),
+                attr.Attr("x2", "76"),
+                attr.Attr("y2", "95"),
+              ],
+              [],
+            ),
+          ],
+        ),
+        html.h1([attr.class("text-3xl font-semibold text-stone-800 mb-2")], [
+          html.Text("This glass is empty"),
+        ]),
+        html.p([attr.class("text-stone-500 mb-8")], [
+          html.Text(
+            "The page you're looking for has been uncorked and consumed.",
           ),
-          // Rim
-          html.Element(
-            "line",
-            [
-              attr.Attr("x1", "34"),
-              attr.Attr("y1", "20"),
-              attr.Attr("x2", "86"),
-              attr.Attr("y2", "20"),
-            ],
-            [],
-          ),
-          // Stem
-          html.Element(
-            "line",
-            [
-              attr.Attr("x1", "60"),
-              attr.Attr("y1", "72"),
-              attr.Attr("x2", "60"),
-              attr.Attr("y2", "95"),
-            ],
-            [],
-          ),
-          // Base
-          html.Element(
-            "line",
-            [
-              attr.Attr("x1", "44"),
-              attr.Attr("y1", "95"),
-              attr.Attr("x2", "76"),
-              attr.Attr("y2", "95"),
-            ],
-            [],
-          ),
-        ],
-      ),
-      html.h1([attr.class("text-3xl font-semibold text-stone-800 mb-2")], [
-        html.Text("This glass is empty"),
-      ]),
-      html.p([attr.class("text-stone-500 mb-8")], [
-        html.Text("The page you're looking for has been uncorked and consumed."),
-      ]),
-      html.a(
-        [
-          attr.href("/"),
-          attr.class(
-            "inline-block px-5 py-2.5 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
-          ),
-        ],
-        [html.Text("Back to your wines")],
-      ),
-    ]),
+        ]),
+        html.a(
+          [
+            attr.href("/"),
+            attr.class(
+              "button inline-block px-5 py-2.5 bg-rose-800 text-white rounded-lg hover:bg-rose-900 transition-colors",
+            ),
+          ],
+          [html.Text("Back to your wines")],
+        ),
+      ],
+    ),
   ])
   |> nakai.to_string
   |> wisp.html_response(404)
 }
 
 pub fn overlay_wrapper(content: Node) -> Response {
-  let close =
-    "var o=document.getElementById('overlay');o.innerHTML='';o.className='hidden';if(o.dataset.pushed){history.back();delete o.dataset.pushed}"
   html.div(
     [
       attr.id("overlay"),
-      attr.class(
-        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm",
-      ),
-      attr.Attr("onclick", "if(event.target===this){" <> close <> "}"),
+      attr.class("overlay-backdrop"),
     ],
     [
-      html.div([attr.class("relative w-full max-w-lg mx-4")], [
-        html.button(
-          [
-            attr.class(
-              "absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center shadow-sm",
-            ),
-            attr.Attr("onclick", close),
-          ],
-          [html.Text("\u{00d7}")],
-        ),
-        content,
-      ]),
+      html.div(
+        [
+          attr.class("overlay-panel"),
+          attr.Attr("role", "dialog"),
+          attr.Attr("aria-modal", "true"),
+          attr.Attr("aria-label", "Wine details or form"),
+          attr.Attr("tabindex", "-1"),
+        ],
+        [
+          html.button(
+            [
+              attr.class("overlay-close"),
+
+              attr.Attr("aria-label", "Close dialog"),
+              attr.type_("button"),
+            ],
+            [html.Text("\u{00d7}")],
+          ),
+          content,
+        ],
+      ),
     ],
   )
   |> nakai.to_inline_string
   |> wisp.html_response(200)
 }
 
-fn site_header(user: User, conn: sqlight.Connection) -> Node {
-  let subtitle = case db.count_wines(conn) {
-    0 -> None
-    _ -> {
-      let wines = int.to_string(db.count_wines(conn))
-      let wineries = int.to_string(db.count_wineries(conn))
-      let num_users = db.count_users(conn)
-      Some(
-        wines
-        <> " wines from "
-        <> wineries
-        <> " wineries"
-        <> case num_users > 1 {
-          True -> ", " <> int.to_string(num_users) <> " users"
-          False -> ""
-        },
+fn site_header(user: User) -> Node {
+  html.header([attr.class("site-header")], [
+    html.div([attr.class("masthead")], [
+      html.a([attr.href("/"), attr.class("brand")], [
+        html.img([
+          attr.src("/static/grapevine.svg"),
+          attr.class("brand-mark"),
+          attr.Attr("alt", ""),
+          attr.Attr("width", "32"),
+          attr.Attr("height", "38"),
+        ]),
+        html.span([attr.class("brand-name")], [html.Text("Rebstock")]),
+      ]),
+      html.Element("details", [attr.class("user-menu")], [
+        html.Element("summary", [], [html.Text("~" <> user.username)]),
+        html.div([attr.class("user-dropdown")], [
+          html.a([attr.href("/~" <> user.username)], [html.Text("Your profile")]),
+        ]),
+      ]),
+    ]),
+    html.nav(
+      [attr.class("site-nav"), attr.Attr("aria-label", "Main navigation")],
+      [
+        nav_link("Home", "/"),
+        nav_link("Cellar", "/~" <> user.username <> "/cellar"),
+        nav_link("Wines", "/wines"),
+        nav_link("Wineries", "/wineries"),
+        nav_link("Ratings", "/~" <> user.username <> "/ratings"),
+        nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
+        nav_link("Lists", "/~" <> user.username <> "/lists"),
+      ],
+    ),
+  ])
+}
+
+/// Full-page htmx navigation and history restoration must not receive an overlay.
+pub fn is_fragment(req: Request) -> Bool {
+  request.get_header(req, "hx-request") == Ok("true")
+  && request.get_header(req, "hx-request-type") != Ok("full")
+  && request.get_header(req, "hx-history-restore-request") != Ok("true")
+}
+
+/// htmx follows this with a page request; ordinary forms keep Post/Redirect/Get.
+pub fn redirect(req: Request, url: String) -> Response {
+  case request.get_header(req, "hx-request") {
+    Ok("true") ->
+      wisp.response(200)
+      |> wisp.set_header(
+        "HX-Location",
+        json.object([
+          #("path", json.string(url)),
+          #("replace", json.string(url)),
+        ])
+          |> json.to_string,
+      )
+    _ -> wisp.redirect(url)
+  }
+}
+
+/// Validation keeps the submitted fields, whether enhanced or posted as a page.
+pub fn form_error(
+  req: Request,
+  conn: sqlight.Connection,
+  user: User,
+  form: Node,
+  values: List(#(String, String)),
+  invalid_fields: List(String),
+  message: String,
+) -> Response {
+  let error_id =
+    "validation-"
+    <> case invalid_fields {
+      [] -> "form"
+      fields -> string.join(fields, "-")
+    }
+  let error =
+    html.p(
+      [
+        attr.id(error_id),
+        attr.class("form-error"),
+        attr.Attr("role", "alert"),
+        attr.Attr("tabindex", "-1"),
+      ],
+      [html.Text(message)],
+    )
+  let form =
+    fill_form(form, values)
+    |> associate_errors(invalid_fields, error_id)
+  let content = case form {
+    html.Element(tag, attrs, children) ->
+      html.Element(tag, attrs, [error, ..children])
+    node -> html.div([attr.class("form-card")], [error, node])
+  }
+  let rendered = case is_fragment(req) {
+    True -> render_fragment(content)
+    False -> page("Check your entry — Rebstock", user, conn, [content])
+  }
+  response.Response(..rendered, status: 422)
+}
+
+fn associate_errors(
+  node: Node,
+  fields: List(String),
+  error_id: String,
+) -> Node {
+  case node {
+    html.LeafElement(tag, attrs) -> {
+      let assert html.Element(_, attrs, _) =
+        associate_errors(html.Element(tag, attrs, []), fields, error_id)
+      html.LeafElement(tag, attrs)
+    }
+    html.Element(tag, attrs, children) -> {
+      let invalid =
+        list.contains(["input", "select", "textarea"], tag)
+        && list.any(attrs, fn(a) {
+          a.name == "name" && list.contains(fields, a.value)
+        })
+      let attrs = case invalid || tag == "form" {
+        False -> attrs
+        True -> {
+          let description =
+            list.find(attrs, fn(a) { a.name == "aria-describedby" })
+            |> result.map(fn(a) { a.value <> " " })
+            |> result.unwrap("")
+          let attrs = [
+            attr.Attr("aria-describedby", description <> error_id),
+            ..list.filter(attrs, fn(a) {
+              a.name != "aria-describedby" && a.name != "aria-invalid"
+            })
+          ]
+          case invalid {
+            True -> [attr.Attr("aria-invalid", "true"), ..attrs]
+            False -> attrs
+          }
+        }
+      }
+      html.Element(
+        tag,
+        attrs,
+        list.map(children, associate_errors(_, fields, error_id)),
       )
     }
+    _ -> node
   }
-  html.header(
-    [
-      attr.class(
-        "border-b border-stone-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10 mb-8",
-      ),
-    ],
-    [
-      html.div(
-        [
-          attr.class(
-            "max-w-6xl mx-auto px-4 py-4 flex items-center justify-between",
-          ),
-        ],
-        [
-          html.a([attr.href("/"), attr.class("flex items-center gap-2 group")], [
-            html.span([attr.class("text-2xl")], [html.Text("\u{1f347}")]),
-            html.div([], [
-              html.span(
-                [
-                  attr.class(
-                    "text-xl font-light tracking-tight text-stone-800 group-hover:text-rose-800 transition-colors",
-                  ),
-                ],
-                [html.Text("Rebstock")],
-              ),
-              case subtitle {
-                None -> html.Nothing
-                Some(s) ->
-                  html.div([attr.class("text-xs text-stone-400 -mt-0.5")], [
-                    html.Text(s),
-                  ])
+}
+
+fn fill_form(node: Node, values: List(#(String, String))) -> Node {
+  case node {
+    html.LeafElement(tag, attrs) -> {
+      let assert html.Element(_, attrs, _) =
+        fill_form(html.Element(tag, attrs, []), values)
+      html.LeafElement(tag, attrs)
+    }
+    html.Element(tag, attrs, children) -> {
+      let submitted =
+        list.find(attrs, fn(a) { a.name == "name" })
+        |> result.try(fn(a) { list.key_find(values, a.value) })
+      let children = list.map(children, fill_form(_, values))
+      let checkbox =
+        tag == "input"
+        && list.any(attrs, fn(a) { a.name == "type" && a.value == "checkbox" })
+      case tag, submitted, checkbox {
+        "input", submitted, True ->
+          html.Element(
+            tag,
+            list.append(
+              case submitted {
+                Ok(_) -> [attr.Attr("checked", "")]
+                Error(_) -> []
               },
-            ]),
-          ]),
-          html.nav([attr.class("flex items-center gap-4 text-sm")], [
-            nav_link("Wines", "/wines"),
-            nav_link("Wineries", "/wineries"),
-            html.span([attr.class("text-stone-300")], [
-              html.Text("\u{2502}"),
-            ]),
-            nav_link("Cellar", "/~" <> user.username <> "/cellar"),
-            nav_link("Wishlist", "/~" <> user.username <> "/wishlist"),
-            nav_link("Ratings", "/~" <> user.username <> "/ratings"),
-            nav_link("Lists", "/~" <> user.username <> "/lists"),
-            html.span([attr.class("text-stone-300")], [
-              html.Text("\u{2502}"),
-            ]),
-            html.Element("details", [attr.class("relative user-menu")], [
-              html.Element(
-                "summary",
-                [
-                  attr.class(
-                    "cursor-pointer text-stone-500 hover:text-rose-800 transition-colors list-none",
-                  ),
-                ],
-                [html.Text("~" <> user.username)],
-              ),
-              html.div(
-                [
-                  attr.class(
-                    "absolute right-0 top-8 bg-white border border-stone-200 rounded-lg shadow-lg py-1 min-w-[140px] z-20",
-                  ),
-                ],
-                [
-                  html.a(
-                    [
-                      attr.href("/~" <> user.username),
-                      attr.class(
-                        "block px-4 py-2 text-sm text-stone-600 hover:bg-amber-50 hover:text-stone-800 transition-colors",
-                      ),
-                    ],
-                    [html.Text("Your profile")],
-                  ),
-                ],
-              ),
-            ]),
-          ]),
-        ],
-      ),
-    ],
-  )
+              list.filter(attrs, fn(a) { a.name != "checked" }),
+            ),
+            children,
+          )
+        "input", Ok(value), False ->
+          html.Element(
+            tag,
+            [
+              attr.value(value),
+              ..list.filter(attrs, fn(a) { a.name != "value" })
+            ],
+            children,
+          )
+        "textarea", Ok(value), _ -> html.Element(tag, attrs, [html.Text(value)])
+        "select", Ok(value), _ ->
+          html.Element(
+            tag,
+            attrs,
+            list.map(children, fn(child) {
+              case child {
+                html.Element("option", attrs, text) -> {
+                  let matches =
+                    list.any(attrs, fn(a) {
+                      a.name == "value" && a.value == value
+                    })
+                  html.Element(
+                    "option",
+                    list.append(
+                      case matches {
+                        True -> [attr.Attr("selected", "")]
+                        False -> []
+                      },
+                      list.filter(attrs, fn(a) { a.name != "selected" }),
+                    ),
+                    text,
+                  )
+                }
+                _ -> child
+              }
+            }),
+          )
+        _, _, _ -> html.Element(tag, attrs, children)
+      }
+    }
+    _ -> node
+  }
 }
