@@ -41,11 +41,12 @@ pub fn main() -> Nil {
 
   let assert Ok(_) =
     wisp_mist.handler(
-      router.handle_request(_, conn, cfg),
+      router.handle_dev_request(_, conn, cfg),
       config.secret_key_base(cfg),
     )
     |> mist.new
     |> mist.port(cfg.port)
+    |> mist.bind(cfg.host)
     |> mist.start
 
   process.sleep_forever()

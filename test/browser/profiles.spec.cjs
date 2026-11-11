@@ -9,11 +9,11 @@ const upload = { name: "portrait.png", mimeType: "image/png", buffer: picture };
 
 async function expectSquare(image) {
   await expect(image).toBeVisible();
-  expect(await image.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => image.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   const box = await image.boundingBox();
   expect(box.width).toBe(96);
   expect(box.height).toBe(96);
-  expect(await image.evaluate(img => getComputedStyle(img).borderRadius)).toBe("100%");
+  await expect(image).toHaveCSS("border-radius", "100%");
 }
 
 async function expectAccessible(page) {

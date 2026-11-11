@@ -7,7 +7,7 @@ description: Use when importing wine purchases from invoices, order confirmation
 
 Use the connected Rebstock MCP server to preview and apply structured wine and purchase records.
 The ZIP importer and Vivino HTML import endpoints have been removed.
-If MCP is unavailable, follow [connection setup](../../../docs/mcp-auth.md) instead of posting to retired endpoints.
+For local `just dev`, see [OAuth-free local MCP](../../../docs/mcp.md#local-development); production requires [OAuth setup](../../../docs/mcp-auth.md). Never post to retired import endpoints.
 The [tool guide](../../../docs/mcp.md) describes schemas, pagination, and import references.
 
 ## Preserve source data

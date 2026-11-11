@@ -2,7 +2,16 @@
 
 Rebstock serves MCP at `/mcp` when its OAuth configuration is enabled.
 Use [MCP OAuth setup](mcp-auth.md) to register the public Codex client with Authelia and configure the reverse proxy.
-Web single-user and forward-auth credentials do not authenticate MCP requests.
+In production, web single-user and forward-auth credentials do not authenticate MCP requests.
+
+## Local development
+
+`just dev` / `gleam dev` enables OAuth-free `/mcp` when OAuth is unconfigured,
+`auth.single` is selected, and `host` is `127.0.0.1` or `::1`. It uses that configured
+user, ignores caller identity headers, and rejects foreign Host/Origin requests.
+Production stays OAuth-only; explicit OAuth configuration is never bypassed.
+
+## Protocol
 
 The server supports the `2025-11-25`, `2025-06-18`, and `2025-03-26` protocol versions through stateless Streamable HTTP JSON responses.
 It provides eight tools and does not allocate sessions or open an SSE stream.

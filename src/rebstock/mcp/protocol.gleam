@@ -141,7 +141,7 @@ fn initialize(id: Json, params: Dynamic) -> Response {
             "serverInfo",
             json.object([
               #("name", json.string("Rebstock")),
-              #("version", json.string("0.3.0")),
+              #("version", json.string("0.4.0")),
             ]),
           ),
           #(

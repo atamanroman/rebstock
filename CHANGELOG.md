@@ -16,7 +16,8 @@ upgrading. MCP is disabled by default; see [OAuth setup](docs/mcp-auth.md).
   Vivino lookup, and community-rating refreshes that preserve personal data.
 - Preview imports before applying atomic batches; stable source references prevent
   duplicate bottles and personal ratings on retries. Update the invoice-importing skill.
-- Authenticate MCP separately through OAuth, with Authelia browser login and PKCE.
+- Authenticate production MCP separately through OAuth, with Authelia browser login
+  and PKCE. Allow OAuth-free MCP in loopback-only, single-user development.
 - Remove the old ZIP/CSV importer, single-wine import and metadata-sync screens,
   and `just dev --skip-import`. Development now seeds a demo collection directly.
 - Add the project site, Chromium/WebKit accessibility and regression coverage,

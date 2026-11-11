@@ -1,6 +1,7 @@
 import gleam/erlang/application
 import gleam/http
 import gleam/http/request
+import gleam/option
 import gleam/string
 import sqlight.{type Connection}
 import wisp.{type Request, type Response}
@@ -48,6 +49,18 @@ fn same_origin(req: Request) -> Bool {
         Ok("cross-site") -> False
         _ -> True
       }
+  }
+}
+
+/// Local single-user MCP is available only through the development runner.
+pub fn handle_dev_request(
+  req: Request,
+  conn: Connection,
+  config: Config,
+) -> Response {
+  case wisp.path_segments(req), config.mcp {
+    ["mcp"], option.None -> mcp.handle_local(req, conn, config)
+    _, _ -> handle_request(req, conn, config)
   }
 }
 
