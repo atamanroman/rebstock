@@ -31,6 +31,7 @@ First release of Rebstock, a self-hosted wine cellar management app.
 <img src="./docs/assets/cellar-print.png" alt="Screenshof of the cellar print view" width="600">
     
 - MCP tools for agent-assisted imports and Vivino rating refreshes
+- Public user profiles with a name and square picture, editable from Settings
 - Simple auth (single user or forward auth via [reverse proxy](#Authentication))
 
 Rebstock is the German name for (grape)vine.
@@ -53,6 +54,17 @@ The referenced JSON schema serves as documentation.
 For MCP imports, rating refreshes, and Codex browser login through Authelia, see [MCP tools](./docs/mcp.md) and [OAuth setup](./docs/mcp-auth.md).
 MCP is disabled by default and authenticates separately from the web interface.
 
+### Profiles
+
+Use **Settings** in the user menu to edit your name and upload or remove a picture.
+**Your profile** opens `/~username`, where the name and square picture appear above
+the collection summary. Without a picture, the grapevine logo is used. The home
+dashboard at `/` does not show a profile picture.
+
+Pictures accept PNG, JPEG and WebP up to 2 MB. They are stored under
+`image_dir/profiles/`; back up the configured image directory along with SQLite.
+See [profile behavior](./docs/ui.md#profiles-and-settings) for details.
+
 ### Authentication
 
 There's no authentication if started in _single_ mode.
@@ -67,7 +79,9 @@ Every request will be authenticated automatically as the given user.
 ```
 
 In _forward_ (forward auth) mode, the user is read from configurable headers set by the reverse proxy.
-Name, email and groups can also be supplied this way, but are not for now.
+Name, email and groups can also be supplied this way. The forwarded name is a
+starting value in Settings; a saved profile name is managed independently. Email
+and groups are not shown on public profiles.
 
 ```json
 "auth": {

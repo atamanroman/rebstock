@@ -8,6 +8,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import gleam/uri
 import nakai
 import nakai/attr
 import nakai/html.{type Node}
@@ -101,6 +102,10 @@ pub fn action_link(href: String, label: String) -> Node {
 }
 
 // --- URLs ---
+
+pub fn profile_url(username: String) -> String {
+  "/~" <> uri.percent_encode(username)
+}
 
 pub fn wine_url(wine: db.Wine) -> String {
   "/wines/" <> wine.id <> "/" <> db.slugify(wine.name)
@@ -1465,7 +1470,10 @@ fn site_header(user: User) -> Node {
       html.Element("details", [attr.class("user-menu")], [
         html.Element("summary", [], [html.Text("~" <> user.username)]),
         html.div([attr.class("user-dropdown")], [
-          html.a([attr.href("/~" <> user.username)], [html.Text("Your profile")]),
+          html.a([attr.href("/settings")], [html.Text("Settings")]),
+          html.a([attr.href(profile_url(user.username))], [
+            html.Text("Your profile"),
+          ]),
         ]),
       ]),
     ]),

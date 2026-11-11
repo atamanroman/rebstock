@@ -309,6 +309,54 @@ pub fn ensure_user(conn: Connection, username: String) -> Nil {
   }
 }
 
+pub type Profile {
+  Profile(
+    username: String,
+    display_name: Option(String),
+    picture: Option(String),
+  )
+}
+
+pub fn get_profile(conn: Connection, username: String) -> Result(Profile, Nil) {
+  let decoder = {
+    use username <- decode.field(0, decode.string)
+    use display_name <- decode.field(1, decode.optional(decode.string))
+    use picture <- decode.field(2, decode.optional(decode.string))
+    decode.success(Profile(username:, display_name:, picture:))
+  }
+  case
+    sqlight.query(
+      "SELECT username, display_name, picture FROM users WHERE username = ?",
+      on: conn,
+      with: [sqlight.text(username)],
+      expecting: decoder,
+    )
+  {
+    Ok([profile]) -> Ok(profile)
+    _ -> Error(Nil)
+  }
+}
+
+pub fn update_profile(
+  conn: Connection,
+  username: String,
+  display_name: String,
+  picture: Option(String),
+) -> Nil {
+  let assert Ok(_) =
+    sqlight.query(
+      "UPDATE users SET display_name = ?, picture = ? WHERE username = ?",
+      on: conn,
+      with: [
+        sqlight.text(display_name),
+        nullable_text(picture),
+        sqlight.text(username),
+      ],
+      expecting: decode.success(Nil),
+    )
+  Nil
+}
+
 fn list_decoder() -> decode.Decoder(WineList) {
   use id <- decode.field(0, decode.string)
   use username <- decode.field(1, decode.string)

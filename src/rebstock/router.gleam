@@ -13,6 +13,7 @@ import rebstock/web/cellar
 import rebstock/web/components as c
 import rebstock/web/home
 import rebstock/web/lists
+import rebstock/web/profiles
 import rebstock/web/ratings
 import rebstock/web/shared
 import rebstock/web/wineries
@@ -75,6 +76,11 @@ fn handle_web_request(
   use <- wisp.serve_static(req, under: "/static", from: priv <> "/static")
   use <- wisp.serve_static(
     req,
+    under: "/images/profiles",
+    from: config.image_dir <> "/profiles",
+  )
+  use <- wisp.serve_static(
+    req,
     under: "/images/bottles",
     from: config.image_dir,
   )
@@ -99,6 +105,7 @@ fn handle_web_request(
 
       case wisp.path_segments(req) {
         [] -> home.home(conn, user)
+        ["settings"] -> profiles.settings(req, conn, user, config.image_dir)
         ["wines"] ->
           case req.method {
             http.Post -> wines.create_wine(req, conn, user, config.image_dir)
@@ -142,7 +149,11 @@ fn handle_web_request(
           }
         ["wineries", id] | ["wineries", id, _slug] ->
           wineries.winery_detail(conn, id, user)
-        ["~" <> username] -> home.profile(conn, user, username)
+        ["~" <> username] ->
+          case req.method {
+            http.Get -> home.profile(conn, user, username)
+            _ -> wisp.method_not_allowed([http.Get])
+          }
         ["~" <> username, "cellar"] -> cellar.cellar(req, conn, user, username)
         ["~" <> username, "cellar", "public"] ->
           cellar.cellar_set_public(req, conn, user, username)

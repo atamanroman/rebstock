@@ -1,7 +1,7 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import nakai/attr
 import nakai/html.{type Node}
 import sqlight.{type Connection}
@@ -10,6 +10,7 @@ import wisp.{type Response}
 import rebstock/auth.{type User}
 import rebstock/db.{type CellarEntry, type CellarWine, type Rating}
 import rebstock/web/components as c
+import rebstock/web/profiles
 
 pub fn home(conn: Connection, user: User) -> Response {
   case db.count_wines(conn) {
@@ -19,7 +20,7 @@ pub fn home(conn: Connection, user: User) -> Response {
       ])
     _ ->
       c.page("Rebstock", user, conn, [
-        user_section(conn, user.username, True),
+        user_section(conn, user.username, True, None),
         rating_insights(conn, user.username),
         activity_grid(conn, user.username),
       ])
@@ -38,19 +39,23 @@ fn welcome_empty_state() -> Node {
 }
 
 pub fn profile(conn: Connection, user: User, username: String) -> Response {
-  let title = case username == user.username {
-    True -> "Rebstock"
-    False -> username
+  case db.get_profile(conn, username) {
+    Error(_) -> c.not_found(user, conn)
+    Ok(profile) ->
+      c.page(profiles.display_name(profile) <> " — Rebstock", user, conn, [
+        user_section(conn, username, username == user.username, Some(profile)),
+        rating_insights(conn, username),
+        activity_grid(conn, username),
+      ])
   }
-
-  c.page(title, user, conn, [
-    user_section(conn, username, username == user.username),
-    rating_insights(conn, username),
-    activity_grid(conn, username),
-  ])
 }
 
-fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
+fn user_section(
+  conn: Connection,
+  username: String,
+  is_self: Bool,
+  profile: Option(db.Profile),
+) -> Node {
   let all_cellar = db.cellar_wines(conn, username, db.unfiltered)
   let cellar_bottles =
     list.fold(all_cellar, 0, fn(acc, cw) { acc + cw.bottles })
@@ -63,7 +68,10 @@ fn user_section(conn: Connection, username: String, is_self: Bool) -> Node {
 
   html.div([attr.class("collection-overview")], [
     html.div([attr.class("page-toolbar")], [
-      c.page_header(heading, "Cellar and recent activity."),
+      case profile {
+        Some(profile) -> profiles.heading(profile)
+        None -> c.page_header(heading, "Cellar and recent activity.")
+      },
       case is_self {
         True ->
           html.a([attr.href("/wines/new"), attr.class("primary-action")], [

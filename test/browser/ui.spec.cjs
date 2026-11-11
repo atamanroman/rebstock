@@ -170,6 +170,7 @@ test("all populated screens fit mobile through desktop and pass axe", async ({
   const wishlistEntry = `/wishlist/${id}`;
   const paths = [
     "/",
+    "/settings",
     "/~test",
     "/~test/cellar",
     "/wines",

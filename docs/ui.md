@@ -38,6 +38,31 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
 - Public wine menus keep their separate print layout, with readable secondary
   text and narrower mobile margins.
 
+## Profiles and settings
+
+The account menu links **Settings** to `/settings` and **Your profile** to
+`/~username`, the existing public collection dashboard. Settings has a native
+multipart form for a display name (1–100 characters) and an optional picture;
+only the authenticated user's profile can be edited. The username stays unchanged.
+Names and pictures are visible to other viewers of that profile; auth email and
+groups are not included.
+
+User dashboards show the name and a 96px square picture above the collection
+summary, with the grapevine logo when no picture is set. `/` keeps its collection
+heading and never includes the profile picture. Pictures use `object-fit: cover`
+for square presentation; the uploaded original is not resized or cropped on disk.
+
+PNG, JPEG and WebP pictures up to 2 MB are accepted. File signatures determine
+extensions, not the submitted filename or MIME type; SVG and other active content
+are rejected. Files have generated names under `image_dir/profiles/` and are served
+at `/images/profiles/…`. Replacing or removing a picture deletes the previous file.
+Back up the image directory along with SQLite. Validation retains the submitted
+name and current picture, and the whole workflow works without JavaScript.
+
+`test/profile_test.gleam` and `test/browser/profiles.spec.cjs` cover profile
+ownership, menu destinations, native uploads/removal, square rendering, logo
+fallback, home-page exclusion, rejected files, safe extensions, and axe checks.
+
 ## Semantic HTML contracts
 
 - Collections use `ul`/`li` (`item_list` preserves list semantics in Safari when
@@ -126,7 +151,7 @@ The browser runner creates and cleans a temporary database and image directory
 on port 4101; it refuses to reuse an existing server. Test-only forwarded auth
 allows checking another user's empty profile without touching real accounts.
 
-The suite covers populated page variants at 320, 375, 390, 768 and 1440px in Chromium and WebKit, with axe WCAG A/AA checks at 375px: home/profile, collection indexes, wine/winery details and create/edit forms, cellar/rating details and forms, and lists/edit/share/print.
+The suite covers populated page variants at 320, 375, 390, 768 and 1440px in Chromium and WebKit, with axe WCAG A/AA checks at 375px: home/profile, settings, collection indexes, wine/winery details and create/edit forms, cellar/rating details and forms, and lists/edit/share/print.
 Additional tests exercise empty and filtered states, add/edit/drink/rate/delete, list membership and sharing, canonical URLs, back/forward/reload, short-height dialogs, keyboard focus, 422/403/500/network errors, pending submissions, native no-JavaScript forms, image uploads, CSV export, and retired import routes.
 Gleam tests cover response contracts, field preservation, optional table columns and membership ownership/method guards.
 MCP discovery, authorization, and tool calls have a separate [official-client socket suite](mcp.md#verification).
