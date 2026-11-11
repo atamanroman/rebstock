@@ -2,12 +2,12 @@
 """Look up Vivino wines and wineries for invoice matching.
 
     vivino.py wine 2701446        # wine detail + every vintage id
-    vivino.py winery 26104        # the producer's entire catalog
+    vivino.py winery 26104        # discover the producer's catalog
     vivino.py winery binekhi      # same, resolving the slug to an id first
 
-Vivino has no text search on any API (see SKILL.md). Get a candidate wine id
-from a web search restricted to vivino.com and verify it with `wine`; when
-search finds nothing, list the producer with `winery` and match by name.
+Discovery only: get candidates from a web search restricted to vivino.com or
+list a producer with `winery`. Verify identities with Rebstock's MCP
+`lookup_vivino_wine` tool before linking them during import.
 """
 
 import json
@@ -20,7 +20,7 @@ BROWSER_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
-TYPE_NAMES = {1: "Red Wine", 2: "White Wine", 3: "Sparkling", 4: "Rosé", 7: "Dessert", 24: "Fortified"}
+TYPE_NAMES = {1: "RED", 2: "WHITE", 3: "SPARKLING", 4: "ROSE", 7: "DESSERT", 24: "OTHER"}
 
 
 def fetch(url, user_agent):
@@ -32,8 +32,7 @@ def fetch(url, user_agent):
 def summarize(d):
     region = d.get("region") or {}
     country = region.get("country")
-    # www responses localize country names ("Georgien"), which country_to_iso
-    # does not know. The code is locale-stable and country_to_iso accepts it.
+    # Prefer locale-stable country codes over localized discovery labels.
     if isinstance(country, dict):
         country = country.get("code") or country.get("seo_name") or country.get("name")
     stats = d.get("statistics") or {}
@@ -43,7 +42,7 @@ def summarize(d):
         "winery": d.get("winery", {}).get("name"),
         "name": d["name"],
         "type_id": d.get("type_id"),
-        "wine_type": TYPE_NAMES.get(d.get("type_id"), "Red Wine"),
+        "wine_type": TYPE_NAMES.get(d.get("type_id"), "OTHER"),
         "region": region.get("name", ""),
         "country": country,
         "rating": stats.get("ratings_average"),
@@ -67,10 +66,10 @@ def winery_id_for(slug):
 
 
 def winery(ref):
-    """Full catalog for a producer.
+    """Discover a producer's wines; upstream completeness is not guaranteed.
 
-    Uses www.vivino.com/api/wineries/{id}/wines, which returns everything at
-    once. The api.vivino.com endpoint of the same name silently caps at 10.
+    The www endpoint has historically returned more results than its api
+    counterpart. Verify candidate identities through MCP before importing.
     """
     winery_id = ref if ref.isdigit() else winery_id_for(ref)
     d = json.loads(fetch(f"https://www.vivino.com/api/wineries/{winery_id}/wines", BROWSER_UA))

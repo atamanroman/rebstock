@@ -23,14 +23,17 @@ The [tool guide](../../../docs/mcp.md) describes schemas, pagination, and import
 ## Parse and match
 
 For `.eml`, use `scripts/parse_eml.py` from this skill folder.
-Merchant email may contain its line items only in an HTML table.
-For a PDF or photo, extract each product, year, quantity, and unit price before matching.
+The helper prints both plain-text and HTML alternatives when present; these are two renderings of the same invoice, not separate purchases.
+Merchant email may contain its line items only in an HTML table, even when a plain-text part exists.
+Inspect any listed invoice attachments separately. For a PDF or photo, extract each product, year, quantity, and unit price before matching.
 
-Search existing wines with `search_wines` and inspect exact vintages with `get_wine`.
+Search existing wines with `search_wines`, following `next_offset` when needed, and inspect exact vintages with `get_wine`.
 Use the existing owned `wine_id` when a match is clear.
 For a new Vivino candidate, search the web restricted to `vivino.com`, then call `lookup_vivino_wine` with the candidate URL or wine ID.
 Verify the returned winery and wine name against the invoice before linking it.
-If Vivino lacks the wine or exact year, create it from the invoice without a guessed external link.
+If the wine identity cannot be verified, create it from the invoice without an external link.
+A verified wine ID can still be linked when Vivino lacks the invoice's exact year; preserve that year without inventing vintage IDs or ratings.
+Supply missing invoice years in the wine record's `vintages` array before referencing them in purchases; use `NV` only for an explicitly non-vintage wine.
 
 When web search misses a wine, `scripts/vivino.py winery <id-or-slug>` can enumerate the producer's catalog.
 The `www.vivino.com/api/wineries/{id}/wines` endpoint has historically returned the complete catalog, while its `api.vivino.com` counterpart silently capped results.
@@ -95,5 +98,5 @@ Read the cellar again and compare total quantities with the baseline and source.
 Use `get_ratings` and `get_wishlist` when those collections were imported.
 Report every unmatched wine, omitted external link, skipped charge, conflict, and missing source field.
 
-Community-rating refresh is a separate operation through `sync_vivino_ratings` on selected owned wine IDs.
+Community-rating refresh is a separate operation through `sync_vivino_ratings` on 1–20 distinct owned wine IDs per call.
 It preserves wine metadata, personal ratings, images, and bottle quantities.
