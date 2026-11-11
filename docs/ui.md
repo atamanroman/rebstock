@@ -40,28 +40,14 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
 
 ## Profiles and settings
 
-The account menu links **Settings** to `/settings` and **Your profile** to
-`/~username`, the existing public collection dashboard. Settings has a native
-multipart form for a display name (1–100 characters) and an optional picture;
-only the authenticated user's profile can be edited. The username stays unchanged.
-Names and pictures are visible to other viewers of that profile; auth email and
-groups are not included.
-
-User dashboards show the name and a 96px square picture above the collection
-summary, with the grapevine logo when no picture is set. `/` keeps its collection
-heading and never includes the profile picture. Pictures use `object-fit: cover`
-for square presentation; the uploaded original is not resized or cropped on disk.
-
-PNG, JPEG and WebP pictures up to 2 MB are accepted. File signatures determine
-extensions, not the submitted filename or MIME type; SVG and other active content
-are rejected. Files have generated names under `image_dir/profiles/` and are served
-at `/images/profiles/…`. Replacing or removing a picture deletes the previous file.
-Back up the image directory along with SQLite. Validation retains the submitted
-name and current picture, and the whole workflow works without JavaScript.
-
-`test/profile_test.gleam` and `test/browser/profiles.spec.cjs` cover profile
-ownership, menu destinations, native uploads/removal, square rendering, logo
-fallback, home-page exclusion, rejected files, safe extensions, and axe checks.
+- **Settings** (`/settings`) edits an optional display name and picture. The auth
+  username is read-only; an empty display name falls back to it.
+- **Your profile** (`/~username`) shows a 96px round picture. The account menu
+  shows the signed-in user's 28px avatar on every page, including `/`. Both use
+  the grapevine logo as fallback; `/` has no large profile picture.
+- Native uploads accept PNG/JPEG/WebP up to 2 MB, using content-derived extensions
+  and generated filenames under `image_dir/profiles/`. Replacing or removing a
+  picture deletes its old file. Back up images with SQLite.
 
 ## Semantic HTML contracts
 

@@ -1198,11 +1198,11 @@ pub fn detail_grid(items: List(#(String, String))) -> Node {
 pub fn page(
   title: String,
   user: User,
-  _conn: sqlight.Connection,
+  conn: sqlight.Connection,
   content: List(Node),
 ) -> Response {
   layout(title, [
-    site_header(user),
+    site_header(user, conn),
     html.main(
       [attr.id("main"), attr.class("site-main"), attr.Attr("tabindex", "-1")],
       content,
@@ -1325,9 +1325,9 @@ pub fn render_fragment(node: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-pub fn not_found(user: User, _conn: sqlight.Connection) -> Response {
+pub fn not_found(user: User, conn: sqlight.Connection) -> Response {
   layout("Not Found", [
-    site_header(user),
+    site_header(user, conn),
     html.main(
       [
         attr.id("main"),
@@ -1454,7 +1454,14 @@ pub fn overlay_wrapper(content: Node) -> Response {
   |> wisp.html_response(200)
 }
 
-fn site_header(user: User) -> Node {
+fn site_header(user: User, conn: sqlight.Connection) -> Node {
+  let #(picture_src, picture_class) = case db.get_profile(conn, user.username) {
+    Ok(db.Profile(picture: Some(file), ..)) -> #(
+      "/images/profiles/" <> file,
+      "user-avatar",
+    )
+    _ -> #("/static/grapevine.svg", "user-avatar user-avatar-placeholder")
+  }
   html.header([attr.class("site-header")], [
     html.div([attr.class("masthead")], [
       html.a([attr.href("/"), attr.class("brand")], [
@@ -1468,7 +1475,18 @@ fn site_header(user: User) -> Node {
         html.span([attr.class("brand-name")], [html.Text("Rebstock")]),
       ]),
       html.Element("details", [attr.class("user-menu")], [
-        html.Element("summary", [], [html.Text("~" <> user.username)]),
+        html.Element("summary", [], [
+          html.img([
+            attr.src(picture_src),
+            attr.class(picture_class),
+            attr.Attr("alt", ""),
+            attr.Attr("width", "28"),
+            attr.Attr("height", "28"),
+          ]),
+          html.span([attr.class("user-menu-name")], [
+            html.Text("~" <> user.username),
+          ]),
+        ]),
         html.div([attr.class("user-dropdown")], [
           html.a([attr.href("/settings")], [html.Text("Settings")]),
           html.a([attr.href(profile_url(user.username))], [

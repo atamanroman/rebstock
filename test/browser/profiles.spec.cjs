@@ -1,6 +1,6 @@
 const { test, expect } = require("@playwright/test");
 
-// A real, deliberately non-square 2×1 PNG. The public presentation must be square.
+// A real, deliberately non-square 2×1 PNG. It must fit a square box with circular clipping.
 const picture = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGMoNHcNyvAEAAbjAfGhhdpAAAAAAElFTkSuQmCC",
   "base64",
@@ -13,7 +13,7 @@ async function expectSquare(image) {
   const box = await image.boundingBox();
   expect(box.width).toBe(96);
   expect(box.height).toBe(96);
-  expect(await image.evaluate(img => getComputedStyle(img).borderRadius)).toBe("0px");
+  expect(await image.evaluate(img => getComputedStyle(img).borderRadius)).toBe("100%");
 }
 
 async function expectAccessible(page) {
@@ -24,7 +24,7 @@ async function expectAccessible(page) {
   expect(violations).toEqual([]);
 }
 
-test("native profile settings, square pictures and logo fallback stay off home", async ({ browser, request }, testInfo) => {
+test("native profile settings, round pictures and logo fallback stay off home", async ({ browser, request }, testInfo) => {
   const username = `profile-${testInfo.project.name}`;
   const headers = { "x-test-user": username };
   // Populate the collection so / exercises the regular dashboard, not just the welcome page.
@@ -45,13 +45,24 @@ test("native profile settings, square pictures and logo fallback stay off home",
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(username);
     await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
     await expectSquare(page.locator("main .profile-picture"));
+    const avatar = page.locator(".user-menu .user-avatar");
+    await expect(avatar).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(avatar).toHaveAttribute("alt", "");
+    await expect(avatar).toHaveCSS("border-radius", "100%");
+    await expect(avatar).toHaveCSS("width", "28px");
+    await expect(avatar).toHaveCSS("height", "28px");
     await page.locator(".user-menu > summary").click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveAttribute("href", "/settings");
     await expect(page.getByRole("link", { name: "Your profile", exact: true })).toHaveAttribute("href", `/~${username}`);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveURL(/\/settings$/);
-    await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(username);
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Alex Wine");
+    const usernameField = page.getByRole("textbox", { name: "Username", exact: true });
+    await expect(usernameField).toHaveValue(username);
+    await expect(usernameField).toHaveAttribute("readonly", "");
+    await expect(usernameField).toHaveAccessibleDescription("Provided by authentication. Cannot be changed here.");
+    await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toHaveAttribute("placeholder", username);
+    await page.getByRole("textbox", { name: "Display name", exact: true }).fill("Alex Wine");
     await page.getByLabel("Picture", { exact: true }).setInputFiles(upload);
     await page.getByRole("button", { name: "Save profile" }).click();
     await expect(page).toHaveURL(/\/settings\?saved=1$/);
@@ -59,6 +70,7 @@ test("native profile settings, square pictures and logo fallback stay off home",
     const image = page.locator("main .profile-picture");
     const src = await image.getAttribute("src");
     expect(src).toMatch(/^\/images\/profiles\/[0-9A-Z]+\.png$/);
+    await expect(avatar).toHaveAttribute("src", src);
     await expectSquare(image);
     expect((await request.get(src)).headers()["content-type"]).toContain("image/png");
     await page.getByRole("link", { name: "View your public profile" }).click();
@@ -75,14 +87,21 @@ test("native profile settings, square pictures and logo fallback stay off home",
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your collection");
     await expect(page.locator("main .profile-picture")).toHaveCount(0);
+    await expect(avatar).toHaveAttribute("src", src);
     await page.goto("/settings");
     await page.getByLabel("Remove picture").check();
     await page.getByRole("button", { name: "Save profile" }).click();
     await expect(page.getByRole("status")).toHaveText("Profile saved.");
     await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
     expect((await request.get(src)).status()).toBe(404);
+    await expect(avatar).toHaveAttribute("src", "/static/grapevine.svg");
+    await page.getByRole("textbox", { name: "Display name", exact: true }).fill("");
+    await page.getByRole("button", { name: "Save profile" }).click();
+    await expect(page.getByRole("status")).toHaveText("Profile saved.");
+    await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Username", exact: true })).toHaveValue(username);
     await page.goto(`/~${username}`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Alex Wine");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(username);
     await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
     await expectSquare(page.locator("main .profile-picture"));
   } finally {
@@ -105,13 +124,13 @@ test("invalid pictures preserve profiles and replacement uses safe content types
   const oldSrc = await page.locator("main .profile-picture").getAttribute("src");
   expect(oldSrc).toMatch(/\.png$/);
   await expectAccessible(page);
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Unsaved name");
+  await page.getByRole("textbox", { name: "Display name", exact: true }).fill("Unsaved name");
   await page.getByLabel("Picture", { exact: true }).setInputFiles({
     name: "not-really-a-photo.png", mimeType: "image/png", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
   });
   await page.getByRole("button", { name: "Save profile" }).click();
   await expect(page.getByRole("alert")).toContainText("Choose a PNG, JPEG or WebP picture.");
-  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Unsaved name");
+  await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toHaveValue("Unsaved name");
   await expect(page.getByLabel("Picture", { exact: true })).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Picture", { exact: true })).toHaveAttribute("aria-describedby", /profile-picture-help.*validation-picture/);
   await expect(page.locator("main .profile-picture")).toHaveAttribute("src", oldSrc);

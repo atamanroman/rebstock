@@ -30,7 +30,10 @@
   .nav-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--ui-muted); font-size: .85rem; text-underline-offset: .5em; }
   .nav-link:hover, .nav-link[aria-current="page"] { color: var(--ui-ink); text-decoration: underline; }
   .user-menu { order: 2; position: relative; margin-left: auto; flex-shrink: 0; max-width: 40%; font-size: .85rem; }
-  .user-menu > summary { display: flex; align-items: center; min-height: 44px; color: var(--ui-muted); }
+  .user-menu > summary { display: flex; align-items: center; gap: .5rem; min-height: 44px; color: var(--ui-muted); }
+  .user-menu-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-avatar { flex: none; width: 28px; height: 28px; border-radius: 100%; object-fit: cover; background: #faf9f8; }
+  .user-avatar-placeholder { object-fit: contain; padding: 4px; }
   .user-dropdown { position: absolute; right: 0; top: 100%; z-index: 20; width: 170px; padding: .4rem; border: 1px solid var(--ui-rule); background: white; border-radius: var(--ui-radius); }
   .user-dropdown a { display: flex; align-items: center; min-height: 44px; padding: .5rem; }
   .user-dropdown a:hover { background: #f7f6f5; }
@@ -54,10 +57,13 @@
   .card, .overlay-panel > .detail-content { padding: 1.5rem; }
   .card { border: 1px solid var(--ui-rule); border-radius: var(--ui-radius); background: white; }
   .form-card { max-width: 36rem; }
+  .profile-name-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .profile-name-fields input[readonly] { background: #faf9f8; color: var(--ui-muted); }
+  .profile-name-fields p { margin-top: .35rem; }
   .profile-heading { display: flex; align-items: center; gap: 1rem; min-width: 0; }
   .profile-heading > div { min-width: 0; overflow-wrap: anywhere; }
   .profile-heading p { margin-top: .35rem; color: var(--ui-muted); font-size: .875rem; }
-  .profile-picture { display: block; flex: none; width: 96px; height: 96px; aspect-ratio: 1; object-fit: cover; background: #faf9f8; }
+  .profile-picture { display: block; flex: none; width: 96px; height: 96px; aspect-ratio: 1; border-radius: 100%; object-fit: cover; background: #faf9f8; }
   .profile-picture-placeholder { object-fit: contain; padding: 1rem; }
   .profile-picture-field { display: flex; align-items: flex-start; gap: 1rem; }
   .profile-picture-field > div { flex: 1; min-width: 0; }

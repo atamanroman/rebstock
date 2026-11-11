@@ -50,6 +50,13 @@ pub fn settings_form_has_native_labels_and_limits_test() {
   let body = simulate.read_body(res)
   let assert True = string.contains(body, ">Settings</h1>")
   let assert True = string.contains(body, "for=\"profile-name\"")
+  let assert True = string.contains(body, "Display name")
+  let assert True = string.contains(body, "placeholder=\"test\"")
+  let assert True = string.contains(body, "name=\"display_name\" value=\"\"")
+  let assert True =
+    string.contains(body, "id=\"profile-username\" value=\"test\" readonly")
+  let assert True =
+    string.contains(body, "Provided by authentication. Cannot be changed here.")
   let assert True = string.contains(body, "for=\"profile-picture\"")
   let assert True = string.contains(body, "enctype=\"multipart/form-data\"")
   let assert True = string.contains(body, "maxlength=\"100\"")
@@ -81,13 +88,33 @@ pub fn saving_updates_only_the_authenticated_user_test() {
   Nil
 }
 
+pub fn clearing_the_display_name_restores_username_test() {
+  use conn <- with_empty_db
+  db.ensure_user(conn, "test")
+  db.update_profile(conn, "test", "Original", Some("picture.png"))
+  let res =
+    simulate.request(http.Post, "/settings")
+    |> simulate.form_body([#("display_name", "   ")])
+    |> router.handle_request(conn, test_config)
+  let assert 303 = res.status
+  let assert Ok(db.Profile("test", None, Some("picture.png"))) =
+    db.get_profile(conn, "test")
+  let public =
+    simulate.request(http.Get, "/~test")
+    |> router.handle_request(conn, test_config)
+    |> simulate.read_body
+  let assert True = string.contains(public, "<h1>test</h1>")
+  Nil
+}
+
 pub fn invalid_names_preserve_the_profile_test() {
   use conn <- with_empty_db
   db.ensure_user(conn, "test")
   db.update_profile(conn, "test", "Original", None)
+  let too_long = string.repeat("a", 101)
   let res =
     simulate.request(http.Post, "/settings")
-    |> simulate.form_body([#("display_name", "   ")])
+    |> simulate.form_body([#("display_name", too_long)])
     |> router.handle_request(conn, test_config)
   let assert 422 = res.status
   let body = simulate.read_body(res)
@@ -95,14 +122,7 @@ pub fn invalid_names_preserve_the_profile_test() {
   let assert True = string.contains(body, "validation-display_name")
   let assert Ok(db.Profile("test", Some("Original"), None)) =
     db.get_profile(conn, "test")
-  let too_long = string.repeat("a", 101)
-  let res =
-    simulate.request(http.Post, "/settings")
-    |> simulate.form_body([#("display_name", too_long)])
-    |> router.handle_request(conn, test_config)
-  let assert 422 = res.status
-  let assert True =
-    string.contains(simulate.read_body(res), "value=\"" <> too_long <> "\"")
+  let assert True = string.contains(body, "value=\"" <> too_long <> "\"")
   let assert Ok(db.Profile("test", Some("Original"), None)) =
     db.get_profile(conn, "test")
   Nil
@@ -132,7 +152,17 @@ pub fn public_profile_escapes_names_and_has_no_home_picture_test() {
     |> router.handle_request(conn, test_config)
     |> simulate.read_body
   let assert False = string.contains(home, "profile-picture")
-  let assert False = string.contains(home, "/images/profiles/")
+  let assert True =
+    string.contains(
+      home,
+      "src=\"/images/profiles/own.png\" class=\"user-avatar\"",
+    )
+  let assert False = string.contains(home, "/images/profiles/example.png")
+  let assert True =
+    string.contains(
+      public,
+      "src=\"/images/profiles/own.png\" class=\"user-avatar\"",
+    )
   Nil
 }
 

@@ -77,11 +77,7 @@ pub fn settings(
 }
 
 fn settings_form(user: User, profile: db.Profile, saved: Bool) -> Node {
-  let name =
-    option.unwrap(
-      profile.display_name,
-      option.unwrap(user.display_name, user.username),
-    )
+  let name = option.unwrap(profile.display_name, "")
   html.div([attr.class("form-card")], [
     c.page_header("Settings", "Your public profile."),
     case saved {
@@ -99,16 +95,37 @@ fn settings_form(user: User, profile: db.Profile, saved: Bool) -> Node {
         attr.class("space-y-4"),
       ],
       [
-        c.form_field("profile-name", "Name", True, [
-          html.input([
-            attr.type_("text"),
-            attr.id("profile-name"),
-            attr.name("display_name"),
-            attr.value(name),
-            attr.Attr("required", ""),
-            attr.Attr("maxlength", "100"),
-            attr.Attr("autocomplete", "name"),
-            attr.class(c.input_class),
+        html.div([attr.class("profile-name-fields")], [
+          c.form_field("profile-username", "Username", False, [
+            html.input([
+              attr.type_("text"),
+              attr.id("profile-username"),
+              attr.value(user.username),
+              attr.Attr("readonly", ""),
+              attr.Attr("aria-describedby", "profile-username-help"),
+              attr.class(c.input_class),
+            ]),
+            html.p(
+              [
+                attr.id("profile-username-help"),
+                attr.class("text-sm text-stone-500"),
+              ],
+              [
+                html.Text("Provided by authentication. Cannot be changed here."),
+              ],
+            ),
+          ]),
+          c.form_field("profile-name", "Display name", False, [
+            html.input([
+              attr.type_("text"),
+              attr.id("profile-name"),
+              attr.name("display_name"),
+              attr.value(name),
+              attr.Attr("placeholder", user.username),
+              attr.Attr("maxlength", "100"),
+              attr.Attr("autocomplete", "name"),
+              attr.class(c.input_class),
+            ]),
           ]),
         ]),
         html.div([attr.class("profile-picture-field")], [
@@ -131,7 +148,7 @@ fn settings_form(user: User, profile: db.Profile, saved: Bool) -> Node {
               ],
               [
                 html.Text(
-                  "PNG, JPEG or WebP, up to 2 MB. Shown as a square on your public profile, not your home dashboard. Without a picture, the grapevine logo is used.",
+                  "PNG, JPEG or WebP, up to 2 MB. Shown as a circle on your public profile and in your account menu. Without a picture, the grapevine logo is used.",
                 ),
               ],
             ),
@@ -179,7 +196,7 @@ fn save(
     list.key_find(form.values, "display_name")
     |> result.unwrap("")
     |> string.trim
-  case name == "" || string.length(name) > 100 {
+  case string.length(name) > 100 {
     True ->
       c.form_error(
         req,
@@ -188,7 +205,7 @@ fn save(
         settings_form(user, profile, False),
         form.values,
         ["display_name"],
-        "Enter a name between 1 and 100 characters.",
+        "Use a display name of 100 characters or fewer, or leave it empty to use your username.",
       )
     False ->
       case save_picture(form, image_dir, profile.picture) {

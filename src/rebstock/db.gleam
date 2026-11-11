@@ -345,7 +345,7 @@ pub fn update_profile(
 ) -> Nil {
   let assert Ok(_) =
     sqlight.query(
-      "UPDATE users SET display_name = ?, picture = ? WHERE username = ?",
+      "UPDATE users SET display_name = NULLIF(?, ''), picture = ? WHERE username = ?",
       on: conn,
       with: [
         sqlight.text(display_name),
