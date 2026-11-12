@@ -28,15 +28,14 @@ verify(Token, Config = {config, Resource, Issuer, Uri, Client, Scope, UsernameCl
         true = valid_not_before(maps:get(<<"nbf">>, Claims, absent), Now),
         Username = maps:get(UsernameClaim, Claims),
         true = username(Username),
-        TokenScope = maps:get(<<"scope">>, Claims),
-        true = is_binary(TokenScope),
+        TokenScopes = token_scopes(Claims),
         Signature = base64url(Signature64),
         Content = <<Header64/binary, ".", Claims64/binary>>,
         case signing_key(Uri, Kid) of
             {ok, Key} ->
                 case public_key:verify(Content, sha256, Signature, Key) of
                     true ->
-                        case lists:member(Scope, binary:split(TokenScope, <<" ">>, [global])) of
+                        case lists:member(Scope, TokenScopes) of
                             true -> {ok, Username};
                             false -> {error, forbidden}
                         end;
@@ -47,6 +46,25 @@ verify(Token, Config = {config, Resource, Issuer, Uri, Client, Scope, UsernameCl
     catch
         _:_ -> {error, unauthorized}
     end.
+
+%% Authelia emits scp arrays; other issuers use the OAuth scope string.
+%% If both are present, require agreement rather than merging permissions.
+token_scopes(Claims) ->
+    case {maps:find(<<"scope">>, Claims), maps:find(<<"scp">>, Claims)} of
+        {{ok, Scope}, error} when is_binary(Scope) ->
+            binary:split(Scope, <<" ">>, [global]);
+        {error, {ok, Scopes}} -> scope_array(Scopes);
+        {{ok, Scope}, {ok, Scopes}} when is_binary(Scope) ->
+            Parsed = binary:split(Scope, <<" ">>, [global]),
+            true = lists:usort(Parsed) =:= lists:usort(scope_array(Scopes)),
+            Parsed;
+        _ -> erlang:error(invalid_scope)
+    end.
+
+scope_array(Scopes) when is_list(Scopes) ->
+    true = lists:all(fun(S) -> is_binary(S) andalso byte_size(S) > 0 end, Scopes),
+    Scopes;
+scope_array(_) -> erlang:error(invalid_scope).
 
 audience_matches(Audience, Resource) when is_binary(Audience) -> Audience =:= Resource;
 audience_matches(Audience, Resource) when is_list(Audience) ->

@@ -315,6 +315,21 @@ test("RSA signatures, audience, issuer, client, expiry, and scope are enforced o
   assert.equal((await raw()).status, 200);
 });
 
+test("Authelia scp arrays are verified without widening granted scopes", async () => {
+  for (const [claims, status] of [
+    [{ scope: undefined, scp: ["openid", scope] }, 200],
+    [{ scope: undefined, scp: ["openid"] }, 403],
+    [{ scope: undefined, scp: scope }, 401],
+    [{ scope: undefined, scp: [scope, 1] }, 401],
+    [{ scope: "openid", scp: [scope] }, 401],
+    [{ scope, scp: [scope] }, 200],
+  ]) {
+    const response = await raw(rpc(), { token: jwt("socket-authelia", claims) });
+    assert.equal(response.status, status, JSON.stringify(claims));
+    await response.body?.cancel();
+  }
+});
+
 test("the stateless transport rejects hostile origins and unsupported HTTP methods", async () => {
   assert.equal((await raw(rpc(), { headers: { origin: "https://hostile.example" } })).status, 403);
   assert.equal((await raw(rpc(), { headers: { origin: fixture.origin } })).status, 200);

@@ -119,6 +119,50 @@ pub fn missing_required_scope_is_forbidden_test() {
   authenticate(config, jwt) |> should.equal(Error(oauth.Forbidden))
 }
 
+pub fn authelia_scope_arrays_are_supported_test() {
+  use config, server <- with_server
+  let payload =
+    string.replace(
+      claims(),
+      "\"scope\":\"openid rebstock:mcp\"",
+      "\"scp\":[\"openid\",\"rebstock:mcp\"]",
+    )
+  let assert Ok(user) = authenticate(config, token(server, header, payload))
+  user.username |> should.equal("alice")
+  authenticate(
+    config,
+    token(server, header, string.replace(payload, "rebstock:mcp", "other")),
+  )
+  |> should.equal(Error(oauth.Forbidden))
+}
+
+pub fn malformed_or_conflicting_scope_claims_are_rejected_test() {
+  use config, server <- with_server
+  let original = "\"scope\":\"openid rebstock:mcp\""
+  [
+    "\"scp\":\"rebstock:mcp\"",
+    "\"scp\":[\"rebstock:mcp\",1]",
+    "\"scp\":[null]",
+    "\"scope\":\"openid\",\"scp\":[\"rebstock:mcp\"]",
+    "\"scope\":null,\"scp\":[\"rebstock:mcp\"]",
+  ]
+  |> list.each(fn(replacement) {
+    authenticate(
+      config,
+      token(server, header, string.replace(claims(), original, replacement)),
+    )
+    |> should.equal(Error(oauth.Unauthorized))
+  })
+  let both =
+    string.replace(
+      claims(),
+      original,
+      original <> ",\"scp\":[\"rebstock:mcp\",\"openid\"]",
+    )
+  let assert Ok(user) = authenticate(config, token(server, header, both))
+  user.username |> should.equal("alice")
+}
+
 pub fn wrong_algorithm_and_id_token_type_are_unauthorized_test() {
   use config, server <- with_server
   [

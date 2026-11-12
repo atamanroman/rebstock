@@ -1,5 +1,10 @@
 # Rebstock Changelog
 
+## 0.4.1
+
+- Accept Authelia's `scp` access-token scope array as well as OAuth `scope`
+  strings; reject malformed or conflicting scope claims.
+
 ## 0.4.0
 
 Migrations 00006–00007 add import references and optional user profiles without

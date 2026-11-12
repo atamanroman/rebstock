@@ -81,7 +81,7 @@ Authelia's public discovery was checked on 2026-11-09 and advertises `authorizat
 If using a different issuer or callback, register the exact URI selected by Codex and keep the listener port consistent.
 Leave the client secret unset for this public client.
 Authelia supports custom scopes, copying granted claims into access tokens, explicit resource audiences, and signed JWT access tokens through its [provider options](https://www.authelia.com/configuration/identity-providers/openid-connect/provider/) and [client options](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
-Verify that the minted access token has `typ: at+jwt`, `alg: RS256`, the expected `iss`, an `aud` containing the MCP resource, `client_id: rebstock-codex`, the granted `rebstock:mcp` scope, a future integer `exp`, and a nonempty `preferred_username` matching the intended Rebstock username.
+Verify that the minted access token has `typ: at+jwt`, `alg: RS256`, the expected `iss`, an `aud` containing the MCP resource, `client_id: rebstock-codex`, the granted `rebstock:mcp` scope (`scope` string or Authelia's `scp` array), a future integer `exp`, and a nonempty `preferred_username` matching the intended Rebstock username.
 ID tokens and opaque access tokens do not satisfy this boundary.
 
 After registration and deployment, add the following server to the configuration source that supplies your Codex `config.toml`, following the [official OAuth connection guidance](https://learn.chatgpt.com/docs/extend/mcp#oauth-client-registration-and-callbacks).
