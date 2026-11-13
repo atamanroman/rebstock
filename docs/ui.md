@@ -20,8 +20,19 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
 - Dashboard summaries are compact inline links, not stat cards. Rating insights
   follow the collection summary, above recent activity and highlights; all remain
   visible without disclosure panels. Detail pages sit directly on white; forms and dialogs retain clear
-  boundaries. Wine summary scores stay compact; entry actions do not overlap
-  tasting notes.
+  boundaries. Wine details retain a prominent bottle image in a close-fitting slot
+  (88×220px on desktop, 64×160px on mobile). The selected cut-paper SVG fallbacks
+  live in `priv/static/bottles/`: distinct silhouettes, angular labels, restrained
+  flat colors and accessible descriptions. Red, white, rosé and orange are the
+  unchanged #05 gallery choices. Sparkling uses dark-green champagne glass, a
+  longer neck and a seated cork with a rounded head. Dessert, sake and other use
+  matching two-tone paper shapes and inset labels in amber, ivory and neutral
+  olive respectively. Dessert is drawn as a tall, slender half-bottle with a long gold capsule; Other carries a
+  drawn question mark. Sake's 酒 (sake) label uses SVG paths, not a font glyph. Uploaded photos still take precedence. The page keeps
+  grouped metadata and plain vintage links. Ratings and cellar history sit in
+  distinct columns on wide screens and stack on smaller screens. Heading weight,
+  alignment and whitespace establish hierarchy, not repeated rules or cards.
+  Entry actions do not overlap tasting notes.
 - Thematic breaks between dashboard sections, before notes, and above the footer
   use native `<hr>` elements with shared `section-divider` spacing (a compact
   variant for notes). Borders remain on tables, controls and container edges.
@@ -53,7 +64,7 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
 
 - Collections use `ul`/`li` (`item_list` preserves list semantics in Safari when
   markers are removed). Metadata and score summaries use `dl`/`dt`/`dd`.
-- Wine detail sections use `h2`, with `h3` for You/Others within Ratings.
+- Wine detail sections use `h2`, with `h3` for Your ratings/Other ratings within Ratings.
   Reused forms explicitly render an `h1` on a page and an `h2` in a dialog;
   heading levels do not depend on CSS classes.
 - Dates use `time` with a machine-readable date; quoted notes use `blockquote`

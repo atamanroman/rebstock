@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280" role="img" aria-label="Cut-paper tall, slender dessert wine bottle">
+  <title>Slender amber dessert bottle with a long gold capsule</title>
+  <g class="half-bottle slender-dessert-bottle">
+    <path fill="#8a6032" d="M50 13 L70 14 L69 76 L82 181 L84 250 Q85 264 76 266 L44 265 Q36 265 36 255 L37 183 L50 76 Z"/>
+    <path fill="#62492e" d="M62 32 L69 33 L69 76 L82 181 L84 250 Q85 264 76 266 L66 266 L70 236 L67 209 L72 181 L63 108 Z"/>
+    <path fill="#b99a59" d="M49 13 L71 14 L70 76 L49 75 Z"/>
+    <path fill="#94773f" d="M63 15 L71 14 L70 76 L63 76 Z"/>
+    <path fill="#d4b979" d="M49 12 L71 13 L72 23 L49 24 Z"/>
+    <path fill="#fffdf8" d="M51 30 L54 29 L53 67 L50 71 Z M47 99 L50 91 L43 159 L41 180 L38 185 L40 155 Z"/>
+    <path fill="#f1e8d9" d="M40 190 L80 185 L81 242 L40 247 Z"/>
+    <path fill="#8a6032" d="M61 199 L69 214 L60 229 L52 215 Z M48 237 L73 234 L73 237 L48 240 Z"/>
+  </g>
+</svg>

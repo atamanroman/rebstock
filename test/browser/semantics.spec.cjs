@@ -52,10 +52,10 @@ test("pages expose headings, collections, metadata, charts and dates natively", 
   await page.goto(wine);
   await checkHeadings(page);
   await expect(page.getByRole("heading", { name: "Ratings", exact: true, level: 2 })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Cellar", exact: true, level: 2 })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "You", exact: true, level: 3 })).toBeVisible();
-  await expect(page.locator("dl.detail-grid dt")).toHaveText(["Country"]);
-  await expect(page.locator("dl.detail-grid dd")).toHaveText(["Germany"]);
+  await expect(page.getByRole("heading", { name: "Your cellar", exact: true, level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your ratings", exact: true, level: 3 })).toBeVisible();
+  await expect(page.locator(".wine-producer")).toContainText("Germany");
+  await expect(page.locator("dl.detail-grid dt")).not.toContainText(["Country"]);
   await expect(page.locator("dl.wine-stats dt")).toHaveText(["Vivino", "You", "Others"]);
   expect(await page.locator('time[datetime="2026-09-05"]').count()).toBeGreaterThan(0);
   await expect(page.getByRole("link", { name: `Edit rating for ${name}, 05.09.2026`, exact: true })).toBeVisible();

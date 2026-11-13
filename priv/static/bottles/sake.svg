@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280" role="img" aria-label="Cut-paper sake flask with 酒 on the label">
+  <title>Ivory sake flask with a cut-paper label</title>
+  <path fill="#e3ddcc" d="M44 28 L74 26 L77 35 L70 44 L69 82 C70 98 86 110 94 132 L100 153 L94 247 L82 257 L34 255 L24 245 L21 157 L28 130 C35 109 48 98 48 83 L49 45 L42 36 Z"/>
+  <path fill="#c5b99f" d="M65 44 L70 44 L69 82 C70 98 86 110 94 132 L100 153 L94 247 L82 257 L65 256 L77 237 L80 188 L83 153 L75 124 L60 87 Z"/>
+  <path fill="#557287" d="M44 29 L74 27 L76 35 L69 40 L48 42 L42 36 Z"/>
+  <path fill="#e3ddcc" d="M48 31 L71 29 L72 33 L50 36 Z"/>
+  <path fill="#fffdf8" d="M50 49 L54 48 L53 83 L49 98 L45 102 L48 82 Z M32 135 L37 124 L32 151 L30 178 L26 180 L27 153 Z"/>
+  <path fill="#713745" d="M30 145 L74 138 L77 201 L33 208 Z"/>
+  <g transform="translate(36 155) scale(.98 1.08)" fill="none" stroke="#fffdf8" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 3 Q5 4 6 7 M0 13 Q3 13 5 16 M1 30 Q4 25 7 20"/>
+    <path d="M11 3 Q20 2 30 3 M12 10 Q12 20 11 33 M12 10 Q20 9 29 10 L29 33 Q20 32 11 33 M17 4 L17 14 Q17 18 14 20 M23 4 Q22 10 23 16 Q24 18 28 17 M14 25 Q20 24 26 25"/>
+  </g>
+</svg>

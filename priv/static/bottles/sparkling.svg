@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280" role="img" aria-label="Dark-green sparkling wine bottle with a fully seated cork">
+  <title>Cut-paper champagne bottle: long neck, dark-green glass and seated mushroom cork</title>
+  <path class="bottle-body" fill="#314a2c" d="M49 18 L70 17 L71 75 C72 94 89 102 98 123 C104 138 105 156 104 177 L101 249 Q101 264 87 267 L33 266 Q19 264 18 250 L16 176 C15 155 15 139 22 123 C31 103 47 95 48 76 Z"/>
+  <path fill="#1d3524" d="M61 27 L70 26 L71 75 L76 92 L93 116 L101 139 L100 247 L86 255 L83 214 L88 178 L84 143 L86 127 L67 100 L62 78 Z"/>
+  <path class="champagne-lip" fill="#1d3524" d="M47 17 L72 16 L75 21 L73 28 L47 29 L45 23 Z"/>
+  <path class="champagne-cork" fill="#c2a17a" d="M51 21 L51 18 C47 17 45 13 46 8 C47 3 52 1 60 1 C68 1 73 4 74 9 C75 14 72 17 69 18 L69 21 Z"/>
+  <path fill="#e5d1ae" d="M49 7 C51 3 57 2 62 3 C67 3 71 6 71 9 C66 12 53 12 49 9 Z"/>
+  <path fill="#a88762" d="M61 12 Q69 12 73 8 C75 13 71 17 68 18 L68 21 L61 21 Z"/>
+  <path fill="#ffffff" fill-opacity=".27" d="M48 24 L71 23 L72 25 L48 27 Z"/>
+  <path fill="#ffffff" d="M51 33 L55 32 L54 74 L50 87 L47 90 L50 73 Z M31 121 L36 119 L31 135 L29 155 L25 158 L25 139 Z"/>
+  <path fill="#ffffff" d="M32 144 L94 136 L91 203 L30 211 Z"/>
+  <path fill="#713745" d="M66 153 L79 151 L76 187 L63 189 Z M42 193 L78 187 L78 191 L42 197 Z"/>
+  <path fill="#ffffff" fill-opacity=".32" d="M29 246 Q59 253 92 245 L89 254 Q59 262 32 255 Z"/>
+</svg>

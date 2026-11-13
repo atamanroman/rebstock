@@ -459,7 +459,30 @@ pub fn wine_type_label(wt: db.WineType) -> String {
 }
 
 pub fn wine_type_badge(wine_type: db.WineType) -> Node {
-  let class = case wine_type {
+  html.span([attr.class(wine_type_class(wine_type))], [
+    html.Text(wine_type_label(wine_type)),
+  ])
+}
+
+pub fn wine_type_dot(wine_type: db.WineType) -> Node {
+  let label = case wine_type {
+    db.Sake -> "Sake"
+    db.Other -> "Other wine"
+    _ -> wine_type_label(wine_type) <> " wine"
+  }
+  html.span(
+    [
+      attr.class(wine_type_class(wine_type) <> " wine-type-dot"),
+      attr.Attr("role", "img"),
+      attr.Attr("aria-label", label),
+      attr.Attr("title", label),
+    ],
+    [],
+  )
+}
+
+fn wine_type_class(wine_type: db.WineType) -> String {
+  case wine_type {
     db.Red -> "wine-type wine-type-red"
     db.White -> "wine-type wine-type-white"
     db.Rose -> "wine-type wine-type-rose"
@@ -469,7 +492,6 @@ pub fn wine_type_badge(wine_type: db.WineType) -> Node {
     db.Sake -> "wine-type wine-type-sake"
     db.Other -> "wine-type"
   }
-  html.span([attr.class(class)], [html.Text(wine_type_label(wine_type))])
 }
 
 // --- Rating display ---
@@ -960,7 +982,11 @@ fn decimals(value: Float, places: Int) -> String {
 
 // --- Image helpers ---
 
-pub fn wine_image(wine_id: String, class: String) -> Node {
+pub fn wine_image(
+  wine_id: String,
+  wine_type: db.WineType,
+  class: String,
+) -> Node {
   html.div([attr.class(class <> " relative overflow-hidden")], [
     html.img([
       attr.src("/images/bottles/" <> wine_id <> ".jpg"),
@@ -971,21 +997,36 @@ pub fn wine_image(wine_id: String, class: String) -> Node {
         "this.style.display='none';this.nextElementSibling.style.display='flex'",
       ),
     ]),
-    html.div(
-      [
-        attr.class(
-          "hidden items-center justify-center w-full h-full bg-stone-100 border border-stone-200 rounded-lg p-1",
-        ),
-      ],
-      [
-        html.UnsafeInlineHtml(
-          "<svg aria-hidden=\"true\" class=\"w-full h-full\" viewBox=\"0 0 80 220\" fill=\"#2d5a27\" xmlns=\"http://www.w3.org/2000/svg\">"
-          <> "<path d=\"M30,0 L30,4 L26,4 L26,8 L30,8 L30,38 C30,52 10,62 10,80 L10,206 C10,214 16,220 24,220 L56,220 C64,220 70,214 70,206 L70,80 C70,62 50,52 50,38 L50,8 L54,8 L54,4 L50,4 L50,0 Z\"/>"
-          <> "</svg>",
-        ),
-      ],
-    ),
+    bottle_placeholder(wine_type),
   ])
+}
+
+fn bottle_placeholder(wine_type: db.WineType) -> Node {
+  let label = case wine_type {
+    db.Sake -> "Sake flask illustration with 酒 (sake) on the label"
+    db.Sparkling ->
+      "Sparkling wine bottle illustration with a fully seated cork"
+    _ -> wine_type_label(wine_type) <> " wine bottle illustration"
+  }
+  let type_name = string.lowercase(db.wine_type_to_string(wine_type))
+  html.div(
+    [
+      attr.class(
+        "bottle-placeholder bottle-placeholder-"
+        <> type_name
+        <> " hidden items-center justify-center w-full h-full",
+      ),
+      attr.Attr("role", "img"),
+      attr.Attr("aria-label", label),
+    ],
+    [
+      html.img([
+        attr.src("/static/bottles/" <> type_name <> ".svg"),
+        attr.Attr("alt", ""),
+        attr.class("w-full h-full object-contain"),
+      ]),
+    ],
+  )
 }
 
 // --- Card helpers ---

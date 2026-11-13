@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current bottles — Rebstock</title>
+  <style>
+    :root { color-scheme: light; --ink: #292725; --muted: #6b6662; --accent: #713745; }
+    * { box-sizing: border-box; }
+    body { max-width: 1440px; margin: 0 auto; padding: 40px 24px; background: white; color: var(--ink); font: 15px/1.6 system-ui, -apple-system, sans-serif; }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 32px); font-weight: 500; letter-spacing: -.04em; line-height: 1.25; }
+    header p { margin: 8px 0 20px; color: var(--muted); }
+    .size-control { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; color: var(--muted); font-size: 14px; }
+    input { width: 18px; height: 18px; accent-color: var(--accent); }
+    input:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    .bottles { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 24px; padding-top: 32px; }
+    figure { min-width: 0; margin: 0; text-align: center; }
+    .art { height: 300px; display: flex; align-items: flex-end; justify-content: center; }
+    img { display: block; width: 120px; height: 280px; max-width: 100%; object-fit: contain; }
+    body:has(#actual-size:checked) img { width: 88px; height: 220px; }
+    figcaption { margin-top: 20px; font-size: 15px; }
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px; }
+    footer code { font: inherit; }
+    @media (max-width: 1000px) { .bottles { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 40px; } }
+    @media (max-width: 520px) { body { padding: 24px 16px; } .bottles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .art { height: 280px; } }
+    @media print { .size-control, footer { display: none; } body { max-width: none; padding: 12px; } .bottles { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; } .art { height: 220px; } img { width: 88px; height: 220px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Current bottle illustrations</h1>
+    <p>The selected cut-paper set, using the same SVG files as the app.</p>
+    <label class="size-control"><input type="checkbox" id="actual-size"> Show at actual app size (88 × 220px)</label>
+  </header>
+  <main aria-label="Current bottle set">
+    <div class="bottles">
+      <figure><div class="art"><img src="../priv/static/bottles/red.svg" alt="Cut-paper red wine bottle"></div><figcaption>Red</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/white.svg" alt="Cut-paper white wine bottle"></div><figcaption>White</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/rose.svg" alt="Cut-paper rosé wine bottle"></div><figcaption>Rosé</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/orange.svg" alt="Cut-paper orange wine bottle"></div><figcaption>Orange</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/sparkling.svg" alt="Dark-green sparkling wine bottle with a seated mushroom cork"></div><figcaption>Sparkling</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/dessert.svg" alt="Tall, slender amber dessert wine bottle with a long gold capsule"></div><figcaption>Dessert</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/sake.svg" alt="Cut-paper sake flask with 酒 on the label"></div><figcaption>Sake</figcaption></figure>
+      <figure><div class="art"><img src="../priv/static/bottles/other.svg" alt="Cut-paper wine bottle with a question mark for an unspecified type"></div><figcaption>Other</figcaption></figure>
+    </div>
+  </main>
+  <footer>Live assets from <code>priv/static/bottles/</code> — no copied artwork, JavaScript, server or build step required.</footer>
+</body>
+</html>

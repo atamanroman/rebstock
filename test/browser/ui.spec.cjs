@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
 let sequence = 0;
-async function seed(request) {
+async function seed(request, wineType = "white") {
   const name = `Journal Riesling ${Date.now()} ${++sequence}`;
   const created = await request.post("/wines", {
     form: {
@@ -9,7 +9,7 @@ async function seed(request) {
       winery: "Journal Estate",
       vintage: "2023",
       country: "DE",
-      wine_type: "white",
+      wine_type: wineType,
     },
     maxRedirects: 0,
   });
@@ -87,9 +87,116 @@ test("Ledger uses directly served CSS and restrained wine labels", async ({
   await expect(page.locator(".brand-mark")).toHaveAttribute("alt", "");
   expect(await page.locator(".brand-mark").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(page.locator(".brand-description")).toHaveCount(0);
-  await expect(page.locator(".wine-type").first()).toHaveText("White");
+  const typeDot = page.getByRole("img", { name: "White wine", exact: true });
+  await expect(typeDot).toBeVisible();
+  await expect(typeDot).toHaveAttribute("title", "White wine");
+  expect(await typeDot.evaluate(el => getComputedStyle(el, "::before").width)).toBe("12px");
+  await expect(page.locator(".wine-producer")).toHaveText("Journal Estate · Germany");
+  await expect(page.locator(".wine-metadata")).not.toContainText("Country");
   await expect(page.locator(".wine-type").first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(page.locator("h1")).toHaveCSS("font-family", /system-ui/);
+});
+
+test("wine details use whitespace hierarchy and retain the bottle image", async ({ page, request }) => {
+  const { wine } = await seed(request);
+  await stock(request, wine);
+  await request.post(`${wine}/ratings/new`, {
+    form: {
+      vintage: "2023",
+      rating: "4.2",
+      tasting_notes: "Fresh citrus and a long finish.",
+      rated_at: "2026-09-05",
+    },
+  });
+  await page.goto(wine);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await noOverflow(page);
+    await expect(page.locator(".wine-stats")).toHaveCSS("display", "flex");
+    await expect(page.locator(".wine-label")).toBeVisible();
+    await expect(page.locator(".wine-label > div")).toBeVisible();
+    const bottle = await page.locator(".wine-label").boundingBox();
+    expect(bottle.width).toBe(width < 768 ? 64 : 88);
+    expect(bottle.height).toBe(width < 768 ? 160 : 220);
+    await expect(page.locator(".wine-detail hr")).toHaveCount(0);
+    const ratings = await page.locator(".wine-ratings").boundingBox();
+    const cellar = await page.locator(".wine-cellar").boundingBox();
+    if (width > 1000) {
+      expect(cellar.x).toBeGreaterThan(ratings.x + ratings.width);
+      expect(Math.abs(cellar.y - ratings.y)).toBeLessThan(1);
+    } else {
+      expect(cellar.y).toBeGreaterThan(ratings.y + ratings.height);
+    }
+    for (const row of await page.locator(".wine-entry").all()) {
+      await expect(row).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(row).toHaveCSS("border-radius", "0px");
+      await expect(row).toHaveCSS("border-left-width", "0px");
+      await expect(row).toHaveCSS("border-bottom-width", "0px");
+    }
+    await expect(page.locator(".vintage-link-current")).toHaveCSS(
+      "background-color", "rgba(0, 0, 0, 0)",
+    );
+  }
+  await page.getByRole("navigation", { name: "Filter by vintage" })
+    .getByRole("link", { name: "2023", exact: true }).click();
+  await expect(page).toHaveURL(/\?vintage=2023$/);
+  await expect(page.locator('.vintage-link[aria-current="true"]')).toHaveText("2023");
+  await expect(page.getByText("Fresh citrus and a long finish.")).toBeVisible();
+  await accessible(page);
+});
+
+test("cut-paper bottle assets preserve uploads and distinguish wine types", async ({ page, request }) => {
+  test.setTimeout(90_000);
+  const shapes = new Set();
+  const colors = new Set();
+  for (const [type, label] of [
+    ["red", "Red"], ["white", "White"], ["rose", "Rosé"], ["orange", "Orange"],
+    ["sparkling", "Sparkling"], ["dessert", "Dessert"], ["sake", "Sake"], ["other", "Other"],
+  ]) {
+    const { wine } = await seed(request, type);
+    await page.goto(wine);
+    const name = type === "sake"
+      ? "Sake flask illustration with 酒 (sake) on the label"
+      : type === "sparkling"
+        ? "Sparkling wine bottle illustration with a fully seated cork"
+        : `${label} wine bottle illustration`;
+    const placeholder = page.getByRole("img", { name, exact: true });
+    await expect(placeholder).toBeVisible();
+    const image = placeholder.locator("img");
+    await expect(image).toHaveAttribute("src", `/static/bottles/${type}.svg`);
+    await expect(image).toHaveAttribute("alt", "");
+    expect(await image.evaluate(el => el.complete && el.naturalWidth > 0)).toBe(true);
+    const response = await request.get(`/static/bottles/${type}.svg`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("image/svg+xml");
+    const source = await response.text();
+    const details = await page.evaluate(svg => {
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      return {
+        invalid: !!doc.querySelector("parsererror"),
+        shape: doc.querySelector("path").getAttribute("d"),
+        fill: doc.querySelector("path").getAttribute("fill"),
+        typesetText: doc.querySelectorAll("text").length,
+        cork: doc.querySelectorAll(".champagne-cork").length,
+        lip: doc.querySelectorAll(".champagne-lip").length,
+      };
+    }, source);
+    expect(details.invalid).toBe(false);
+    expect(details.typesetText).toBe(0);
+    expect(details.fill).not.toBe("none");
+    if (type === "sparkling") {
+      expect(details.cork).toBe(1);
+      expect(details.lip).toBe(1);
+      expect(details.fill).toBe("#314a2c");
+      expect(source).toContain("#c2a17a");
+    }
+    shapes.add(details.shape);
+    colors.add(details.fill);
+    await noOverflow(page);
+    await accessible(page);
+  }
+  expect(shapes.size).toBe(8);
+  expect(colors.size).toBeGreaterThanOrEqual(4);
 });
 
 test("empty collections and filters have useful feedback", async ({

@@ -205,7 +205,7 @@ pub fn other_users_notes_use_blockquotes_with_separate_attribution_test() {
   let assert True =
     string.contains(body, "<p>Lemon &amp; slate</p></blockquote>")
   let assert True = string.contains(body, "href=\"/~other/ratings\"")
-  let assert True = string.contains(body, ">Others</h3>")
+  let assert True = string.contains(body, ">Other ratings</h3>")
   let assert True = string.contains(body, ">Ratings</h2>")
   Nil
 }
