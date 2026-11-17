@@ -6,15 +6,18 @@ burgundy accent. The compact masthead pairs the name with a cut-paper grapevine
 mark (`priv/static/grapevine.svg`, also used as the favicon).
 The mark keeps the existing six-grape bunch, leaf and tendril, using irregular
 filled shapes, muted olive foliage and two-tone burgundy berries to match the
-bottle illustrations; there is no tagline. `docs/current-logo.html` previews the
+bottle illustrations; there is no tagline. `docs/artwork-collection/current-logo.html` previews the
 mark at header and favicon sizes alongside the default profile illustration.
 Wine types use a small colored dot with a text label rather than a badge.
 Rating colors remain meaningful.
 
-The standalone comparison in `docs/design-explorations.html` records the three
-options; Ledger (A) was selected. Screenshots of the implemented cellar with
-illustrative data: [desktop](assets/ledger-cellar.png) and
-[mobile](assets/ledger-cellar-mobile.png).
+The [study summaries](artwork-collection/studies.md#ui-directions) record the
+three options; Ledger was selected. Current screenshots of the implemented
+cellar with fictitious demo data: [desktop](artwork-collection/assets/cellar.png)
+and [mobile](artwork-collection/assets/cellar-mobile.png).
+Production previews, study summaries, and screenshots live in the
+[artwork collection](artwork-collection/README.md), with a standalone
+[visual index](artwork-collection/index.html).
 
 ## Responsive and accessible behavior
 
@@ -31,8 +34,10 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
   unchanged #05 gallery choices. Sparkling uses dark-green champagne glass, a
   longer neck and a seated cork with a rounded head. Dessert, sake and other use
   matching two-tone paper shapes and inset labels in amber, ivory and neutral
-  olive respectively. Dessert is drawn as a tall, slender half-bottle with a long gold capsule; Other carries a
-  drawn question mark. Sake's 酒 (sake) label uses SVG paths, not a font glyph. Uploaded photos still take precedence. The page keeps
+  olive respectively. Dessert is drawn as a tall, slender half-bottle with a long
+  gold capsule. Other has broad, flat shoulders and straight sides, with a drawn
+  question mark, distinct from Orange's rounded silhouette. Sake's 酒 (sake) label
+  uses SVG paths, not a font glyph. Uploaded photos still take precedence. The page keeps
   grouped metadata and plain vintage links. Ratings and cellar history sit in
   distinct columns on wide screens and stack on smaller screens. Heading weight,
   alignment and whitespace establish hierarchy, not repeated rules or cards.
@@ -148,6 +153,7 @@ test tools. Edit the files above directly; do not regenerate `app.css`.
 npm ci
 npx playwright install chromium webkit
 npm run test:browser
+npm run test:artwork
 just lint
 just test
 ```

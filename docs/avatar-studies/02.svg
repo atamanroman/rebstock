@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="A little toast: person holding wine">
-  <title>A little toast — Loose paper shapes</title>
-<path fill="#53544f" d="M16 119 L23 80 Q26 66 43 63 L58 65 L73 79 L86 60 L94 67 L78 93 L66 87 L75 119 Z"/>
-<path fill="#f1e8d9" d="M35 36 Q36 21 50 22 Q64 23 63 37 L65 47 L58 55 L57 66 Q48 72 40 65 L43 56 Q33 51 35 36 Z"/>
-<path fill="#713745" d="M32 39 Q27 18 45 13 Q64 9 69 30 L62 39 L56 25 L45 30 L40 44 Z"/>
-<path fill="#aa696b" d="M74 78 L84 64 L86 55 L92 54 L95 60 L90 68 L82 86 Z"/>
-<path stroke="#53544f" stroke-width="1.8" stroke-linejoin="round" d="M80 24 L103 25 L103 39 Q101 48 92 49 Q82 48 80 39 Z M92 49 L91 63 M84 65 L99 65"/>
-<path fill="#713745" d="M82 35 L101 36 L101 40 Q99 47 92 47 Q85 46 82 40 Z"/>
-</svg>

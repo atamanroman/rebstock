@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 280" width="120" height="280" role="img" aria-label="Cut-paper wine bottle for an unspecified type, with a question mark on its label">
-  <title>Neutral olive bottle with a question mark on a cream paper label</title>
-  <path fill="#667163" d="M47 12 L71 13 L72 61 C72 76 80 85 88 98 L97 116 L99 142 L97 258 L89 266 L29 265 L22 257 L22 142 C22 123 27 109 36 96 C44 83 47 73 47 59 Z"/>
-  <path fill="#4b594c" d="M66 36 L72 36 L72 61 C72 76 80 85 88 98 L97 116 L99 142 L97 258 L77 265 L80 225 L74 190 L81 145 L76 117 L64 83 Z"/>
+  <title>Broad-shouldered olive bottle with a question mark on a cream paper label</title>
+  <path class="broad-shouldered-bottle" fill="#667163" d="M48 12 L71 13 L72 70 L90 77 L98 89 L100 107 L99 253 L93 266 L29 265 L21 257 L20 107 L24 90 L33 79 L47 72 Z"/>
+  <path fill="#4b594c" d="M66 36 L72 36 L72 70 L90 77 L98 89 L100 107 L99 253 L93 266 L77 265 L80 225 L74 190 L81 145 L80 108 L63 80 Z"/>
   <path fill="#53544f" d="M46 11 L72 12 L73 28 L46 27 Z"/>
-  <path fill="#fffdf8" d="M51 33 L55 32 L54 60 L49 77 L45 80 L50 59 Z M33 111 L39 102 L34 132 L29 136 Z"/>
+  <path fill="#fffdf8" d="M51 33 L55 32 L54 60 L49 77 L45 80 L50 59 Z M28 94 L34 88 L29 111 L25 116 Z"/>
   <path fill="#f1e8d9" d="M32 142 L84 135 L87 205 L34 213 Z"/>
   <g class="bottle-question-mark" fill="#4b594c">
     <path d="M47 157 L51 151 L58 149 L66 148 L74 152 L77 158 L76 164 L72 169 L64 176 L65 182 L56 185 L55 178 L57 171 L63 167 L68 161 L65 157 L58 158 L54 163 L47 164 L48 160 Z"/>

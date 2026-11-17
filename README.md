@@ -20,15 +20,15 @@ First release of Rebstock, a self-hosted wine cellar management app.
 
 - Wine and winery catalog with cellar tracking, ratings, and wishlist
 
-<img src="./docs/assets/dashboard.png" alt="Screenshof of the dashboard" width="600">
+<img src="./docs/artwork-collection/assets/dashboard.png" alt="Screenshot of the dashboard" width="600">
 
-<img src="./docs/assets/wine.png" alt="Screenshof of the wine view" width="600">
+<img src="./docs/artwork-collection/assets/wine.png" alt="Screenshot of the wine view" width="600">
 
 - Shareable and printable wine lists with bottle counts to check your inventory or suggest wines to friends
 
-<img src="./docs/assets/cellar.png" alt="Screenshof of the cellar view" width="600">
+<img src="./docs/artwork-collection/assets/cellar.png" alt="Screenshot of the cellar view" width="600">
 
-<img src="./docs/assets/cellar-print.png" alt="Screenshof of the cellar print view" width="600">
+<img src="./docs/artwork-collection/assets/cellar-print.png" alt="Screenshot of the cellar print view" width="600">
     
 - MCP tools for agent-assisted imports and Vivino rating refreshes
 - Optional display names and profile pictures
@@ -202,6 +202,12 @@ Use the MCP tools to import your own export or purchase documents.
 `just setup-dev` will check if all dev tools are available and install Git pre-commit format hook.
 
 If you're on nix, `nix develop` will drop you in a dev shell with all development tools present.
+
+## Artwork collection
+
+Production previews, study summaries, and current screenshots are grouped in
+[the artwork collection](./docs/artwork-collection/README.md). Open
+`docs/artwork-collection/index.html` directly in a browser for the visual index.
 
 ## License and artwork credits
 

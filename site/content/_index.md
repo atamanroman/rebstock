@@ -7,7 +7,7 @@ template = "index.html"
 
 Rebstock is a self-hosted wine inventory for keeping track of bottles, purchases, ratings, and the wines you want next. It runs as a small Gleam service with SQLite, so your cellar data stays on your own machine.
 
-![Rebstock dashboard showing cellar statistics and recent wines](/images/dashboard.png)
+![Current Rebstock dashboard with collection totals, rating insights, and recent activity](/images/dashboard.png)
 
 ## Built for a real cellar
 
@@ -17,7 +17,7 @@ Rebstock is a self-hosted wine inventory for keeping track of bottles, purchases
 - Publish a shareable wine list or print one to take into the cellar.
 - Run as one automatic user or put Rebstock behind your reverse proxy's forward authentication.
 
-![A shareable Rebstock cellar grouped by wine type](/images/cellar.png)
+![A public Rebstock wine list grouped by wine type, with current bottle counts](/images/cellar.png)
 
 ## Install
 

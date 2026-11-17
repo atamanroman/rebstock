@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="A ribbon of a toast: person holding wine">
-  <title>A ribbon of a toast — Expressive brush gesture</title>
-<path fill="#53544f" d="M19 33 Q22 13 39 17 Q49 20 46 32 Q42 44 28 43 Q19 40 19 33 Z"/>
-<path fill="#713745" d="M11 114 Q15 82 20 60 Q24 47 35 47 Q48 47 54 64 L61 81 Q76 76 87 55 L94 60 Q82 89 61 96 Q50 100 44 82 L40 69 Q34 86 35 114 Z"/>
-<path stroke="#53544f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M78 21 L105 24 Q107 44 93 49 Q79 46 78 21 Z M93 49 L92 66 M85 68 L102 68"/>
-<path fill="#713745" d="M81 34 Q91 38 104 33 Q104 43 93 47 Q83 44 81 34 Z"/>
-</svg>

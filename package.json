@@ -6,6 +6,8 @@
   },
   "scripts": {
     "test:browser": "just build && playwright test",
+    "test:artwork": "node --test test/artwork/*.test.cjs",
+    "screenshots": "node test/artwork/capture-screenshots.cjs",
     "test:mcp": "node --test --test-concurrency=1 test/mcp/*.test.mjs"
   }
 }

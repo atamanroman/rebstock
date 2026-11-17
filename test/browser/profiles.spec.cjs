@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { createHash } = require("node:crypto");
+const { accessible: expectAccessible } = require("./helpers.cjs");
 
 // A real, deliberately non-square 2×1 PNG. It must fit a square box with circular clipping.
 const picture = Buffer.from(
@@ -15,14 +16,6 @@ async function expectSquare(image) {
   expect(box.width).toBe(96);
   expect(box.height).toBe(96);
   await expect(image).toHaveCSS("border-radius", "100%");
-}
-
-async function expectAccessible(page) {
-  await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
-  const violations = await page.evaluate(async () => (await axe.run({
-    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
-  })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.failureSummary) })));
-  expect(violations).toEqual([]);
 }
 
 test("native profile settings, round pictures and illustrated fallback stay off home", async ({ browser, request }, testInfo) => {
@@ -58,7 +51,6 @@ test("native profile settings, round pictures and illustrated fallback stay off 
     expect(illustration.status()).toBe(200);
     expect(illustration.headers()["content-type"]).toContain("image/svg+xml");
     expect(createHash("sha256").update(await illustration.body()).digest("hex")).toBe("16b262b9aadd18dafa0ed731e1db20e0732bb412a6df0f1acae6d3aa4eb5c17d");
-    await page.screenshot({ path: testInfo.outputPath("default-avatar.png"), fullPage: true });
     await expect(avatar).toHaveAttribute("alt", "");
     await expect(avatar).toHaveCSS("border-radius", "100%");
     await expect(avatar).toHaveCSS("width", "28px");

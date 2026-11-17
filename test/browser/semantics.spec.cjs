@@ -1,17 +1,5 @@
 const { test, expect } = require("@playwright/test");
-
-async function seed(request) {
-  const name = `Semantic Riesling ${Date.now()}`;
-  const created = await request.post("/wines", {
-    form: { name, winery: "Semantic Estate", vintage: "2023", country: "DE", wine_type: "white" },
-    maxRedirects: 0,
-  });
-  expect(created.status()).toBe(303);
-  const location = created.headers().location;
-  const body = await (await request.get(location)).text();
-  const wine = body.match(/href="([^"]+\/cellar\/new)"/)[1].replace("/cellar/new", "");
-  return { name, wine, id: location.split("/").at(-1) };
-}
+const { seed } = require("./helpers.cjs");
 
 async function checkHeadings(page) {
   const levels = await page.locator("main h1, main h2, main h3, main h4").evaluateAll(

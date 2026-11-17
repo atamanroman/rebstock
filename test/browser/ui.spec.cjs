@@ -1,26 +1,6 @@
 const { test, expect } = require("@playwright/test");
+const { seed, noOverflow, accessible } = require("./helpers.cjs");
 
-let sequence = 0;
-async function seed(request, wineType = "white") {
-  const name = `Journal Riesling ${Date.now()} ${++sequence}`;
-  const created = await request.post("/wines", {
-    form: {
-      name,
-      winery: "Journal Estate",
-      vintage: "2023",
-      country: "DE",
-      wine_type: wineType,
-    },
-    maxRedirects: 0,
-  });
-  expect(created.status()).toBe(303);
-  const path = created.headers().location;
-  const html = await (await request.get(path)).text();
-  const wine = html
-    .match(/href="([^"]+\/cellar\/new)"/)[1]
-    .replace("/cellar/new", "");
-  return { wine, name, id: path.split("/").at(-1) };
-}
 async function stock(request, wine, quantity = "3") {
   const response = await request.post(`${wine}/cellar/new`, {
     form: { vintage: "2023", quantity, price: "18.75", date: "2026-09-05" },
@@ -29,31 +9,6 @@ async function stock(request, wine, quantity = "3") {
   expect(response.status()).toBe(303);
   const html = await (await request.get(wine)).text();
   return html.match(/href="([^"]+\/cellar\/[^/]+\/drink)"/)[1];
-}
-async function noOverflow(page) {
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-    page.url(),
-  ).toBe(true);
-}
-async function accessible(page) {
-  await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
-  const violations = await page.evaluate(async () =>
-    (
-      await axe.run({
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
-      })
-    ).violations.map((v) => ({
-      id: v.id,
-      nodes: v.nodes.map((n) => ({
-        target: n.target,
-        summary: n.failureSummary,
-      })),
-    })),
-  );
-  expect(violations, page.url()).toEqual([]);
 }
 function drinkLink(page) {
   return page.getByRole("link", { name: /^Drink cellar entry for / });
@@ -143,64 +98,6 @@ test("wine details use whitespace hierarchy and retain the bottle image", async 
   await expect(page.locator('.vintage-link[aria-current="true"]')).toHaveText("2023");
   await expect(page.getByText("Fresh citrus and a long finish.")).toBeVisible();
   await accessible(page);
-});
-
-test("cut-paper bottle assets preserve uploads and distinguish wine types", async ({ page, request }) => {
-  test.setTimeout(90_000);
-  const shapes = new Set();
-  const colors = new Set();
-  for (const [type, label] of [
-    ["red", "Red"], ["white", "White"], ["rose", "Rosé"], ["orange", "Orange"],
-    ["sparkling", "Sparkling"], ["dessert", "Dessert"], ["sake", "Sake"], ["other", "Other"],
-  ]) {
-    const { wine } = await seed(request, type);
-    await page.goto(wine);
-    const name = type === "sake"
-      ? "Sake flask illustration with 酒 (sake) on the label"
-      : type === "sparkling"
-        ? "Sparkling wine bottle illustration with a fully seated cork"
-        : `${label} wine bottle illustration`;
-    const placeholder = page.getByRole("img", { name, exact: true });
-    await expect(placeholder).toBeVisible();
-    const image = placeholder.locator("img");
-    await expect(image).toHaveAttribute("src", `/static/bottles/${type}.svg`);
-    await expect(image).toHaveAttribute("alt", "");
-    expect(await image.evaluate(el => el.complete && el.naturalWidth > 0)).toBe(true);
-    const response = await request.get(`/static/bottles/${type}.svg`);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["content-type"]).toContain("image/svg+xml");
-    const source = await response.text();
-    const details = await page.evaluate(svg => {
-      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
-      return {
-        invalid: !!doc.querySelector("parsererror"),
-        shape: doc.querySelector("path").getAttribute("d"),
-        fill: doc.querySelector("path").getAttribute("fill"),
-        typesetText: doc.querySelectorAll("text").length,
-        cork: doc.querySelectorAll(".champagne-cork").length,
-        lip: doc.querySelectorAll(".champagne-lip").length,
-        slenderDessert: !!doc.querySelector(".half-bottle.slender-dessert-bottle"),
-        questionMark: doc.querySelectorAll(".bottle-question-mark path").length,
-      };
-    }, source);
-    expect(details.invalid).toBe(false);
-    expect(details.typesetText).toBe(0);
-    expect(details.fill).not.toBe("none");
-    if (type === "sparkling") {
-      expect(details.cork).toBe(1);
-      expect(details.lip).toBe(1);
-      expect(details.fill).toBe("#314a2c");
-      expect(source).toContain("#c2a17a");
-    }
-    if (type === "dessert") expect(details.slenderDessert).toBe(true);
-    if (type === "other") expect(details.questionMark).toBe(2);
-    shapes.add(details.shape);
-    colors.add(details.fill);
-    await noOverflow(page);
-    await accessible(page);
-  }
-  expect(shapes.size).toBe(8);
-  expect(colors.size).toBeGreaterThanOrEqual(4);
 });
 
 test("empty collections and filters have useful feedback", async ({

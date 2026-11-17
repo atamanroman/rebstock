@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Artwork collection — Rebstock</title>
+  <link rel="icon" href="../../priv/static/grapevine.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --ink: #292725; --muted: #6b6662; --accent: #713745; --rule: #e5e2df; }
+    * { box-sizing: border-box; }
+    body { max-width: 1200px; margin: 0 auto; padding: 40px 24px; background: white; color: var(--ink); font: 15px/1.6 system-ui, -apple-system, sans-serif; }
+    h1, h2, h3 { font-weight: 500; line-height: 1.25; }
+    h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -.04em; }
+    h2 { margin: 0 0 16px; font-size: 21px; letter-spacing: -.02em; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    p { margin: 0 0 16px; }
+    a { color: var(--accent); text-underline-offset: .2em; }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    code { font-size: .9em; overflow-wrap: anywhere; }
+    .eyebrow { margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+    .lede { max-width: 75ch; color: var(--muted); }
+    section { margin-top: 48px; }
+    figure { min-width: 0; margin: 0; }
+    figcaption { margin-top: 12px; color: var(--muted); font-size: 13px; }
+    .brand-samples { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
+    .logo { width: 40px; height: 48px; }
+    .avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: #faf9f8; }
+    .brand-samples a { display: inline-flex; align-items: center; min-height: 44px; }
+    .bottles { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 24px; margin-top: 24px; }
+    .bottles figure { text-align: center; }
+    .bottles img { display: block; width: 88px; max-width: 100%; height: 220px; margin: auto; object-fit: contain; }
+    .catalogue, .screenshots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; padding: 0; margin: 24px 0 0; list-style: none; }
+    .catalogue li { border-top: 1px solid var(--rule); padding-top: 16px; }
+    .catalogue p { margin: 0; color: var(--muted); }
+    .screenshots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .screenshots a { display: block; }
+    .screenshots img { display: block; width: 100%; height: 180px; object-fit: contain; object-position: top; border: 1px solid var(--rule); }
+    footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+    @media (max-width: 950px) { .bottles { grid-template-columns: repeat(4, minmax(0, 1fr)); } .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 520px) { body { padding: 24px 16px; } .bottles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .catalogue, .screenshots { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Rebstock · artwork and design</p>
+    <h1>Artwork collection</h1>
+    <p class="lede">Production previews, concise study summaries, and current project screenshots in one place. The app’s live assets remain in <code>priv/static/</code>; the old study artwork and galleries have been removed.</p>
+  </header>
+  <main>
+    <section aria-labelledby="current-heading">
+      <h2 id="current-heading">Current production artwork</h2>
+      <div class="brand-samples">
+        <img class="logo" src="../../priv/static/grapevine.svg" alt="Cut-paper Rebstock grapevine logo">
+        <img class="avatar" src="../../priv/static/avatar.svg" alt="Wine-on-a-balcony default avatar by Spacepixel Creative">
+        <a href="current-logo.html">Logo and avatar at app sizes</a>
+      </div>
+      <p><a href="current-bottles.html">Compare all eight bottles</a> enlarged or at actual app size. These previews load the production SVGs directly.</p>
+      <div class="bottles">
+        <figure><img src="../../priv/static/bottles/red.svg" alt="Cut-paper red wine bottle"><figcaption>Red</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/white.svg" alt="Cut-paper white wine bottle"><figcaption>White</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/rose.svg" alt="Cut-paper rosé wine bottle"><figcaption>Rosé</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/orange.svg" alt="Rounded amber orange wine bottle"><figcaption>Orange</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/sparkling.svg" alt="Dark-green sparkling wine bottle with a seated cork"><figcaption>Sparkling</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/dessert.svg" alt="Slender amber dessert wine bottle with a long gold capsule"><figcaption>Dessert</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/sake.svg" alt="Ivory sake flask with 酒 on its burgundy label"><figcaption>Sake</figcaption></figure>
+        <figure><img src="../../priv/static/bottles/other.svg" alt="Broad-shouldered olive bottle with a question-mark label"><figcaption>Other</figcaption></figure>
+      </div>
+    </section>
+    <section aria-labelledby="studies-heading">
+      <h2 id="studies-heading">Study summaries</h2>
+      <p class="lede">The experiments are summarized in <a href="studies.md">one short document</a>. Candidate artwork, galleries, briefs, and contact sheets have been deleted.</p>
+      <ul class="catalogue" role="list">
+        <li><h3>Bottle illustrations</h3><p>Explored 80 candidates. Cut-paper #05 was selected for all eight types, with later silhouette and label refinements.</p></li>
+        <li><h3>Person avatars</h3><p>Ten compositions and a simplified silhouette were shelved. The licensed Unsplash illustration is the production fallback.</p></li>
+        <li><h3>Animal avatars</h3><p>Twelve geometric cat and dog studies, then three softer companions. All were shelved; none is used in the app.</p></li>
+        <li><h3>UI and sparkling closures</h3><p>Ledger was selected over Notebook and Bare. The champagne bottle retained a seated cork, redrawn in the cut-paper style.</p></li>
+      </ul>
+    </section>
+    <section aria-labelledby="screenshots-heading" id="screenshots">
+      <h2 id="screenshots-heading">UI screenshots</h2>
+      <p class="lede">Current captures from a disposable, fictitious demo cellar. Open a thumbnail for the full-size image.</p>
+      <ul class="screenshots" role="list">
+        <li><a href="assets/dashboard.png"><figure><img src="assets/dashboard.png" alt="Current dashboard with collection totals, rating insights, and recent activity"><figcaption>Dashboard</figcaption></figure></a></li>
+        <li><a href="assets/wine.png"><figure><img src="assets/wine.png" alt="Wine details with the cut-paper bottle, ratings, and cellar history"><figcaption>Wine details</figcaption></figure></a></li>
+        <li><a href="assets/cellar.png"><figure><img src="assets/cellar.png" alt="Desktop cellar with bottle counts and purchase prices"><figcaption>Cellar · desktop</figcaption></figure></a></li>
+        <li><a href="assets/cellar-mobile.png"><figure><img src="assets/cellar-mobile.png" alt="Mobile cellar with responsive labeled wine records"><figcaption>Cellar · mobile</figcaption></figure></a></li>
+        <li><a href="assets/shared-list.png"><figure><img src="assets/shared-list.png" alt="Public wine list grouped by wine type"><figcaption>Shared wine list</figcaption></figure></a></li>
+        <li><a href="assets/cellar-print.png"><figure><img src="assets/cellar-print.png" alt="Print layout of a curated wine list"><figcaption>Wine list · print</figcaption></figure></a></li>
+      </ul>
+    </section>
+  </main>
+  <footer>
+    <p>Default avatar: “Person with wine on balcony” by <a href="https://unsplash.com/illustrations/person-with-wine-on-balcony-xlfW1_TPGY8?utm_source=rebstock&amp;utm_medium=referral">Spacepixel Creative on Unsplash</a>, under the <a href="https://unsplash.com/license">Unsplash License</a>. <a href="../../LICENSE.md">License and attribution</a>.</p>
+    <p><a href="README.md">Collection notes and verification</a> · <a href="../ui.md">UI documentation</a></p>
+  </footer>
+</body>
+</html>
