@@ -2,8 +2,12 @@
 
 Ledger is the selected design, not a theme switcher. It uses a white background,
 system typography, compact collection summaries, thin rules and one muted
-burgundy accent. The compact masthead pairs the name with a flat grapevine mark
-(`priv/static/grapevine.svg`, also used as the favicon); there is no tagline.
+burgundy accent. The compact masthead pairs the name with a cut-paper grapevine
+mark (`priv/static/grapevine.svg`, also used as the favicon).
+The mark keeps the existing six-grape bunch, leaf and tendril, using irregular
+filled shapes, muted olive foliage and two-tone burgundy berries to match the
+bottle illustrations; there is no tagline. `docs/current-logo.html` previews the
+mark at header and favicon sizes alongside the default profile illustration.
 Wine types use a small colored dot with a text label rather than a badge.
 Rating colors remain meaningful.
 
@@ -55,7 +59,11 @@ illustrative data: [desktop](assets/ledger-cellar.png) and
   username is read-only; an empty display name falls back to it.
 - **Your profile** (`/~username`) shows a 96px round picture. The account menu
   shows the signed-in user's 28px avatar on every page, including `/`. Both use
-  the grapevine logo as fallback; `/` has no large profile picture.
+  the unmodified Spacepixel Creative “Person with wine on balcony” SVG from
+  Unsplash (`priv/static/avatar.svg`) as fallback, filling the circular crop without
+  inset padding. Uploaded photos take precedence; `/` has no large profile picture.
+  The grapevine remains the brand mark and favicon. Attribution and the separate
+  artwork license are recorded in `README.md` and `LICENSE.md`.
 - Native uploads accept PNG/JPEG/WebP up to 2 MB, using content-derived extensions
   and generated filenames under `image_dir/profiles/`. Replacing or removing a
   picture deletes its old file. Back up images with SQLite.

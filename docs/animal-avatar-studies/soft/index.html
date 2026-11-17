@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rebstock — softer paper studies</title>
+  <link rel="icon" href="../../../priv/static/grapevine.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --ink: #292725; --muted: #6b6662; --rule: #e7e3df; --accent: #713745; }
+    * { box-sizing: border-box; }
+    body { max-width: 1240px; margin: 0 auto; padding: 32px 24px; font: 14px/1.6 system-ui, -apple-system, sans-serif; color: var(--ink); background: white; }
+    h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 500; letter-spacing: -.04em; }
+    header p { max-width: 840px; color: var(--muted); margin: 8px 0 32px; }
+    .studies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+    article { min-width: 0; padding-top: 16px; border-top: 1px solid var(--rule); }
+    h2 { font-size: 18px; font-weight: 500; margin: 0; }
+    .direction { font-size: 12px; color: var(--muted); margin: 4px 0 20px; }
+    .art { display: grid; place-items: center; min-height: 310px; }
+    .art a { display: block; border-radius: 50%; }
+    .portrait { display: block; width: 288px; height: 288px; max-width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: contain; background: #faf9f8; }
+    figure { margin: 0; }
+    .samples { display: flex; justify-content: center; align-items: center; gap: 24px; margin: 12px 0 24px; }
+    .samples figure { display: flex; align-items: center; gap: 8px; }
+    figcaption { font-size: 11px; color: var(--muted); }
+    .profile { width: 96px; height: 96px; }
+    .menu { width: 28px; height: 28px; }
+    .description { color: var(--muted); min-height: 70px; margin: 0 0 12px; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    .download { display: inline-flex; align-items: center; min-height: 44px; }
+    footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+    @media (max-width: 980px) { .studies { grid-template-columns: 1fr; max-width: 600px; margin-inline: auto; } .description { min-height: 0; } .art { min-height: 310px; } }
+    @media (max-width: 400px) { body { padding: 24px 16px; } .art { min-height: 280px; } .portrait { width: 264px; height: 264px; } .profile { width: 96px; height: 96px; } .menu { width: 28px; height: 28px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Softer shapes. More personality.</h1>
+    <p>Three focused paper studies: the relaxed cat from the first reference, plus the two new long-nosed wine jokes. Rounded silhouettes, layered color and simple expressions—not geometric mascots. Nothing is applied to the app yet.</p>
+  </header>
+  <main class="studies">
+    <article>
+      <h2>A · One more glass</h2>
+      <p class="direction">Plump, contented, properly off duty</p>
+      <div class="art"><a href="lounging-cat.svg" aria-label="Open the large lounging cat SVG"><img class="portrait" src="lounging-cat.svg" alt="Cream cat with closed smiling eyes, curled feet and tail, cuddling a bottle and raising a glass"></a></div>
+      <div class="samples"><figure><img class="portrait profile" src="lounging-cat.svg" alt="Lounging cat at profile size"><figcaption>96px</figcaption></figure><figure><img class="portrait menu" src="lounging-cat.svg" alt="Lounging cat at menu size"><figcaption>28px</figcaption></figure></div>
+      <p class="description">Closer to the original pose: a big rounded body, tilted head, sleepy eyes, soft paws and a tail wrapped underneath.</p>
+      <a class="download" href="lounging-cat.svg" download>Download SVG</a>
+    </article>
+    <article>
+      <h2>B · The wine inspector</h2>
+      <p class="direction">A long nose, an oversized glass</p>
+      <div class="art"><a href="nose-in-glass.svg" aria-label="Open the large wine inspector SVG"><img class="portrait" src="nose-in-glass.svg" alt="Long-faced cream dog with curious eyes and its nose inside a large red wine glass"></a></div>
+      <div class="samples"><figure><img class="portrait profile" src="nose-in-glass.svg" alt="Wine inspector at profile size"><figcaption>96px</figcaption></figure><figure><img class="portrait menu" src="nose-in-glass.svg" alt="Wine inspector at menu size"><figcaption>28px</figcaption></figure></div>
+      <p class="description">The greeting-card idea reduced to one visual joke: curious eyes above the rim, a long muzzle inside the bowl, wine just below the nose.</p>
+      <a class="download" href="nose-in-glass.svg" download>Download SVG</a>
+    </article>
+    <article>
+      <h2>C · Steady now</h2>
+      <p class="direction">A very patient balancing act</p>
+      <div class="art"><a href="balanced-flute.svg" aria-label="Open the large balancing dog SVG"><img class="portrait" src="balanced-flute.svg" alt="Cream sighthound with a large dark nose balancing a flute of golden wine on its head"></a></div>
+      <div class="samples"><figure><img class="portrait profile" src="balanced-flute.svg" alt="Balancing dog at profile size"><figcaption>96px</figcaption></figure><figure><img class="portrait menu" src="balanced-flute.svg" alt="Balancing dog at menu size"><figcaption>28px</figcaption></figure></div>
+      <p class="description">From the local photo: a front-facing long nose, a patient expression, and a slender flute sitting directly on the forehead.</p>
+      <a class="download" href="balanced-flute.svg" download>Download SVG</a>
+    </article>
+  </main>
+  <footer>Actual 96px and 28px samples use the app’s circular crop. Click a large drawing to view its SVG. <a href="../index.html">Earlier animal studies</a> · <a href="../../current-logo.html">Current logo and avatar</a>. The production avatar is unchanged.</footer>
+</body>
+</html>

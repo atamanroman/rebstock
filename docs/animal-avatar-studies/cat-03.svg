@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="A very good vintage">
+  <title>A very good vintage — cut-paper wine companion</title>
+<path fill="#58313d" d="M24 93 Q58 113 99 98 L104 101 Q98 112 76 114 Q39 117 18 101 Z"/>
+<path fill="#713745" d="M25 50 L50 48 L65 60 L77 80 L70 98 L48 106 L25 98 L13 84 L14 65 Z"/>
+<path fill="#713745" d="M26 36 L25 19 L36 26 L45 25 L58 18 L58 37 L52 48 L40 52 L29 45 Z"/>
+<path fill="#f1e8d9" d="M38 52 L52 50 L61 70 L49 81 L32 70 Z M31 34 L37 36 L37 38 L30 36 Z M44 36 L51 33 L52 35 L45 38 Z M38 40 L44 40 L41 44 Z"/>
+<path fill="#58313d" d="M49 82 L66 73 L81 82 L90 76 L95 79 L82 98 L69 99 L58 92 L46 99 Z"/>
+<path fill="#713745" d="M55 58 L72 70 L91 45 L96 49 L77 80 L70 82 L55 70 Z"/>
+<g class="wine-glass" transform="translate(97 17) rotate(9) scale(0.9)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#f1e8d9" d="M90 46 L95 45 L98 49 L95 56 L90 57 L87 53 Z"/>
+</svg>

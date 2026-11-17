@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="The welcoming host: person holding wine">
+  <title>The welcoming host — Warm minimal portrait</title>
+<path fill="#713745" d="M17 120 L20 81 Q24 64 44 62 Q64 63 70 79 L80 86 L88 73 L96 78 L85 99 L70 98 L76 120 Z"/>
+<path fill="#f1e8d9" d="M34 32 Q34 19 47 19 Q60 19 60 32 L58 45 L52 53 L53 65 Q44 71 36 63 L39 53 L33 44 Z"/>
+<path fill="#53544f" d="M31 37 Q25 18 42 14 Q59 9 64 29 L58 38 L52 25 L40 29 L35 41 Z"/>
+<path fill="#53544f" d="M18 62 L29 61 L30 74 L35 80 L36 108 L13 110 L12 83 L17 76 Z"/>
+<path fill="#f1e8d9" d="M15 88 L33 87 L34 101 L15 102 Z"/>
+<path fill="#aa696b" d="M26 80 L32 79 L39 96 L53 92 L56 99 L37 107 L31 102 Z M82 86 L88 74 L88 66 L94 64 L98 70 L93 80 L89 92 Z"/>
+<path stroke="#53544f" stroke-width="1.7" stroke-linejoin="round" d="M81 35 L105 36 L104 49 Q102 59 93 60 Q83 59 82 49 Z M93 60 L93 74 M85 76 L102 76"/>
+<path fill="#713745" d="M83 46 L103 47 Q102 56 93 58 Q86 57 83 46 Z"/>
+</svg>

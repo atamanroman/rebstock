@@ -1,15 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48" fill="none" color="#713745">
-  <g stroke="#526849" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 21c0-7-4-12-1-18M21 19l-9 3m9-3 9 3"/>
-    <path d="M22 15C23 7 29 4 36 5c0 8-5 13-13 12Z"/>
-    <path d="m24 14 7-5M18 11C9 3 4 9 9 13c3 2 6-1 3-3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48" fill="none">
+  <title>Rebstock cut-paper grapevine</title>
+  <path fill="#4b594c" d="M18 2 L21 1 L20 8 L23 17 L22 24 L19 24 L20 17 L17 9 Z M20 17 L23 18 L31 22 L30 24 L21 21 L12 24 L10 22 Z"/>
+  <path fill="#667163" d="M22 16 L23 10 L27 5 L36 3 L36 10 L32 16 L26 18 Z"/>
+  <path fill="#4b594c" d="M24 16 L31 10 L36 3 L36 10 L32 16 L26 18 Z"/>
+  <path fill="#fffdf8" d="M25 14 L31 7 L33 6 L29 12 L26 15 Z"/>
+  <path fill="#667163" d="M18 11 L16 12 C13 7 8 6 7 9 C6 11 9 14 11 12 C12 11 10 10 9 10 L9 8 C14 7 16 13 12 15 C7 18 2 12 5 8 C8 3 15 6 18 11 Z"/>
+  <g fill="#713745">
+    <path d="M8 23 L12 21 L16 23 L17 27 L14 31 L9 30 L6 27 Z"/>
+    <path d="M18 22 L23 22 L26 25 L25 29 L21 32 L17 29 L16 25 Z"/>
+    <path d="M28 22 L33 22 L36 26 L34 30 L30 32 L26 28 L26 25 Z"/>
+    <path d="M13 32 L18 31 L21 35 L19 39 L15 41 L11 37 L11 34 Z"/>
+    <path d="M24 32 L29 32 L31 36 L28 40 L24 40 L21 36 Z"/>
+    <path d="M19 41 L23 40 L26 43 L24 47 L20 47 L16 45 L16 43 Z"/>
   </g>
-  <g fill="currentColor">
-    <circle cx="12" cy="26" r="4.2"/>
-    <circle cx="21" cy="26" r="4.2"/>
-    <circle cx="30" cy="26" r="4.2"/>
-    <circle cx="16.5" cy="34" r="4.2"/>
-    <circle cx="25.5" cy="34" r="4.2"/>
-    <circle cx="21" cy="42" r="4.2"/>
-  </g>
+  <path fill="#58313d" d="M12 25 L16 23 L17 27 L14 31 L9 30 L11 28 Z M21 26 L23 22 L26 25 L25 29 L21 32 L20 29 Z M31 26 L33 22 L36 26 L34 30 L30 32 L30 29 Z M16 35 L18 31 L21 35 L19 39 L15 41 L15 38 Z M26 36 L29 32 L31 36 L28 40 L24 40 L25 38 Z M21 44 L23 40 L26 43 L24 47 L20 47 L20 46 Z"/>
+  <path fill="#aa696b" d="M9 24 L12 23 L12 25 L8 27 Z M19 24 L22 24 L20 26 L18 26 Z M28 24 L31 23 L30 26 L28 27 Z M13 34 L16 33 L15 36 L13 37 Z M24 34 L27 33 L26 36 L23 36 Z M19 42 L22 42 L20 44 L18 44 Z"/>
 </svg>

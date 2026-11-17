@@ -179,6 +179,8 @@ test("cut-paper bottle assets preserve uploads and distinguish wine types", asyn
         typesetText: doc.querySelectorAll("text").length,
         cork: doc.querySelectorAll(".champagne-cork").length,
         lip: doc.querySelectorAll(".champagne-lip").length,
+        slenderDessert: !!doc.querySelector(".half-bottle.slender-dessert-bottle"),
+        questionMark: doc.querySelectorAll(".bottle-question-mark path").length,
       };
     }, source);
     expect(details.invalid).toBe(false);
@@ -190,6 +192,8 @@ test("cut-paper bottle assets preserve uploads and distinguish wine types", asyn
       expect(details.fill).toBe("#314a2c");
       expect(source).toContain("#c2a17a");
     }
+    if (type === "dessert") expect(details.slenderDessert).toBe(true);
+    if (type === "other") expect(details.questionMark).toBe(2);
     shapes.add(details.shape);
     colors.add(details.fill);
     await noOverflow(page);

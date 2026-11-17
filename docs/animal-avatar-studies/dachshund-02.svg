@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="The bar regular">
+  <title>The bar regular — cut-paper wine companion</title>
+<path fill="#53544f" d="M61 56 L82 54 L98 65 L104 84 L96 101 L59 103 L48 86 L49 67 Z"/>
+<path fill="#53544f" d="M55 27 L69 21 L81 27 L84 40 L75 53 L61 56 L51 49 L33 47 L28 42 L34 37 L50 36 Z"/>
+<path fill="#b98548" d="M50 37 L34 38 L29 42 L35 46 L55 49 L62 46 L58 41 Z M59 55 L70 57 L70 72 L61 81 L53 77 Z"/>
+<path fill="#383e36" d="M73 27 L83 32 Q88 48 83 64 L76 70 L68 62 L73 45 Z"/>
+<path fill="#f1e8d9" d="M59 32 L63 33 L62 36 L59 36 Z"/>
+<path fill="#383e36" d="M29 39 L35 38 L35 43 L29 44 L27 42 Z"/>
+<g class="wine-glass" transform="translate(23 51) rotate(-3) scale(0.88)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#53544f" d="M14 103 L106 77 L107 78.5 L14 105 Z"/>
+<path fill="#b98548" d="M52 74 L60 77 L58 85 L64 90 L64 103 L61 109 L55 109 L52 103 L52 91 L43 85 L46 78 Z"/>
+</svg>

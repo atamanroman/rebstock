@@ -41,7 +41,7 @@ fn picture(profile: db.Profile, preview: Bool) -> Node {
   let #(src, class) = case profile.picture {
     Some(file) -> #("/images/profiles/" <> file, "profile-picture")
     None -> #(
-      "/static/grapevine.svg",
+      c.default_avatar_src,
       "profile-picture profile-picture-placeholder",
     )
   }
@@ -148,7 +148,7 @@ fn settings_form(user: User, profile: db.Profile, saved: Bool) -> Node {
               ],
               [
                 html.Text(
-                  "PNG, JPEG or WebP, up to 2 MB. Shown as a circle on your public profile and in your account menu. Without a picture, the grapevine logo is used.",
+                  "PNG, JPEG or WebP, up to 2 MB. Shown as a circle on your public profile and in your account menu. Without a picture, the default wine-on-a-balcony illustration is used.",
                 ),
               ],
             ),

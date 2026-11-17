@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="Sofa sommelier">
+  <title>Sofa sommelier — cut-paper wine companion</title>
+<path fill="#58313d" d="M26 91 Q13 100 11 86 L9 79 L6 81 Q6 109 31 99 Z"/>
+<path fill="#713745" d="M24 56 L50 62 L82 81 Q91 95 72 104 L31 95 L14 79 L13 65 Z"/>
+<path fill="#f1e8d9" d="M37 63 L68 76 L76 92 L64 99 L38 85 L28 72 Z"/>
+<path fill="#713745" d="M24 37 L30 29 L42 30 L49 35 L65 28 L71 33 L66 40 L52 49 L42 55 L31 51 Z"/>
+<path fill="#58313d" d="M27 34 L37 36 L36 50 L29 60 L21 54 L21 43 Z"/>
+<path fill="#53544f" d="M65 28 L71 30 L72 33 L68 36 L64 34 Z"/>
+<path fill="#f1e8d9" d="M46 37 L52 35 L53 37 L48 40 Z"/>
+<path fill="#713745" d="M56 92 L74 100 L86 92 L91 96 L79 109 L63 106 Z M39 57 L61 65 L81 49 L87 53 L67 76 L55 75 L33 66 Z"/>
+<g class="wine-glass" transform="translate(87 22) rotate(-7) scale(0.9)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#b98548" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#713745" d="M85 49 L91 49 L93 53 L90 60 L85 59 L82 54 Z"/>
+</svg>

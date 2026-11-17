@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="Long lunch">
+  <title>Long lunch — cut-paper wine companion</title>
+<path fill="#8a6032" d="M89 66 Q106 60 104 43 L108 43 Q113 63 96 74 Z"/>
+<path fill="#8a6032" d="M23 84 L35 84 L32 100 L24 100 Z M69 86 L81 85 L86 98 L77 100 Z"/>
+<path fill="#b98548" d="M31 57 Q41 54 53 62 L84 63 Q96 67 95 80 L91 89 L28 88 L17 82 L19 70 Z"/>
+<path fill="#8a6032" d="M48 77 L72 80 L94 75 L91 89 L28 88 L20 82 L22 78 Z"/>
+<path fill="#b98548" d="M25 35 L31 25 L44 25 L49 35 L67 39 L69 44 L59 49 L44 51 L41 61 L27 58 L28 48 L23 44 Z"/>
+<path fill="#d4b979" d="M47 36 L67 39 L69 44 L58 48 L47 47 Z"/>
+<path fill="#62492e" d="M29 29 Q40 27 41 39 L36 57 L28 60 L23 53 L26 39 Z"/>
+<path fill="#53544f" d="M65 39 L70 40 L70 43 L67 46 L64 44 Z M45 33 L48 33 L48 36 L45 37 Z"/>
+<path fill="#b98548" d="M45 64 L64 71 L91 52 L97 56 L68 82 L61 82 L42 72 Z"/>
+<g class="wine-glass" transform="translate(98 23) rotate(6) scale(0.9)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#b98548" d="M91 52 L97 51 L99 55 L96 61 L91 61 L88 57 Z"/>
+</svg>

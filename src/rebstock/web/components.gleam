@@ -18,6 +18,8 @@ import wisp.{type Request, type Response}
 import rebstock/auth.{type User}
 import rebstock/db
 
+pub const default_avatar_src = "/static/avatar.svg"
+
 // --- URL helpers ---
 
 pub fn base_url(req: Request) -> String {
@@ -1501,7 +1503,7 @@ fn site_header(user: User, conn: sqlight.Connection) -> Node {
       "/images/profiles/" <> file,
       "user-avatar",
     )
-    _ -> #("/static/grapevine.svg", "user-avatar user-avatar-placeholder")
+    _ -> #(default_avatar_src, "user-avatar user-avatar-placeholder")
   }
   html.header([attr.class("site-header")], [
     html.div([attr.class("masthead")], [

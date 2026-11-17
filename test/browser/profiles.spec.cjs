@@ -1,4 +1,5 @@
 const { test, expect } = require("@playwright/test");
+const { createHash } = require("node:crypto");
 
 // A real, deliberately non-square 2×1 PNG. It must fit a square box with circular clipping.
 const picture = Buffer.from(
@@ -24,7 +25,7 @@ async function expectAccessible(page) {
   expect(violations).toEqual([]);
 }
 
-test("native profile settings, round pictures and logo fallback stay off home", async ({ browser, request }, testInfo) => {
+test("native profile settings, round pictures and illustrated fallback stay off home", async ({ browser, request }, testInfo) => {
   const username = `profile-${testInfo.project.name}`;
   const headers = { "x-test-user": username };
   // Populate the collection so / exercises the regular dashboard, not just the welcome page.
@@ -43,10 +44,21 @@ test("native profile settings, round pictures and logo fallback stay off home", 
     const page = await context.newPage();
     await page.goto(`/~${username}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(username);
-    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/avatar.svg");
     await expectSquare(page.locator("main .profile-picture"));
+    await expect(page.locator("main .profile-picture")).toHaveCSS("padding", "0px");
+    await expect(page.locator("main .profile-picture")).toHaveCSS("object-fit", "cover");
     const avatar = page.locator(".user-menu .user-avatar");
-    await expect(avatar).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(avatar).toHaveAttribute("src", "/static/avatar.svg");
+    await expect.poll(() => avatar.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    await expect(avatar).toHaveCSS("padding", "0px");
+    await expect(page.locator(".brand-mark")).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/static/grapevine.svg");
+    const illustration = await request.get("/static/avatar.svg");
+    expect(illustration.status()).toBe(200);
+    expect(illustration.headers()["content-type"]).toContain("image/svg+xml");
+    expect(createHash("sha256").update(await illustration.body()).digest("hex")).toBe("16b262b9aadd18dafa0ed731e1db20e0732bb412a6df0f1acae6d3aa4eb5c17d");
+    await page.screenshot({ path: testInfo.outputPath("default-avatar.png"), fullPage: true });
     await expect(avatar).toHaveAttribute("alt", "");
     await expect(avatar).toHaveCSS("border-radius", "100%");
     await expect(avatar).toHaveCSS("width", "28px");
@@ -92,9 +104,9 @@ test("native profile settings, round pictures and logo fallback stay off home", 
     await page.getByLabel("Remove picture").check();
     await page.getByRole("button", { name: "Save profile" }).click();
     await expect(page.getByRole("status")).toHaveText("Profile saved.");
-    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/avatar.svg");
     expect((await request.get(src)).status()).toBe(404);
-    await expect(avatar).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(avatar).toHaveAttribute("src", "/static/avatar.svg");
     await page.getByRole("textbox", { name: "Display name", exact: true }).fill("");
     await page.getByRole("button", { name: "Save profile" }).click();
     await expect(page.getByRole("status")).toHaveText("Profile saved.");
@@ -102,7 +114,7 @@ test("native profile settings, round pictures and logo fallback stay off home", 
     await expect(page.getByRole("textbox", { name: "Username", exact: true })).toHaveValue(username);
     await page.goto(`/~${username}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(username);
-    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/grapevine.svg");
+    await expect(page.locator("main .profile-picture")).toHaveAttribute("src", "/static/avatar.svg");
     await expectSquare(page.locator("main .profile-picture"));
   } finally {
     await context.close();

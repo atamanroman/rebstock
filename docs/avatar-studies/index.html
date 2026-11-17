@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rebstock — ten wine avatar studies</title>
+  <link rel="icon" href="../../priv/static/grapevine.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --ink: #292725; --muted: #6b6662; --rule: #e7e3df; --accent: #713745; }
+    * { box-sizing: border-box; }
+    body { max-width: 1500px; margin: 0 auto; padding: 32px 24px; font: 14px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: white; }
+    h1 { margin: 0; font-size: clamp(25px, 4vw, 34px); font-weight: 500; letter-spacing: -.04em; }
+    header p { max-width: 800px; margin: 8px 0 0; color: var(--muted); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 24px 0; padding-block: 12px; border-block: 1px solid var(--rule); }
+    .toolbar label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+    input { accent-color: var(--accent); }
+    button, a { color: var(--accent); }
+    button, input, a { font: inherit; }
+    button { cursor: pointer; }
+    a { text-underline-offset: 3px; }
+    :is(button, a, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px 24px; }
+    .candidate { min-width: 0; padding-top: 12px; border-top: 1px solid var(--rule); }
+    .candidate:has(input:checked) { border-top: 2px solid var(--accent); padding-top: 11px; }
+    .card-heading { display: flex; align-items: baseline; gap: 8px; }
+    .number { color: var(--accent); font-size: 13px; font-variant-numeric: tabular-nums; }
+    h2 { margin: 0; font-size: 16px; font-weight: 550; }
+    .style { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+    .artboard { width: 100%; height: 184px; display: grid; place-items: center; border: 0; padding: 0; background: none; }
+    .portrait { display: block; width: 160px; height: 160px; border-radius: 50%; background: #faf9f8; object-fit: contain; }
+    body.actual-size .artboard .portrait { width: 96px; height: 96px; }
+    .samples { display: flex; align-items: center; gap: 16px; padding: 8px 0 12px; }
+    .samples figure { margin: 0; display: flex; align-items: center; gap: 8px; }
+    .samples figcaption { font-size: 11px; color: var(--muted); }
+    .samples .profile { width: 96px; height: 96px; }
+    .samples .menu { width: 28px; height: 28px; }
+    .description { min-height: 63px; margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .pick { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
+    .download { display: inline-flex; align-items: center; min-height: 44px; font-size: 12px; }
+    .copy { min-height: 44px; border: 1px solid var(--rule); padding: 8px 14px; background: white; }
+    #selection-status { color: var(--muted); font-size: 13px; }
+    .comparison { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+    .comparison img { width: 56px; height: 140px; object-fit: contain; }
+    .comparison .logo { width: 40px; height: 48px; }
+    footer { margin-top: 28px; color: var(--muted); font-size: 12px; }
+    dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 20px; border: 1px solid var(--rule); color: var(--ink); overflow: auto; }
+    dialog::backdrop { background: rgb(41 39 37 / .4); }
+    .dialog-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    #close-preview { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 26px; color: var(--ink); }
+    #preview-art { width: min(336px, 100%); height: auto; aspect-ratio: 1; margin: 24px auto; }
+    #preview-description { color: var(--muted); }
+    @media (max-width: 1150px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 500px) { body { padding: 24px 16px; } .grid { grid-template-columns: 1fr; } .description { min-height: 0; } .artboard { height: 192px; } .samples { justify-content: center; } }
+  </style>
+  <script src="candidates.js" defer></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const studies = window.avatarStudies;
+      const grid = document.getElementById('candidates');
+      const status = document.getElementById('selection-status');
+      const dialog = document.getElementById('preview');
+      let selected = '';
+      try { selected = localStorage.getItem('rebstock-avatar-study') || ''; } catch {}
+      if (!studies.some(study => study.id === selected)) selected = '';
+      const updateStatus = () => { status.textContent = selected ? `Selected: ${selected}` : 'Nothing applied to the app. Pick one to compare.'; };
+      for (const study of studies) {
+        const article = document.createElement('article');
+        article.className = 'candidate';
+        article.id = study.id.toLowerCase();
+        article.innerHTML = `<div class="card-heading"><span class="number">${study.id.slice(-2)}</span><h2>${study.name}</h2></div>
+          <p class="style">${study.action} · ${study.style}</p>
+          <button class="artboard" type="button" aria-label="Enlarge ${study.id}: ${study.name}"><img class="portrait" src="${study.file}" alt="${study.name}, ${study.style.toLowerCase()}"></button>
+          <div class="samples"><figure><img class="portrait profile" src="${study.file}" alt="${study.name} at profile size"><figcaption>96px</figcaption></figure><figure><img class="portrait menu" src="${study.file}" alt="${study.name} at menu size"><figcaption>28px</figcaption></figure></div>
+          <p class="description">${study.description}</p>
+          <div class="actions"><label class="pick"><input type="radio" name="avatar" value="${study.id}"> Pick ${study.id.slice(-2)}</label><a class="download" href="${study.file}" download="rebstock-${study.id.toLowerCase()}.svg">SVG ↓</a></div>`;
+        const radio = article.querySelector('input');
+        radio.checked = selected === study.id;
+        radio.addEventListener('change', () => {
+          selected = study.id;
+          try { localStorage.setItem('rebstock-avatar-study', selected); } catch {}
+          updateStatus();
+        });
+        article.querySelector('button').addEventListener('click', event => {
+          event.currentTarget.focus();
+          document.getElementById('preview-heading').textContent = `${study.id.slice(-2)} · ${study.name}`;
+          const art = document.getElementById('preview-art');
+          art.src = study.file;
+          art.alt = `${study.name}, ${study.style.toLowerCase()}`;
+          document.getElementById('preview-description').textContent = study.description;
+          dialog.showModal();
+        });
+        grid.append(article);
+      }
+      updateStatus();
+      document.getElementById('actual-size').addEventListener('change', event => document.body.classList.toggle('actual-size', event.target.checked));
+      document.getElementById('close-preview').addEventListener('click', () => dialog.close());
+      document.getElementById('copy-selection').addEventListener('click', async () => {
+        if (!selected) { status.textContent = 'Choose a version first.'; return; }
+        try { await navigator.clipboard.writeText(selected); status.textContent = `Copied ${selected}`; }
+        catch { status.textContent = `Your selection: ${selected}`; }
+      });
+    });
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Ten ways to enjoy a glass of wine</h1>
+    <p>Original avatar studies for Rebstock. Different gestures and visual directions—not ten recolors. The current avatar stays unchanged until you choose.</p>
+  </header>
+  <main>
+    <div class="toolbar">
+      <label><input type="checkbox" id="actual-size"> Main previews at 96px</label>
+      <button class="copy" type="button" id="copy-selection">Copy selection</button>
+      <span id="selection-status" role="status" aria-live="polite"></span>
+    </div>
+    <div class="grid" id="candidates"></div>
+    <noscript><p>Enable JavaScript to see the comparison cards, or open the SVG files directly: <a href="01.svg">01</a>, <a href="02.svg">02</a>, <a href="03.svg">03</a>, <a href="04.svg">04</a>, <a href="05.svg">05</a>, <a href="06.svg">06</a>, <a href="07.svg">07</a>, <a href="08.svg">08</a>, <a href="09.svg">09</a>, <a href="10.svg">10</a>.</p></noscript>
+    <aside class="comparison" aria-label="Approved artwork for context">
+      <span>Approved artwork<br>for palette and feel</span>
+      <img class="logo" src="../../priv/static/grapevine.svg" alt="Rebstock grapevine logo">
+      <img src="../../priv/static/bottles/red.svg" alt="Approved red wine bottle">
+      <img src="../../priv/static/bottles/white.svg" alt="Approved white wine bottle">
+      <img src="../../priv/static/bottles/other.svg" alt="Approved other wine bottle">
+      <a href="../current-logo.html">Current production avatar</a>
+    </aside>
+  </main>
+  <dialog id="preview" aria-labelledby="preview-heading" aria-describedby="preview-description">
+    <div class="dialog-top"><h2 id="preview-heading">Avatar preview</h2><button type="button" id="close-preview" aria-label="Close preview" autofocus>×</button></div>
+    <img class="portrait" id="preview-art" alt="">
+    <p id="preview-description"></p>
+  </dialog>
+  <footer>All ten are standalone SVGs. No fonts, stock artwork, external resources or app/database changes. Your gallery pick is stored only in this browser.</footer>
+</body>
+</html>

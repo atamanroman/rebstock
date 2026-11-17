@@ -61,6 +61,8 @@ pub fn settings_form_has_native_labels_and_limits_test() {
   let assert True = string.contains(body, "enctype=\"multipart/form-data\"")
   let assert True = string.contains(body, "maxlength=\"100\"")
   let assert True = string.contains(body, "profile-picture-placeholder")
+  let assert True = string.contains(body, "src=\"/static/avatar.svg\"")
+  let assert True = string.contains(body, "wine-on-a-balcony illustration")
   Nil
 }
 
@@ -85,6 +87,7 @@ pub fn saving_updates_only_the_authenticated_user_test() {
     |> simulate.read_body
   let assert True = string.contains(public, "<h1>Wine Person</h1>")
   let assert True = string.contains(public, "profile-picture-placeholder")
+  let assert True = string.contains(public, "src=\"/static/avatar.svg\"")
   Nil
 }
 

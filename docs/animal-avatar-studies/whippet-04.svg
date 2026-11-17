@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="After the tasting">
+  <title>After the tasting — cut-paper wine companion</title>
+<path fill="#c5b99f" d="M86 99 Q64 115 29 100 L24 101 L25 104 Q63 122 91 108 Z"/>
+<path fill="#f1e8d9" d="M75 47 L88 52 L99 73 Q108 89 87 102 L56 107 L37 98 L43 82 L61 72 L68 60 Z"/>
+<path fill="#c5b99f" d="M80 49 L88 52 L84 68 L68 84 L61 78 L70 63 Z"/>
+<path fill="#f1e8d9" d="M74 24 L86 22 L94 29 L94 37 L86 47 L74 49 L66 43 L52 40 L49 36 L53 33 L70 33 Z"/>
+<path fill="#53544f" d="M86 23 L97 25 L99 37 L93 43 L87 34 Z M52 33 L49 34 L47 37 L51 40 L55 39 L54 35 Z M73 30 L76 30 L75 34 L72 33 Z"/>
+<path fill="#53544f" d="M88 79 Q101 88 91 99 L77 103 L68 95 L75 82 Z"/>
+<path fill="#f1e8d9" d="M65 93 L43 97 L22 89 L18 93 L42 107 L70 108 L78 101 Z M74 65 L57 80 L30 62 L26 55 L21 57 L23 65 L54 91 Q58 93 63 88 L83 71 Z"/>
+<g class="wine-glass" transform="translate(25 26) rotate(-5) scale(0.95)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#f1e8d9" d="M26 55 L31 58 L31 64 L26 67 L22 64 L21 59 Z"/>
+</svg>

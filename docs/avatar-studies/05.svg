@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="A café moment: person enjoying wine">
+  <title>A café moment — Relaxed bistro sketch</title>
+<g stroke="#53544f" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 47 Q14 29 27 23 Q42 16 47 31 L46 41 L51 47 L45 49 Q42 58 32 55 L30 65"/>
+  <path d="M20 36 Q20 21 34 26 M27 66 Q15 68 13 81 L11 98 L43 98 L55 114 M34 68 Q41 72 46 85 L68 83 M20 76 L27 89 L48 91"/>
+  <path d="M5 104 L38 104 M10 90 L6 115 M49 92 L114 92 M82 93 L78 116"/>
+  <path d="M76 50 L98 49 Q101 68 88 72 Q76 72 76 50 Z M88 72 L88 87 M80 88 L96 88"/>
+</g>
+<path fill="#713745" d="M78 60 L97 58 Q99 68 88 70 Q80 69 78 60 Z"/>
+<path fill="#aa696b" d="M13 77 Q13 68 25 67 L31 73 L24 86 L12 88 Z"/>
+</svg>

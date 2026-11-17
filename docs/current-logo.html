@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current Rebstock logo</title>
+  <link rel="icon" href="../priv/static/grapevine.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --ink: #292725; --muted: #6b6662; }
+    * { box-sizing: border-box; }
+    body { max-width: 1100px; margin: 0 auto; padding: 40px 24px; font: 15px/1.6 system-ui, -apple-system, sans-serif; background: white; color: var(--ink); }
+    h1 { margin: 0; font-size: 28px; font-weight: 500; letter-spacing: -.04em; }
+    header p { margin: 8px 0 32px; color: var(--muted); }
+    h2 { font-size: 17px; font-weight: 500; margin: 0 0 16px; }
+    figure { margin: 0; }
+    figcaption, .caption { color: var(--muted); font-size: 13px; margin-top: 12px; }
+    .hero { display: flex; flex-wrap: wrap; align-items: center; gap: 32px 64px; margin-bottom: 40px; }
+    .hero-mark { display: block; width: 120px; height: 144px; }
+    .brand { display: inline-flex; align-items: center; gap: .65rem; min-height: 44px; font-size: 19px; font-weight: 650; letter-spacing: -.04em; }
+    .brand img { flex: none; width: 32px; height: 38px; }
+    .sizes { display: flex; flex-wrap: wrap; gap: 32px 48px; align-items: flex-end; margin-bottom: 40px; }
+    .size-sample { height: 100px; display: flex; align-items: flex-end; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #faf9f8; object-fit: cover; }
+    .profile { width: 96px; height: 96px; border-radius: 50%; background: #faf9f8; object-fit: cover; }
+    .bottles { display: flex; flex-wrap: wrap; gap: 24px 40px; }
+    .bottles img { display: block; width: 88px; height: 220px; object-fit: contain; }
+    .bottles figure { text-align: center; }
+    footer { margin-top: 40px; font-size: 12px; color: var(--muted); }
+    a { color: #713745; text-underline-offset: 3px; }
+    a:focus-visible { outline: 2px solid #713745; outline-offset: 4px; }
+    @media (max-width: 520px) { body { padding: 24px 16px; } .hero { gap: 24px; } .sizes { gap: 24px; } .bottles { gap: 24px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Rebstock — logo and default avatar</h1>
+    <p>The cut-paper grapevine and Spacepixel Creative’s wine-on-a-balcony illustration, using the app’s production SVG files.</p>
+  </header>
+  <main>
+    <section aria-labelledby="mark-heading">
+      <h2 id="mark-heading">Mark and masthead</h2>
+      <div class="hero">
+        <figure><img class="hero-mark" src="../priv/static/grapevine.svg" alt="Rebstock grapevine: cut-paper olive leaf and burgundy grape bunch"><figcaption>Enlarged mark</figcaption></figure>
+        <div><div class="brand"><img src="../priv/static/grapevine.svg" alt=""><span>Rebstock</span></div><p class="caption">Actual header size · 32 × 38px</p></div>
+      </div>
+    </section>
+    <section aria-labelledby="sizes-heading">
+      <h2 id="sizes-heading">At the sizes used in the app</h2>
+      <div class="sizes">
+        <figure><div class="size-sample"><img src="../priv/static/grapevine.svg" width="16" height="16" alt="Grapevine favicon at 16 pixels"></div><figcaption>16px favicon</figcaption></figure>
+        <figure><div class="size-sample"><img src="../priv/static/grapevine.svg" width="32" height="32" alt="Grapevine favicon at 32 pixels"></div><figcaption>32px favicon</figcaption></figure>
+        <figure><div class="size-sample"><img class="avatar" src="../priv/static/avatar.svg" alt="Wine-on-a-balcony illustration as the default account avatar"></div><figcaption>28px avatar</figcaption></figure>
+        <figure><div class="size-sample"><img class="profile" src="../priv/static/avatar.svg" alt="Wine-on-a-balcony illustration as the default profile picture"></div><figcaption>96px profile</figcaption></figure>
+      </div>
+    </section>
+    <section aria-labelledby="bottles-heading">
+      <h2 id="bottles-heading">Alongside the approved bottle artwork</h2>
+      <div class="bottles">
+        <figure><img src="../priv/static/bottles/red.svg" alt="Red wine bottle"><figcaption>Red</figcaption></figure>
+        <figure><img src="../priv/static/bottles/white.svg" alt="White wine bottle"><figcaption>White</figcaption></figure>
+        <figure><img src="../priv/static/bottles/orange.svg" alt="Orange wine bottle"><figcaption>Orange</figcaption></figure>
+        <figure><img src="../priv/static/bottles/other.svg" alt="Other wine bottle"><figcaption>Other</figcaption></figure>
+      </div>
+    </section>
+  </main>
+  <footer>Avatar illustration by <a href="https://unsplash.com/illustrations/person-with-wine-on-balcony-xlfW1_TPGY8?utm_source=rebstock&amp;utm_medium=referral">Spacepixel Creative on Unsplash</a>, under the <a href="https://unsplash.com/license">Unsplash License</a>. <a href="../LICENSE.md">License notice</a> · <a href="current-bottles.html">View all eight bottles</a>.</footer>
+</body>
+</html>

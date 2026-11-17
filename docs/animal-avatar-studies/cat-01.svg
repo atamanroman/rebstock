@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="Off-duty cellar cat">
+  <title>Off-duty cellar cat — cut-paper wine companion</title>
+<path fill="#c5b99f" d="M28 95 Q61 112 101 98 L104 101 Q94 114 67 114 Q39 113 23 100 Z"/>
+<path fill="#f1e8d9" d="M25 51 L38 43 L60 45 L72 64 Q82 78 68 95 L48 103 L29 100 Q12 89 14 72 Z"/>
+<path fill="#e3ddcc" d="M16 71 L23 63 L21 80 Q31 96 52 95 L68 91 L62 102 L41 105 L24 98 L15 88 Z"/>
+<path fill="#f1e8d9" d="M39 48 L32 36 L32 18 L42 25 L53 24 L67 17 L65 37 L60 48 L48 52 Z"/>
+<path fill="#aa696b" d="M35 23 L42 28 L36 31 Z M58 27 L64 22 L62 31 Z"/>
+<path fill="#53544f" d="M38 35 Q42 38 46 34 L46 36 Q42 40 38 37 Z M53 34 Q56 37 60 33 L60 35 Q56 39 53 36 Z M47 39 L52 39 L50 42 L51 45 L49 46 L48 43 Z"/>
+<path fill="#e3ddcc" d="M51 80 Q62 70 74 75 L82 86 L94 79 L98 82 L85 99 L71 100 L64 90 L50 98 Z"/>
+<path fill="#f1e8d9" d="M61 51 L73 65 L91 51 L97 55 L79 75 L72 76 L60 67 Z"/>
+<g class="wine-bottle" transform="translate(22 43) rotate(10) scale(0.8)"><path fill="#53544f" d="M5 0 L12 0 L12 13 L17 21 L18 48 L0 49 L0 22 L5 13 Z"/><path fill="#383e36" d="M12 13 L17 21 L18 48 L12 49 L13 26 Z"/><path fill="#713745" d="M4 0 L13 0 L13 7 L4 7 Z"/><path fill="#f1e8d9" d="M2 26 L16 25 L16 40 L2 42 Z"/><path fill="#713745" d="M8 29 L10 28 L11 37 L8 38 Z"/></g>
+<g class="wine-glass" transform="translate(98 21) rotate(8) scale(0.86)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#f1e8d9" d="M35 48 L37 54 L29 61 L22 61 L22 56 Z M91 48 L96 47 L98 51 L95 57 L89 57 L87 54 Z"/>
+</svg>

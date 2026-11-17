@@ -202,3 +202,17 @@ Use the MCP tools to import your own export or purchase documents.
 `just setup-dev` will check if all dev tools are available and install Git pre-commit format hook.
 
 If you're on nix, `nix develop` will drop you in a dev shell with all development tools present.
+
+## License and artwork credits
+
+Rebstock is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
+
+The default avatar uses **“Person with wine on balcony”**, an illustration by
+[Spacepixel Creative on Unsplash](https://unsplash.com/illustrations/person-with-wine-on-balcony-xlfW1_TPGY8?utm_source=rebstock&utm_medium=referral),
+under the [Unsplash License](https://unsplash.com/license). The downloaded SVG is
+included unmodified at [`priv/static/avatar.svg`](./priv/static/avatar.svg) and
+displayed with a circular crop. Uploaded profile photos take precedence.
+
+This third-party illustration is not relicensed under the project's PolyForm
+license. See [LICENSE.md](./LICENSE.md) for its source, attribution and license
+notice.

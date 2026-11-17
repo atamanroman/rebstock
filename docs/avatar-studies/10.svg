@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="The cellar signet: person drinking wine">
+  <title>The cellar signet — Negative-space emblem</title>
+<defs><clipPath id="signet"><circle cx="60" cy="60" r="56"/></clipPath></defs>
+<g clip-path="url(#signet)">
+<circle cx="60" cy="60" r="56" fill="#713745"/>
+<path fill="#fffdf8" d="M16 111 Q20 83 34 74 L44 69 L43 59 Q31 56 30 43 Q27 26 39 20 Q51 13 60 25 L61 37 L67 44 L61 47 Q61 54 54 58 L51 70 L66 85 L80 69 L87 74 L70 101 L58 97 L46 86 L50 116 Z"/>
+<path fill="#713745" d="M28 42 Q21 22 39 16 Q54 12 63 29 L54 32 L46 24 L37 30 L33 44 Z"/>
+<path stroke="#fffdf8" stroke-width="2" stroke-linejoin="round" d="M69 45 L91 37 Q100 54 89 62 Q78 65 69 45 Z M89 62 L96 78 M89 82 L105 74"/>
+<path fill="#fffdf8" d="M76 51 L94 44 Q99 54 88 60 Q82 62 76 51 Z"/>
+</g>
+</svg>

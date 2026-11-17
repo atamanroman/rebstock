@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none" role="img" aria-label="Small dog, tall glass">
+  <title>Small dog, tall glass — cut-paper wine companion</title>
+<path fill="#53544f" d="M89 76 Q103 67 103 52 L107 54 Q112 74 96 85 Z"/>
+<path fill="#c5b99f" d="M28 88 L38 88 L35 105 L26 106 Z M77 89 L86 88 L91 102 L83 105 Z"/>
+<path fill="#e3ddcc" d="M30 63 L52 59 L68 70 L91 71 L99 81 L96 94 L34 95 L18 86 L20 73 Z"/>
+<path fill="#53544f" d="M60 69 L82 69 L91 72 L86 86 L68 85 L56 78 Z"/>
+<path fill="#f1e8d9" d="M35 35 L42 27 L53 27 L59 37 L75 40 L77 45 L66 51 L55 51 L52 64 L37 65 L35 50 L31 45 Z"/>
+<path fill="#53544f" d="M39 30 L49 30 L48 48 L43 60 L34 62 L30 53 L35 40 Z M73 40 L78 41 L78 45 L74 47 L71 45 Z M55 34 L59 34 L58 38 L55 38 Z"/>
+<path fill="#e3ddcc" d="M53 66 L74 76 L92 60 L98 62 L81 86 L72 87 L50 75 Z"/>
+<g class="wine-bottle" transform="translate(20 54) rotate(-9) scale(0.76)"><path fill="#53544f" d="M5 0 L12 0 L12 13 L17 21 L18 48 L0 49 L0 22 L5 13 Z"/><path fill="#383e36" d="M12 13 L17 21 L18 48 L12 49 L13 26 Z"/><path fill="#713745" d="M4 0 L13 0 L13 7 L4 7 Z"/><path fill="#f1e8d9" d="M2 26 L16 25 L16 40 L2 42 Z"/><path fill="#713745" d="M8 29 L10 28 L11 37 L8 38 Z"/></g>
+<g class="wine-glass" transform="translate(100 25) rotate(4) scale(1)"><path stroke="#53544f" stroke-width="1.35" stroke-linejoin="round" d="M-10 0 L10 0 L10 9 Q9 19 0 21 Q-9 19 -10 9 Z M0 21 L0 34 M-8 35 L8 35"/><path fill="#713745" d="M-9 9 L9 10 Q8 18 0 20 Q-8 18 -9 9 Z"/></g>
+<path fill="#f1e8d9" d="M90 60 L96 58 L99 62 L97 68 L92 69 L88 65 Z M34 75 L38 79 L33 86 L24 85 L24 79 Z"/>
+</svg>
