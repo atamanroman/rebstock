@@ -1,5 +1,22 @@
 # Rebstock Changelog
 
+## 0.4.2
+
+No database migrations or configuration changes.
+
+- Refine wine details with clearer headings, grouped metadata, plain vintage
+  links, and responsive ratings and cellar-history columns.
+- Add distinct cut-paper bottle illustrations for all eight wine types, with
+  accessible type labels. Uploaded wine photos still take precedence.
+- Redraw the grapevine brand mark and favicon to match the bottle artwork.
+- Add a default avatar by Spacepixel Creative on Unsplash, with attribution and a
+  separate artwork license notice. Uploaded profile photos still take precedence.
+- Consolidate production previews and study summaries in the artwork collection;
+  remove old study assets and refresh README and project-site screenshots.
+- Add reproducible demo screenshots with `npm run screenshots` and standalone
+  artwork checks with `npm run test:artwork`. Share browser-test helpers and keep
+  functional coverage without freezing illustration path counts or colors.
+
 ## 0.4.1
 
 - Accept Authelia's `scp` access-token scope array as well as OAuth `scope`
